@@ -1,0 +1,8 @@
+node_modules
+*.log
+docs/.vitepress/cache
+docs/.vitepress/dist
+docs/.env
+docs/sponsorkit/.cache.json
+docs/sponsorkit/sponsors.json
+docs/sponsorkit/sponsors.png
