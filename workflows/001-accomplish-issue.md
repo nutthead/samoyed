@@ -12,7 +12,7 @@ CLAUDE_PERMISSIONS: ALL GRANTED
 
 This workflow provides a systematic approach to implementing GitHub issues with precision and without getting overwhelmed.
 
-Execute it for {GITHUB_ISSUE}.
+**__Execute it for {GITHUB_ISSUE}!__**
 
 ## Type Definitions
 

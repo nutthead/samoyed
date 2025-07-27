@@ -56,15 +56,24 @@ fn main() -> Result<()> {
             init_command(project_type)?;
         }
         Some(Commands::Add { file, command }) => {
-            deprecated_command_warning("add", &format!("samoid init && echo '{}: {}' >> samoid.toml", file, command));
+            deprecated_command_warning(
+                "add",
+                &format!("samoid init && echo '{}: {}' >> samoid.toml", file, command),
+            );
             std::process::exit(1);
         }
         Some(Commands::Set { file, command }) => {
-            deprecated_command_warning("set", &format!("samoid init && echo '{}: {}' >> samoid.toml", file, command));
+            deprecated_command_warning(
+                "set",
+                &format!("samoid init && echo '{}: {}' >> samoid.toml", file, command),
+            );
             std::process::exit(1);
         }
         Some(Commands::Uninstall) => {
-            deprecated_command_warning("uninstall", "rm -rf .samoid && git config --unset core.hooksPath");
+            deprecated_command_warning(
+                "uninstall",
+                "rm -rf .samoid && git config --unset core.hooksPath",
+            );
             std::process::exit(1);
         }
         None => {
@@ -83,19 +92,21 @@ fn init_command(project_type_hint: Option<String>) -> Result<()> {
     }
 
     // Create .samoid directory if it doesn't exist
-    std::fs::create_dir_all(".samoid")
-        .context("Failed to create .samoid directory")?;
+    std::fs::create_dir_all(".samoid").context("Failed to create .samoid directory")?;
 
     // Check if samoid.toml already exists
     let config_exists = Path::new("samoid.toml").exists();
-    
+
     if config_exists {
         println!("samoid.toml already exists. Updating configuration...");
     } else {
         // Detect project type
         let project_type = if let Some(hint) = project_type_hint {
             ProjectType::from_string(&hint).unwrap_or_else(|| {
-                println!("Warning: Unknown project type '{}', auto-detecting...", hint);
+                println!(
+                    "Warning: Unknown project type '{}', auto-detecting...",
+                    hint
+                );
                 ProjectType::auto_detect()
             })
         } else {
@@ -104,15 +115,17 @@ fn init_command(project_type_hint: Option<String>) -> Result<()> {
 
         // Create default configuration
         let config = SamoidConfig::default_for_project_type(&project_type);
-        
-        // Write samoid.toml
-        let toml_content = toml::to_string_pretty(&config)
-            .context("Failed to serialize configuration")?;
-        
-        std::fs::write("samoid.toml", toml_content)
-            .context("Failed to write samoid.toml")?;
 
-        println!("✅ Created samoid.toml with {} defaults", project_type.name());
+        // Write samoid.toml
+        let toml_content =
+            toml::to_string_pretty(&config).context("Failed to serialize configuration")?;
+
+        std::fs::write("samoid.toml", toml_content).context("Failed to write samoid.toml")?;
+
+        println!(
+            "✅ Created samoid.toml with {} defaults",
+            project_type.name()
+        );
     }
 
     // Configure Git hooks path
@@ -155,16 +168,16 @@ mod tests {
     #[test]
     fn test_init_command_creates_directories() {
         let _temp_dir = setup_test_repo();
-        
+
         // Should create .samoid directory and samoid.toml even if git config fails
         let result = init_command(None);
-        
+
         // Should create .samoid directory
         assert!(Path::new(".samoid").exists());
-        
+
         // Should create samoid.toml
         assert!(Path::new("samoid.toml").exists());
-        
+
         // Git config might fail in test environment, but file creation should work
         if result.is_err() {
             let error_msg = result.unwrap_err().to_string();
@@ -176,7 +189,7 @@ mod tests {
     fn test_init_command_fails_without_git() {
         let temp_dir = TempDir::new().unwrap();
         std::env::set_current_dir(temp_dir.path()).unwrap();
-        
+
         // Should fail without .git
         assert!(init_command(None).is_err());
     }
@@ -184,17 +197,17 @@ mod tests {
     #[test]
     fn test_init_command_with_project_type_hint() {
         let _temp_dir = setup_test_repo();
-        
+
         // Create a Cargo.toml so the project type hint works properly
         fs::write("Cargo.toml", "[package]\nname = \"test\"").unwrap();
-        
+
         let result = init_command(Some("rust".to_string()));
-        
+
         // Should create samoid.toml with Rust defaults
         assert!(Path::new("samoid.toml").exists());
         let content = fs::read_to_string("samoid.toml").unwrap();
         assert!(content.contains("cargo"));
-        
+
         // Git config might fail in test environment, but file creation should work
         if result.is_err() {
             let error_msg = result.unwrap_err().to_string();
