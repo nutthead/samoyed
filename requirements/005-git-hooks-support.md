@@ -52,6 +52,7 @@ Sprint 1
 - `git-integration`
 - `hooks`
 - `compatibility`
+- `🔨 phase: construction`
 
 ## Traceability
 

@@ -41,6 +41,7 @@ Sprint 2
 - `error-handling`
 - `reliability`
 - `user-experience`
+- `🔨 phase: construction`
 
 ## Traceability
 
