@@ -17,26 +17,33 @@ pub enum ProjectType {
 impl ProjectType {
     /// Auto-detect project type based on files in current directory
     pub fn auto_detect() -> Self {
+        Self::auto_detect_in_path(".")
+    }
+
+    /// Auto-detect project type based on files in specified directory
+    pub fn auto_detect_in_path<P: AsRef<Path>>(path: P) -> Self {
+        let path = path.as_ref();
+        
         // Check for Rust project
-        if Path::new("Cargo.toml").exists() {
+        if path.join("Cargo.toml").exists() {
             return ProjectType::Rust;
         }
 
         // Check for Go project
-        if Path::new("go.mod").exists() || Path::new("go.sum").exists() {
+        if path.join("go.mod").exists() || path.join("go.sum").exists() {
             return ProjectType::Go;
         }
 
         // Check for Node.js project
-        if Path::new("package.json").exists() {
+        if path.join("package.json").exists() {
             return ProjectType::Node;
         }
 
         // Check for Python project
-        if Path::new("requirements.txt").exists()
-            || Path::new("pyproject.toml").exists()
-            || Path::new("setup.py").exists()
-            || Path::new("Pipfile").exists()
+        if path.join("requirements.txt").exists()
+            || path.join("pyproject.toml").exists()
+            || path.join("setup.py").exists()
+            || path.join("Pipfile").exists()
         {
             return ProjectType::Python;
         }
@@ -97,57 +104,51 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
-    fn setup_temp_dir() -> TempDir {
-        let temp_dir = TempDir::new().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
-        temp_dir
-    }
-
     #[test]
     fn test_detect_rust_project() {
-        let _temp_dir = setup_temp_dir();
-        fs::write("Cargo.toml", "[package]\nname = \"test\"").unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("Cargo.toml"), "[package]\nname = \"test\"").unwrap();
 
-        assert_eq!(ProjectType::auto_detect(), ProjectType::Rust);
+        assert_eq!(ProjectType::auto_detect_in_path(temp_dir.path()), ProjectType::Rust);
     }
 
     #[test]
     fn test_detect_go_project() {
-        let _temp_dir = setup_temp_dir();
-        fs::write("go.mod", "module test").unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("go.mod"), "module test").unwrap();
 
-        assert_eq!(ProjectType::auto_detect(), ProjectType::Go);
+        assert_eq!(ProjectType::auto_detect_in_path(temp_dir.path()), ProjectType::Go);
     }
 
     #[test]
     fn test_detect_node_project() {
-        let _temp_dir = setup_temp_dir();
-        fs::write("package.json", "{}").unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("package.json"), "{}").unwrap();
 
-        assert_eq!(ProjectType::auto_detect(), ProjectType::Node);
+        assert_eq!(ProjectType::auto_detect_in_path(temp_dir.path()), ProjectType::Node);
     }
 
     #[test]
     fn test_detect_python_project() {
-        let _temp_dir = setup_temp_dir();
-        fs::write("requirements.txt", "").unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("requirements.txt"), "").unwrap();
 
-        assert_eq!(ProjectType::auto_detect(), ProjectType::Python);
+        assert_eq!(ProjectType::auto_detect_in_path(temp_dir.path()), ProjectType::Python);
     }
 
     #[test]
     fn test_detect_python_project_pyproject() {
-        let _temp_dir = setup_temp_dir();
-        fs::write("pyproject.toml", "").unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("pyproject.toml"), "").unwrap();
 
-        assert_eq!(ProjectType::auto_detect(), ProjectType::Python);
+        assert_eq!(ProjectType::auto_detect_in_path(temp_dir.path()), ProjectType::Python);
     }
 
     #[test]
     fn test_detect_unknown_project() {
-        let _temp_dir = setup_temp_dir();
+        let temp_dir = TempDir::new().unwrap();
 
-        assert_eq!(ProjectType::auto_detect(), ProjectType::Unknown);
+        assert_eq!(ProjectType::auto_detect_in_path(temp_dir.path()), ProjectType::Unknown);
     }
 
     #[test]
@@ -242,11 +243,11 @@ mod tests {
     #[test]
     fn test_priority_detection() {
         // Test that Rust takes priority when multiple project files exist
-        let _temp_dir = setup_temp_dir();
-        fs::write("Cargo.toml", "[package]\nname = \"test\"").unwrap();
-        fs::write("package.json", "{}").unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("Cargo.toml"), "[package]\nname = \"test\"").unwrap();
+        fs::write(temp_dir.path().join("package.json"), "{}").unwrap();
 
         // Should detect Rust because it's checked first
-        assert_eq!(ProjectType::auto_detect(), ProjectType::Rust);
+        assert_eq!(ProjectType::auto_detect_in_path(temp_dir.path()), ProjectType::Rust);
     }
 }

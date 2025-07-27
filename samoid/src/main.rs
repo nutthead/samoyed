@@ -30,22 +30,6 @@ enum Commands {
         #[arg(short, long)]
         project_type: Option<String>,
     },
-    /// Deprecated: use 'samoid init' instead
-    Add {
-        #[arg(required = true)]
-        file: String,
-        #[arg(required = true)]
-        command: String,
-    },
-    /// Deprecated: use 'samoid init' instead
-    Set {
-        #[arg(required = true)]
-        file: String,
-        #[arg(required = true)]
-        command: String,
-    },
-    /// Deprecated: use 'samoid init' instead
-    Uninstall,
 }
 
 fn main() -> Result<()> {
@@ -55,29 +39,10 @@ fn main() -> Result<()> {
         Some(Commands::Init { project_type }) => {
             init_command(project_type)?;
         }
-        Some(Commands::Add { file, command }) => {
-            deprecated_command_warning(
-                "add",
-                &format!("samoid init && echo '{}: {}' >> samoid.toml", file, command),
-            );
-            std::process::exit(1);
-        }
-        Some(Commands::Set { file, command }) => {
-            deprecated_command_warning(
-                "set",
-                &format!("samoid init && echo '{}: {}' >> samoid.toml", file, command),
-            );
-            std::process::exit(1);
-        }
-        Some(Commands::Uninstall) => {
-            deprecated_command_warning(
-                "uninstall",
-                "rm -rf .samoid && git config --unset core.hooksPath",
-            );
-            std::process::exit(1);
-        }
         None => {
-            deprecated_command_warning("(no command)", "samoid init");
+            // Show help when no command is provided
+            eprintln!("Error: No command specified. Use 'samoid init' to get started.");
+            eprintln!("Run 'samoid --help' for usage information.");
             std::process::exit(1);
         }
     }
@@ -145,12 +110,6 @@ fn init_command(project_type_hint: Option<String>) -> Result<()> {
     Ok(())
 }
 
-fn deprecated_command_warning(command: &str, alternative: &str) {
-    eprintln!("⚠️  Command '{}' is deprecated.", command);
-    eprintln!("💡 Use instead: {}", alternative);
-    eprintln!("📖 See documentation: https://github.com/nutthead/samoid");
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,6 +121,11 @@ mod tests {
         let git_dir = temp_dir.path().join(".git");
         fs::create_dir(&git_dir).unwrap();
         std::env::set_current_dir(temp_dir.path()).unwrap();
+        
+        // Clean up any existing samoid.toml from previous tests
+        let _ = fs::remove_file("samoid.toml");
+        let _ = fs::remove_dir_all(".samoid");
+        
         temp_dir
     }
 
@@ -172,10 +136,10 @@ mod tests {
         // Should create .samoid directory and samoid.toml even if git config fails
         let result = init_command(None);
 
-        // Should create .samoid directory
+        // Should create .samoid directory (in current working directory, which is temp_dir)
         assert!(Path::new(".samoid").exists());
 
-        // Should create samoid.toml
+        // Should create samoid.toml (in current working directory, which is temp_dir)
         assert!(Path::new("samoid.toml").exists());
 
         // Git config might fail in test environment, but file creation should work
