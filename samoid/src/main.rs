@@ -121,11 +121,11 @@ mod tests {
         let git_dir = temp_dir.path().join(".git");
         fs::create_dir(&git_dir).unwrap();
         std::env::set_current_dir(temp_dir.path()).unwrap();
-        
+
         // Clean up any existing samoid.toml from previous tests
         let _ = fs::remove_file("samoid.toml");
         let _ = fs::remove_dir_all(".samoid");
-        
+
         temp_dir
     }
 
