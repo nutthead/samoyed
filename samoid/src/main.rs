@@ -81,7 +81,7 @@ fn init_command(
     fs.create_dir_all(Path::new(".samoid"))
         .context("Failed to create .samoid directory")?;
 
-    // Check if samoid.toml already exists
+    // Determine initialization mode: existing config gets updated, new projects get generated defaults
     let config_exists = fs.exists(Path::new("samoid.toml"));
 
     // Check if user wants verbose output
