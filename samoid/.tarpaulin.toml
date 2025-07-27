@@ -1,0 +1,3 @@
+[report]
+out = ["Html", "Json"]
+output-dir = "target/tarpaulin/coverage"
