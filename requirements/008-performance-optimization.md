@@ -1,7 +1,7 @@
-# Requirement 010: Performance Optimization
+# Requirement 008: Performance Optimization
 
 ## Basic Information
-- **ID**: 10
+- **ID**: 8
 - **Title**: Performance Optimization
 - **Type**: Non-Functional
 - **Priority**: Medium
@@ -40,6 +40,7 @@ Sprint 3
 - `performance`
 - `optimization`
 - `benchmarking`
+- `🔨 phase: construction`
 
 ## Traceability
 

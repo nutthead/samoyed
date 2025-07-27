@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+This project's root directory is file:~/Projects/github.com/typicode/husky-to-samoid/.
+
 ## Project Overview
 
 This repository contains two implementations of Husky, a modern native Git hooks manager:
@@ -9,7 +11,7 @@ This repository contains two implementations of Husky, a modern native Git hooks
 ### Current Implementation (`husky/`)
 The existing Node.js/JavaScript implementation consisting of:
 - **Core module** (`index.js`): Default export function that installs Git hooks by configuring `core.hooksPath` and creating hook files
-- **CLI binary** (`bin.js`): Command-line interface with `init` command and deprecated command warnings  
+- **CLI binary** (`bin.js`): Command-line interface with `init` command and deprecated command warnings
 - **Hook runner** (`husky` binary): Shell script that executes actual hook commands with proper environment setup
 - **TypeScript definitions** (`index.d.ts`): Simple function signature for the default export
 
@@ -105,12 +107,12 @@ fi
 cargo test
 
 # Alternative: Use explicit paths for monorepo
-cargo test --manifest-path samoid/Cargo.toml
+cargo test --manifest-path ~/Projects/github.com/typicode/husky-to-samoid/samoid/Cargo.toml
 ```
 
 **Directory validation patterns:**
 - Check for `Cargo.toml` before `cargo` commands
-- Check for `package.json` before `npm`/`yarn` commands  
+- Check for `package.json` before `npm`/`yarn` commands
 - Use `pwd` to verify current location
 - Prefer explicit paths (`--manifest-path`) over `cd` when possible
 
@@ -123,17 +125,17 @@ validateAndExecute() {
     local tool="$1"
     local cmd="$2"
     local required_file="$3"
-    
+
     if [[ ! -f "$required_file" ]]; then
         echo "❌ Missing $required_file for $tool command"
         return 1
     fi
-    
+
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "❌ $tool not found in PATH"
         return 1
     fi
-    
+
     eval "$tool $cmd"
 }
 

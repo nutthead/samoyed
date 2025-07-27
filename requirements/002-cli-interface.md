@@ -66,6 +66,7 @@ Sprint 1
 - `cli`
 - `user-interface`
 - `initialization`
+- `🔨 phase: construction`
 
 ## Traceability
 

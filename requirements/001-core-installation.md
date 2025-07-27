@@ -42,6 +42,7 @@ Sprint 1
 - `core-functionality`
 - `git-integration`
 - `installation`
+- `🔨 phase: construction`
 
 ## Traceability
 

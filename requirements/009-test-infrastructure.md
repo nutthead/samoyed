@@ -1,7 +1,7 @@
-# Requirement 011: Comprehensive Test Infrastructure
+# Requirement 009: Comprehensive Test Infrastructure
 
 ## Basic Information
-- **ID**: 11
+- **ID**: 9
 - **Title**: Comprehensive Test Infrastructure
 - **Type**: Non-Functional
 - **Priority**: High
@@ -43,6 +43,7 @@ Sprint 1
 - `testing`
 - `quality-assurance`
 - `infrastructure`
+- `📐 phase: elaboration`
 
 ## Traceability
 
