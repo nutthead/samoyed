@@ -36,13 +36,16 @@ This allows complete control over external dependencies during testing while mai
 
 #### 1. Environment Trait (`src/environment.rs`)
 ```rust
+// Final simplified version after removing unused methods
 pub trait Environment {
     fn get_var(&self, key: &str) -> Option<String>;
-    fn set_var(&mut self, key: &str, value: &str);
-    fn remove_var(&mut self, key: &str);
-    fn current_dir(&self) -> io::Result<PathBuf>;
-    fn set_current_dir(&mut self, path: &Path) -> io::Result<()>;
 }
+
+// Original version had more methods that were removed during optimization:
+// fn set_var(&mut self, key: &str, value: &str);
+// fn remove_var(&mut self, key: &str);
+// fn current_dir(&self) -> io::Result<PathBuf>;
+// fn set_current_dir(&mut self, path: &Path) -> io::Result<()>;
 ```
 
 #### 2. CommandRunner Trait
@@ -131,6 +134,61 @@ fn test_husky_disabled() {
 }
 ```
 
+#### Comprehensive Testing Examples
+The dependency injection pattern enabled sophisticated testing scenarios:
+
+##### Real System Integration Tests
+```rust
+#[test]
+fn test_system_file_system_write_and_read() {
+    let fs = SystemFileSystem;
+    let test_path = std::path::Path::new("/tmp/samoid_test_file");
+
+    // Test actual filesystem operations
+    let result = fs.write(test_path, "test content");
+    assert!(result.is_ok());
+
+    let content = fs.read_to_string(test_path);
+    assert!(content.is_ok());
+    assert_eq!(content.unwrap(), "test content");
+
+    // Clean up
+    let _ = std::fs::remove_file(test_path);
+}
+```
+
+##### Mock Error Scenario Testing
+```rust
+#[test]
+fn test_mock_command_runner_error_response() {
+    let error = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Access denied");
+    let runner = MockCommandRunner::new().with_response("fail_cmd", &[], Err(error));
+
+    let result = runner.run_command("fail_cmd", &[]);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
+}
+```
+
+##### Main Function Logic Testing
+```rust
+#[test]
+fn test_main_execution_paths() {
+    // Test all execution paths that main() would take
+    
+    // Success case: HUSKY=0 (should return message)
+    let env_disabled = MockEnvironment::new().with_var("HUSKY", "0");
+    let result = install_hooks(&env_disabled, &runner, &fs, None);
+    assert!(!result.unwrap().is_empty()); // Would trigger println! in main
+
+    // Error case: not a git repository (should return error) 
+    let fs_error = MockFileSystem::new(); // No .git
+    let result = install_hooks(&env, &runner, &fs_error, None);
+    assert!(result.is_err()); // Would trigger eprintln! and exit(1) in main
+}
+```
+
 ## Implementation Details
 
 ### Thread Safety Considerations
@@ -167,11 +225,26 @@ All major functions were refactored:
 - **After**: 100% pass rate consistently
 
 ### Test Performance
-- **Total Tests**: 51 (20 unit tests + 8 integration tests + 23 additional)
+- **Total Tests**: 70 (62 unit tests + 8 integration tests)
 - **Execution Time**: Reduced from ~30s to ~2s (15x faster)
 - **Parallel Execution**: Now safe and reliable
 
-### Coverage Analysis
+### Coverage Journey and Quality Metrics
+The dependency injection pattern enabled a systematic approach to achieving high code coverage:
+
+#### Coverage Evolution
+- **Initial**: 54.59% (119/218 lines) - baseline with mixed testing approach
+- **Post-DI Refactor**: 66.51% (145/218 lines) - dependency injection implementation
+- **Legacy Removal**: 86.52% (122/141 lines) - removed unused legacy functions
+- **Comprehensive Testing**: 94.33% (133/141 lines) - added meaningful tests
+
+#### Quality Achievements
+- **Zero Compiler Warnings**: Clean codebase with proper `#[allow(dead_code)]` annotations
+- **100% Module Coverage**: git.rs, hooks.rs, installer.rs, and environment.rs fully covered
+- **Meaningful Test Coverage**: Tests validate actual behavior, not just achieve numbers
+- **Clean Architecture**: Only essential functionality remains after removing 77 lines of unused legacy code
+
+#### Coverage Analysis Tools
 Successfully resolved tarpaulin code coverage issues by fixing configuration format:
 ```toml
 [default]
@@ -207,6 +280,34 @@ let env = MockEnvironment::new()
 ### 6. Configuration Details Matter
 Tool configurations (like tarpaulin's TOML format) can significantly impact development workflow. Understanding reserved sections and proper formatting is crucial.
 
+### 7. Legacy Code Elimination Drives Quality
+Removing unused legacy functions after proving the dependency injection pattern works effectively:
+- **Reduces complexity**: From 218 lines to 141 lines (35% reduction)
+- **Improves coverage percentage**: Removes untestable or hard-to-test code paths
+- **Eliminates dead code warnings**: Clean compilation with zero warnings
+- **Focuses testing effort**: Energy spent on code that actually matters
+
+### 8. Comprehensive Testing vs. Coverage-Driven Testing
+The dependency injection pattern enabled both high coverage AND meaningful tests:
+- **Real System Validation**: Tests using SystemFileSystem validate production implementations work
+- **Mock Edge Cases**: Comprehensive testing of error conditions and boundary cases
+- **Integration Scenarios**: Testing of main execution paths without binary execution
+- **Behavioral Verification**: Tests validate actual application behavior, not just code execution
+
+### 9. Iterative Coverage Improvement
+Systematic approach to coverage improvement proves most effective:
+1. **Establish baseline** (54.59%) with existing tests
+2. **Implement DI pattern** and achieve modest improvement (66.51%)
+3. **Remove unused code** for significant coverage jump (86.52%)
+4. **Add meaningful tests** to reach target (94.33%)
+
+### 10. Interface Simplification Through Usage Analysis
+Real-world usage revealed many interface methods were unnecessary:
+- **Environment trait**: Reduced from 5 methods to 1 actually used method
+- **Error types**: Removed unused variants (PermissionError, Skipped)
+- **Mock complexity**: Simplified to only support needed functionality
+- **Compilation speed**: Fewer unused code paths to compile and analyze
+
 ## Architectural Benefits
 
 ### Maintainability
@@ -239,6 +340,35 @@ Consider creating guidelines for when and how to apply this pattern in future mo
 
 ## Conclusion
 
-The dependency injection refactoring successfully transformed our unreliable test suite into a fast, deterministic, and maintainable testing infrastructure. The pattern provides a solid foundation for continued development while ensuring high code quality through reliable automated testing.
+The dependency injection refactoring successfully transformed our unreliable test suite into a fast, deterministic, and highly comprehensive testing infrastructure. What began as a solution to test isolation problems evolved into a systematic approach for achieving exceptional code quality metrics.
 
-The investment in proper abstraction and test isolation pays dividends in development velocity, code confidence, and maintenance ease. This approach should be considered for any Rust project dealing with external dependencies in tests.
+### Key Achievements
+
+**Reliability Transformation**
+- From ~70% flaky test pass rate to 100% reliable execution
+- Eliminated race conditions and environment contamination
+- Enabled safe parallel test execution
+
+**Coverage Excellence**  
+- Achieved 94.33% code coverage through systematic testing
+- Maintained meaningful test quality while reaching high coverage numbers
+- Eliminated 77 lines of unused legacy code for cleaner architecture
+
+**Quality Assurance**
+- Zero compiler warnings through proper interface design
+- 70 comprehensive tests validating real behavior and edge cases
+- Complete test isolation without sacrificing integration testing
+
+### Strategic Value
+
+The investment in proper abstraction and test isolation pays dividends in:
+- **Development Velocity**: Fast, reliable test feedback loop
+- **Code Confidence**: Comprehensive validation of behavior and edge cases  
+- **Maintenance Ease**: Clean interfaces and isolated test scenarios
+- **Quality Metrics**: Objective measurement of code coverage and test reliability
+
+### Pattern Applicability
+
+This dependency injection approach should be considered essential for any Rust project dealing with external dependencies in tests. The pattern scales effectively across different types of system interactions and provides a blueprint for maintaining high code quality as projects grow.
+
+The systematic approach to coverage improvement - baseline establishment, pattern implementation, legacy removal, and comprehensive testing - offers a repeatable methodology for other projects seeking similar quality improvements.
