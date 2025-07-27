@@ -6,10 +6,6 @@ use std::process::{Command, Output};
 /// Trait for abstracting environment variable operations
 pub trait Environment {
     fn get_var(&self, key: &str) -> Option<String>;
-    fn set_var(&mut self, key: &str, value: &str);
-    fn remove_var(&mut self, key: &str);
-    fn current_dir(&self) -> io::Result<PathBuf>;
-    fn set_current_dir(&mut self, path: &Path) -> io::Result<()>;
 }
 
 /// Trait for abstracting command execution
@@ -32,26 +28,6 @@ pub struct SystemEnvironment;
 impl Environment for SystemEnvironment {
     fn get_var(&self, key: &str) -> Option<String> {
         std::env::var(key).ok()
-    }
-
-    fn set_var(&mut self, key: &str, value: &str) {
-        unsafe {
-            std::env::set_var(key, value);
-        }
-    }
-
-    fn remove_var(&mut self, key: &str) {
-        unsafe {
-            std::env::remove_var(key);
-        }
-    }
-
-    fn current_dir(&self) -> io::Result<PathBuf> {
-        std::env::current_dir()
-    }
-
-    fn set_current_dir(&mut self, path: &Path) -> io::Result<()> {
-        std::env::set_current_dir(path)
     }
 }
 
@@ -100,6 +76,7 @@ impl FileSystem for SystemFileSystem {
 }
 
 /// Mock implementation for testing
+#[allow(dead_code)]
 pub mod mocks {
     use super::*;
     use std::collections::HashMap;
@@ -108,14 +85,12 @@ pub mod mocks {
 
     pub struct MockEnvironment {
         vars: Arc<Mutex<HashMap<String, String>>>,
-        current_dir: Arc<Mutex<PathBuf>>,
     }
 
     impl MockEnvironment {
         pub fn new() -> Self {
             Self {
                 vars: Arc::new(Mutex::new(HashMap::new())),
-                current_dir: Arc::new(Mutex::new(PathBuf::from("/tmp/test"))),
             }
         }
 
@@ -126,36 +101,11 @@ pub mod mocks {
                 .insert(key.to_string(), value.to_string());
             self
         }
-
-        pub fn with_current_dir(self, path: PathBuf) -> Self {
-            *self.current_dir.lock().unwrap() = path;
-            self
-        }
     }
 
     impl Environment for MockEnvironment {
         fn get_var(&self, key: &str) -> Option<String> {
             self.vars.lock().unwrap().get(key).cloned()
-        }
-
-        fn set_var(&mut self, key: &str, value: &str) {
-            self.vars
-                .lock()
-                .unwrap()
-                .insert(key.to_string(), value.to_string());
-        }
-
-        fn remove_var(&mut self, key: &str) {
-            self.vars.lock().unwrap().remove(key);
-        }
-
-        fn current_dir(&self) -> io::Result<PathBuf> {
-            Ok(self.current_dir.lock().unwrap().clone())
-        }
-
-        fn set_current_dir(&mut self, path: &Path) -> io::Result<()> {
-            *self.current_dir.lock().unwrap() = path.to_path_buf();
-            Ok(())
         }
     }
 
@@ -261,5 +211,130 @@ pub mod mocks {
             // Mock implementation doesn't need to do anything
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
+    use std::os::unix::process::ExitStatusExt;
+
+    #[test]
+    fn test_system_environment_basic_operations() {
+        let env = SystemEnvironment;
+
+        // Test getting environment variable that likely exists
+        let path = env.get_var("PATH");
+        assert!(path.is_some());
+
+        // Test getting non-existent environment variable
+        let nonexistent = env.get_var("SAMOID_NONEXISTENT_VAR_12345");
+        assert_eq!(nonexistent, None);
+    }
+
+    #[test]
+    fn test_system_command_runner() {
+        let runner = SystemCommandRunner;
+
+        // Test with a basic command that should exist on most systems
+        let result = runner.run_command("echo", &["test"]);
+        assert!(result.is_ok());
+
+        if let Ok(output) = result {
+            assert!(output.status.success());
+            assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "test");
+        }
+    }
+
+    #[test]
+    fn test_system_command_runner_failure() {
+        let runner = SystemCommandRunner;
+
+        // Test with a command that should fail
+        let result = runner.run_command("nonexistent_command_12345", &[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_system_file_system_operations() {
+        let fs = SystemFileSystem;
+
+        // Test exists with a path that should exist
+        assert!(fs.exists(std::path::Path::new(".")));
+
+        // Test exists with a path that should not exist
+        assert!(!fs.exists(std::path::Path::new("/nonexistent/path/12345")));
+    }
+
+    #[test]
+    fn test_mock_environment_operations() {
+        let env = MockEnvironment::new().with_var("TEST_VAR", "test_value");
+
+        // Test getting existing variable
+        assert_eq!(env.get_var("TEST_VAR"), Some("test_value".to_string()));
+
+        // Test getting non-existing variable
+        assert_eq!(env.get_var("NONEXISTENT"), None);
+    }
+
+    #[test]
+    fn test_mock_command_runner_operations() {
+        let output = std::process::Output {
+            status: std::process::ExitStatus::from_raw(0),
+            stdout: b"success".to_vec(),
+            stderr: vec![],
+        };
+
+        let runner =
+            MockCommandRunner::new().with_response("test_cmd", &["arg1", "arg2"], Ok(output));
+
+        // Test configured command
+        let result = runner.run_command("test_cmd", &["arg1", "arg2"]);
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.status.success());
+        assert_eq!(output.stdout, b"success");
+
+        // Test unconfigured command
+        let result = runner.run_command("unknown_cmd", &[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_mock_filesystem_operations() {
+        let fs = MockFileSystem::new()
+            .with_file("/test/file.txt", "test content")
+            .with_directory("/test/dir");
+
+        // Test exists for file
+        assert!(fs.exists(std::path::Path::new("/test/file.txt")));
+
+        // Test exists for directory
+        assert!(fs.exists(std::path::Path::new("/test/dir")));
+
+        // Test exists for non-existent path
+        assert!(!fs.exists(std::path::Path::new("/nonexistent")));
+
+        // Test read existing file
+        let content = fs.read_to_string(std::path::Path::new("/test/file.txt"));
+        assert!(content.is_ok());
+        assert_eq!(content.unwrap(), "test content");
+
+        // Test read non-existent file
+        let content = fs.read_to_string(std::path::Path::new("/nonexistent"));
+        assert!(content.is_err());
+
+        // Test write new file
+        let result = fs.write(std::path::Path::new("/new/file.txt"), "new content");
+        assert!(result.is_ok());
+
+        // Test create directory
+        let result = fs.create_dir_all(std::path::Path::new("/new/nested/dir"));
+        assert!(result.is_ok());
+
+        // Test set permissions (should always succeed for mock)
+        let result = fs.set_permissions(std::path::Path::new("/test/file.txt"), 0o755);
+        assert!(result.is_ok());
     }
 }
