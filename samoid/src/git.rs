@@ -1,10 +1,23 @@
+//! Git repository operations and configuration
+//!
+//! This module provides Git-specific functionality for Samoid, including
+//! repository detection and Git configuration management. All operations
+//! use dependency injection for testability.
+
 use crate::environment::{CommandRunner, FileSystem};
 use std::path::Path;
 
+/// Errors that can occur during Git operations
+///
+/// This enum represents all possible failures when interacting with Git,
+/// from missing Git installations to repository configuration issues.
 #[derive(Debug)]
 pub enum GitError {
+    /// The git command is not installed or not in PATH
     CommandNotFound,
+    /// Git configuration command failed with an error message
     ConfigurationFailed(String),
+    /// Current directory is not inside a Git repository
     NotGitRepository,
 }
 
@@ -20,7 +33,33 @@ impl std::fmt::Display for GitError {
 
 impl std::error::Error for GitError {}
 
-/// Check if we're in a git repository using dependency injection
+/// Verifies that the current directory is inside a Git repository
+///
+/// This function checks for the presence of a `.git` directory or file.
+/// Git worktrees use a `.git` file pointing to the actual repository,
+/// so this function correctly handles both cases.
+///
+/// # Arguments
+///
+/// * `fs` - File system abstraction for checking path existence
+///
+/// # Returns
+///
+/// * `Ok(())` - If we're inside a Git repository
+/// * `Err(GitError::NotGitRepository)` - If no `.git` exists
+///
+/// # Example
+///
+/// ```
+/// use samoid::git::check_git_repository;
+/// use samoid::environment::SystemFileSystem;
+///
+/// let fs = SystemFileSystem;
+/// match check_git_repository(&fs) {
+///     Ok(()) => println!("Inside a Git repository"),
+///     Err(e) => eprintln!("Not a Git repository: {}", e),
+/// }
+/// ```
 pub fn check_git_repository(fs: &dyn FileSystem) -> Result<(), GitError> {
     if !fs.exists(Path::new(".git")) {
         return Err(GitError::NotGitRepository);
@@ -28,7 +67,35 @@ pub fn check_git_repository(fs: &dyn FileSystem) -> Result<(), GitError> {
     Ok(())
 }
 
-/// Set the hooks path in git configuration using dependency injection
+/// Configures Git to use a custom hooks directory
+///
+/// This function sets the `core.hooksPath` Git configuration value,
+/// which tells Git where to find hook scripts. This is the core
+/// mechanism that allows Samoid to manage Git hooks.
+///
+/// # Arguments
+///
+/// * `runner` - Command runner for executing git commands
+/// * `hooks_path` - Path to the hooks directory (e.g., ".samoid/_")
+///
+/// # Returns
+///
+/// * `Ok(())` - If the configuration was set successfully
+/// * `Err(GitError::CommandNotFound)` - If git command is not available
+/// * `Err(GitError::ConfigurationFailed)` - If git config command fails
+///
+/// # Example
+///
+/// ```
+/// use samoid::git::set_hooks_path;
+/// use samoid::environment::SystemCommandRunner;
+///
+/// let runner = SystemCommandRunner;
+/// match set_hooks_path(&runner, ".samoid/_") {
+///     Ok(()) => println!("Hooks path configured"),
+///     Err(e) => eprintln!("Failed to configure: {}", e),
+/// }
+/// ```
 pub fn set_hooks_path(runner: &dyn CommandRunner, hooks_path: &str) -> Result<(), GitError> {
     let output = runner.run_command("git", &["config", "core.hooksPath", hooks_path]);
 

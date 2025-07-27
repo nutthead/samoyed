@@ -1,12 +1,35 @@
+//! Core installation logic for Samoid Git hooks
+//!
+//! This module contains the main installation function that orchestrates
+//! the entire process of setting up Git hooks. It handles environment
+//! checks, repository validation, and hook file creation.
+//!
+//! # Installation Process
+//!
+//! 1. Check if installation should be skipped (HUSKY=0)
+//! 2. Validate the hooks directory path
+//! 3. Verify we're in a Git repository
+//! 4. Configure Git to use our hooks directory
+//! 5. Create the hooks directory structure
+//! 6. Install the hook runner and individual hook files
+
 use crate::environment::{CommandRunner, Environment, FileSystem};
 use crate::git::{self, GitError};
 use crate::hooks::{self, HookError};
 use std::path::PathBuf;
 
+/// Errors that can occur during hook installation
+///
+/// This enum unifies all possible error types that can occur during
+/// the installation process, providing a single error type for the
+/// public API.
 #[derive(Debug)]
 pub enum InstallError {
+    /// Git-related errors (command not found, configuration failed, etc.)
     Git(GitError),
+    /// Hook file creation errors (I/O errors)
     Hooks(HookError),
+    /// Invalid path provided (e.g., contains "..")
     InvalidPath(String),
 }
 
@@ -34,7 +57,59 @@ impl From<HookError> for InstallError {
     }
 }
 
-/// Install hooks with dependency injection
+/// Installs Git hooks in the current repository
+///
+/// This is the main entry point for Samoid's functionality. It sets up
+/// Git hooks by creating a hooks directory, configuring Git to use it,
+/// and installing all necessary hook files.
+///
+/// # Arguments
+///
+/// * `env` - Environment provider for reading environment variables
+/// * `runner` - Command runner for executing Git commands
+/// * `fs` - File system abstraction for file operations
+/// * `custom_dir` - Optional custom directory name (defaults to ".samoid")
+///
+/// # Returns
+///
+/// * `Ok(String)` - Success message (empty string or "HUSKY=0 skip install")
+/// * `Err(InstallError)` - If any step of the installation fails
+///
+/// # Environment Variables
+///
+/// - `HUSKY=0` - Skip installation (for CI environments or debugging)
+///
+/// # Example
+///
+/// ```
+/// use samoid::install_hooks;
+/// use samoid::environment::{SystemEnvironment, SystemCommandRunner, SystemFileSystem};
+///
+/// let env = SystemEnvironment;
+/// let runner = SystemCommandRunner;
+/// let fs = SystemFileSystem;
+///
+/// // Install with default directory (.samoid)
+/// match install_hooks(&env, &runner, &fs, None) {
+///     Ok(msg) => {
+///         if !msg.is_empty() {
+///             println!("{}", msg);
+///         }
+///     }
+///     Err(e) => eprintln!("Installation failed: {}", e),
+/// }
+///
+/// // Install with custom directory
+/// match install_hooks(&env, &runner, &fs, Some(".husky")) {
+///     Ok(_) => println!("Hooks installed in .husky/_"),
+///     Err(e) => eprintln!("Installation failed: {}", e),
+/// }
+/// ```
+///
+/// # Security
+///
+/// The function validates that `custom_dir` doesn't contain ".." to prevent
+/// directory traversal attacks.
 pub fn install_hooks(
     env: &dyn Environment,
     runner: &dyn CommandRunner,

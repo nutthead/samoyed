@@ -1,6 +1,42 @@
+//! Git hook file creation and management
+//!
+//! This module handles the creation and configuration of Git hook files.
+//! It creates the hook directory structure, individual hook scripts, and
+//! the hook runner that executes user-defined hook commands.
+//!
+//! # Hook Structure
+//!
+//! The module creates:
+//! - A hooks directory (e.g., `.samoid/_`)
+//! - A `.gitignore` file to exclude hooks from version control
+//! - Individual hook scripts for all standard Git hooks
+//! - A hook runner script (`h`) that executes the actual hook logic
+
 use crate::environment::FileSystem;
 use std::path::Path;
 
+/// List of all standard Git hooks that Samoid manages
+///
+/// This array contains the names of all Git hooks that Samoid will create
+/// during installation. Each hook is a simple shell script that delegates
+/// to the main hook runner.
+///
+/// # Supported Hooks
+///
+/// - **pre-commit**: Runs before a commit is created
+/// - **pre-merge-commit**: Runs before a merge commit
+/// - **prepare-commit-msg**: Prepares the default commit message
+/// - **commit-msg**: Validates or modifies commit messages
+/// - **post-commit**: Runs after a commit is created
+/// - **applypatch-msg**: Can edit the commit message file for patches
+/// - **pre-applypatch**: Runs before a patch is applied
+/// - **post-applypatch**: Runs after a patch is applied
+/// - **pre-rebase**: Runs before a rebase operation
+/// - **post-rewrite**: Runs after commits are rewritten
+/// - **post-checkout**: Runs after a successful checkout
+/// - **post-merge**: Runs after a successful merge
+/// - **pre-push**: Runs before a push operation
+/// - **pre-auto-gc**: Runs before automatic garbage collection
 pub const STANDARD_HOOKS: &[&str] = &[
     "pre-commit",
     "pre-merge-commit",
@@ -18,8 +54,13 @@ pub const STANDARD_HOOKS: &[&str] = &[
     "pre-auto-gc",
 ];
 
+/// Errors that can occur during hook file operations
+///
+/// Currently wraps I/O errors that may occur when creating directories
+/// or writing hook files.
 #[derive(Debug)]
 pub enum HookError {
+    /// An I/O error occurred during file system operations
     IoError(std::io::Error),
 }
 
@@ -39,6 +80,33 @@ impl From<std::io::Error> for HookError {
     }
 }
 
+/// Creates the hooks directory and its `.gitignore` file
+///
+/// This function creates the directory where all hook files will be stored
+/// and adds a `.gitignore` file containing `*` to prevent the hooks from
+/// being committed to version control.
+///
+/// # Arguments
+///
+/// * `fs` - File system abstraction for directory and file operations
+/// * `hooks_dir` - Path to the hooks directory to create
+///
+/// # Returns
+///
+/// * `Ok(())` - If the directory and `.gitignore` were created successfully
+/// * `Err(HookError)` - If any file system operation fails
+///
+/// # Example
+///
+/// ```
+/// use samoid::hooks::create_hook_directory;
+/// use samoid::environment::SystemFileSystem;
+/// use std::path::Path;
+///
+/// let fs = SystemFileSystem;
+/// let hooks_dir = Path::new(".samoid/_");
+/// create_hook_directory(&fs, hooks_dir).expect("Failed to create hooks directory");
+/// ```
 pub fn create_hook_directory(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<(), HookError> {
     fs.create_dir_all(hooks_dir)?;
 
@@ -48,6 +116,31 @@ pub fn create_hook_directory(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<()
     Ok(())
 }
 
+/// Creates all standard Git hook files
+///
+/// This function creates a hook file for each standard Git hook. Each hook
+/// file is a simple shell script that sources and executes the main hook
+/// runner (`h`). All hook files are made executable (mode 0755).
+///
+/// # Arguments
+///
+/// * `fs` - File system abstraction for file operations
+/// * `hooks_dir` - Directory where hook files should be created
+///
+/// # Returns
+///
+/// * `Ok(())` - If all hook files were created successfully
+/// * `Err(HookError)` - If any file operation fails
+///
+/// # Hook File Format
+///
+/// Each hook file contains:
+/// ```bash
+/// #!/usr/bin/env sh
+/// . "$(dirname "$0")/h"
+/// ```
+///
+/// This sources the hook runner `h` from the same directory as the hook.
 pub fn create_hook_files(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<(), HookError> {
     let hook_content = r#"#!/usr/bin/env sh
 . "$(dirname "$0")/h""#;
@@ -61,6 +154,37 @@ pub fn create_hook_files(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<(), Ho
     Ok(())
 }
 
+/// Creates or copies the main hook runner script
+///
+/// The hook runner (`h`) is the central script that all individual hooks
+/// delegate to. It can either be copied from an existing source file or
+/// created with placeholder content.
+///
+/// # Arguments
+///
+/// * `fs` - File system abstraction for file operations
+/// * `hooks_dir` - Directory where the runner should be created
+/// * `runner_source` - Optional path to an existing runner script to copy
+///
+/// # Returns
+///
+/// * `Ok(())` - If the runner was created successfully
+/// * `Err(HookError)` - If any file operation fails
+///
+/// # Behavior
+///
+/// - If `runner_source` is provided, its contents are copied
+/// - If `runner_source` is `None`, a placeholder runner is created
+/// - The runner is always made executable (mode 0755)
+///
+/// # Placeholder Runner
+///
+/// When no source is provided, the following placeholder is created:
+/// ```bash
+/// #!/usr/bin/env sh
+/// echo "Samoid hook runner - placeholder implementation"
+/// exec "$@"
+/// ```
 pub fn copy_hook_runner(
     fs: &dyn FileSystem,
     hooks_dir: &Path,

@@ -1,3 +1,10 @@
+//! Binary entry point for the Samoid Git hooks manager
+//!
+//! This binary installs Git hooks in the current repository when executed.
+//! It respects the HUSKY environment variable for compatibility:
+//! - Set HUSKY=0 to skip installation
+//! - Otherwise, hooks are installed in .samoid/_ by default
+
 mod environment;
 mod git;
 mod hooks;
@@ -9,6 +16,11 @@ use environment::{
 };
 use installer::install_hooks;
 
+/// Main entry point for the Samoid binary
+///
+/// Executes the installation logic and exits with appropriate code:
+/// - 0 for successful installation or skipped installation
+/// - 1 for any errors during installation
 #[cfg(not(tarpaulin_include))]
 fn main() {
     let exit_code = main_logic();
@@ -17,6 +29,15 @@ fn main() {
     }
 }
 
+/// Main logic extracted for testability
+///
+/// Creates system dependencies and delegates to the dependency-injected version.
+/// This separation allows the main logic to be tested without actually executing
+/// system commands or file operations.
+///
+/// # Returns
+///
+/// Exit code: 0 for success, 1 for error
 fn main_logic() -> i32 {
     let env = SystemEnvironment;
     let runner = SystemCommandRunner;
@@ -25,6 +46,26 @@ fn main_logic() -> i32 {
     main_logic_with_deps(&env, &runner, &fs)
 }
 
+/// Main logic with dependency injection for full testability
+///
+/// This function contains the core logic of the main function but accepts
+/// dependencies as parameters, allowing comprehensive testing with mocks.
+///
+/// # Type Parameters
+///
+/// * `E` - Environment provider implementing the Environment trait
+/// * `R` - Command runner implementing the CommandRunner trait
+/// * `F` - File system abstraction implementing the FileSystem trait
+///
+/// # Arguments
+///
+/// * `env` - Environment variable provider
+/// * `runner` - System command executor
+/// * `fs` - File system operations provider
+///
+/// # Returns
+///
+/// Exit code: 0 for success, 1 for error
 fn main_logic_with_deps<E: Environment, R: CommandRunner, F: FileSystem>(
     env: &E,
     runner: &R,
