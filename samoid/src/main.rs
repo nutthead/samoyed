@@ -9,6 +9,7 @@ use environment::{
 };
 use installer::install_hooks;
 
+#[cfg(not(tarpaulin_include))]
 fn main() {
     let exit_code = main_logic();
     if exit_code != 0 {
