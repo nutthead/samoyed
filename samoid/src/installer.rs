@@ -286,4 +286,82 @@ mod tests {
         let result2 = install_hooks(&env, &runner, &fs, Some(".git-hooks"));
         assert!(result2.is_ok());
     }
+
+    #[test]
+    fn test_install_hooks_edge_case_paths() {
+        let env = MockEnvironment::new();
+        let output = Output {
+            status: ExitStatus::from_raw(0),
+            stdout: vec![],
+            stderr: vec![],
+        };
+
+        // Test various edge case directory names
+        let test_cases = [
+            "hooks-dir",
+            ".hidden-hooks",
+            "hooks_with_underscores",
+            "hooks123",
+            "UPPERCASE-HOOKS",
+        ];
+
+        for dir_name in &test_cases {
+            let expected_path = format!("{}/_", dir_name);
+            let runner = MockCommandRunner::new().with_response(
+                "git",
+                &["config", "core.hooksPath", &expected_path],
+                Ok(output.clone()),
+            );
+            let fs = MockFileSystem::new().with_directory(".git");
+
+            let result = install_hooks(&env, &runner, &fs, Some(dir_name));
+            assert!(result.is_ok(), "Failed for directory: {}", dir_name);
+        }
+    }
+
+    #[test]
+    fn test_install_hooks_empty_environment_variable() {
+        // Test when HUSKY is set to empty string (should not skip)
+        let env = MockEnvironment::new().with_var("HUSKY", "");
+        let output = Output {
+            status: ExitStatus::from_raw(0),
+            stdout: vec![],
+            stderr: vec![],
+        };
+        let runner = MockCommandRunner::new().with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(output),
+        );
+        let fs = MockFileSystem::new().with_directory(".git");
+
+        let result = install_hooks(&env, &runner, &fs, None);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ""); // Should not return skip message
+    }
+
+    #[test]
+    fn test_install_hooks_other_environment_values() {
+        // Test various HUSKY environment variable values
+        let test_values = ["1", "true", "false", "disabled", "anything"];
+
+        for value in &test_values {
+            let env = MockEnvironment::new().with_var("HUSKY", value);
+            let output = Output {
+                status: ExitStatus::from_raw(0),
+                stdout: vec![],
+                stderr: vec![],
+            };
+            let runner = MockCommandRunner::new().with_response(
+                "git",
+                &["config", "core.hooksPath", ".samoid/_"],
+                Ok(output),
+            );
+            let fs = MockFileSystem::new().with_directory(".git");
+
+            let result = install_hooks(&env, &runner, &fs, None);
+            assert!(result.is_ok(), "Failed for HUSKY={}", value);
+            assert_eq!(result.unwrap(), "", "Should not skip for HUSKY={}", value);
+        }
+    }
 }

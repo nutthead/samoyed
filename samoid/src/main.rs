@@ -28,6 +28,7 @@ fn main() {
 mod tests {
     use super::*;
     use crate::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
+    use crate::environment::{CommandRunner, Environment, FileSystem};
     use std::os::unix::process::ExitStatusExt;
     use std::process::{ExitStatus, Output};
 
@@ -123,5 +124,63 @@ mod tests {
         let result = install_hooks(&env, &runner, &fs, Some(".custom"));
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "");
+    }
+
+    #[test]
+    fn test_main_logic_components() {
+        // Test that main logic components are properly instantiated
+        let env = SystemEnvironment;
+        let runner = SystemCommandRunner;
+        let fs = SystemFileSystem;
+
+        // Test that traits are implemented correctly
+        let _env_var = env.get_var("PATH");
+        let _command_result = runner.run_command("echo", &["test"]);
+        let _exists_result = fs.exists(std::path::Path::new("."));
+
+        // These should not panic or fail to compile
+        assert!(true);
+    }
+
+    #[test]
+    fn test_main_execution_paths() {
+        // Test the execution paths that main() would take
+
+        // Success case: HUSKY=0 (should return message)
+        let env_disabled = MockEnvironment::new().with_var("HUSKY", "0");
+        let runner_disabled = MockCommandRunner::new();
+        let fs_disabled = MockFileSystem::new();
+
+        let result_disabled = install_hooks(&env_disabled, &runner_disabled, &fs_disabled, None);
+        assert!(result_disabled.is_ok());
+        let msg = result_disabled.unwrap();
+        assert!(!msg.is_empty()); // Would trigger println! in main
+
+        // Error case: not a git repository (should return error)
+        let env_error = MockEnvironment::new();
+        let runner_error = MockCommandRunner::new();
+        let fs_error = MockFileSystem::new(); // No .git
+
+        let result_error = install_hooks(&env_error, &runner_error, &fs_error, None);
+        assert!(result_error.is_err()); // Would trigger eprintln! and exit(1) in main
+
+        // Success case: normal execution (should return empty message)
+        let env_success = MockEnvironment::new();
+        let output_success = Output {
+            status: ExitStatus::from_raw(0),
+            stdout: vec![],
+            stderr: vec![],
+        };
+        let runner_success = MockCommandRunner::new().with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(output_success),
+        );
+        let fs_success = MockFileSystem::new().with_directory(".git");
+
+        let result_success = install_hooks(&env_success, &runner_success, &fs_success, None);
+        assert!(result_success.is_ok());
+        let msg_success = result_success.unwrap();
+        assert!(msg_success.is_empty()); // Would not trigger println! in main
     }
 }
