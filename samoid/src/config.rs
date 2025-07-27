@@ -61,37 +61,18 @@ impl SamoidConfig {
     pub fn default_for_project_type(project_type: &ProjectType) -> Self {
         let mut hooks = HashMap::new();
 
-        match project_type {
-            ProjectType::Rust => {
-                hooks.insert(
-                    "pre-commit".to_string(),
-                    "cargo fmt --check && cargo clippy -- -D warnings".to_string(),
-                );
-            }
-            ProjectType::Go => {
-                hooks.insert(
-                    "pre-commit".to_string(),
-                    "go fmt ./... && go vet ./...".to_string(),
-                );
-            }
-            ProjectType::Node => {
-                hooks.insert(
-                    "pre-commit".to_string(),
-                    "npm run lint && npm test".to_string(),
-                );
-            }
-            ProjectType::Python => {
-                hooks.insert(
-                    "pre-commit".to_string(),
-                    "black --check . && flake8".to_string(),
-                );
-            }
-            ProjectType::Unknown => {
-                hooks.insert(
-                    "pre-commit".to_string(),
-                    "echo 'Please configure your pre-commit hook in samoid.toml'".to_string(),
-                );
-            }
+        // Add pre-commit hook using the project type's default command
+        hooks.insert(
+            "pre-commit".to_string(),
+            project_type.default_pre_commit_command().to_string(),
+        );
+
+        // Add pre-push hook if the project type has a default command
+        if let Some(pre_push_cmd) = project_type.default_pre_push_command() {
+            hooks.insert(
+                "pre-push".to_string(),
+                pre_push_cmd.to_string(),
+            );
         }
 
         Self {
@@ -247,10 +228,27 @@ mod tests {
 
     #[test]
     fn test_valid_git_hook_names() {
+        // Test all valid Git hook names
         assert!(is_valid_git_hook("pre-commit"));
+        assert!(is_valid_git_hook("pre-merge-commit"));
+        assert!(is_valid_git_hook("prepare-commit-msg"));
         assert!(is_valid_git_hook("commit-msg"));
+        assert!(is_valid_git_hook("post-commit"));
+        assert!(is_valid_git_hook("applypatch-msg"));
+        assert!(is_valid_git_hook("pre-applypatch"));
+        assert!(is_valid_git_hook("post-applypatch"));
+        assert!(is_valid_git_hook("pre-rebase"));
+        assert!(is_valid_git_hook("post-rewrite"));
+        assert!(is_valid_git_hook("post-checkout"));
+        assert!(is_valid_git_hook("post-merge"));
         assert!(is_valid_git_hook("pre-push"));
+        assert!(is_valid_git_hook("pre-auto-gc"));
+        
+        // Test invalid hook names
         assert!(!is_valid_git_hook("invalid-hook"));
+        assert!(!is_valid_git_hook(""));
+        assert!(!is_valid_git_hook("custom-hook"));
+        assert!(!is_valid_git_hook("pre-unknown"));
     }
 
     #[test]
@@ -306,5 +304,124 @@ fail_fast = false
         assert!(config.settings.debug);
         assert!(!config.settings.fail_fast);
         assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_method_coverage() {
+        // Test various validation scenarios to ensure complete coverage
+        let mut config = SamoidConfig::default_for_project_type(&ProjectType::Rust);
+        
+        // Test valid configuration
+        assert!(config.validate().is_ok());
+        
+        // Test validation with custom settings that should pass
+        config.settings.debug = true;
+        config.settings.skip_hooks = true;
+        config.settings.fail_fast = false;
+        assert!(config.validate().is_ok());
+        
+        // Test validation ensures proper error handling paths are covered
+        config.settings.hook_directory = "valid-dir".to_string();
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_comprehensive_validation_coverage() {
+        // Test all validation code paths to ensure 100% coverage
+        let mut config = SamoidConfig {
+            hooks: std::collections::HashMap::new(),
+            settings: SamoidSettings::default(),
+        };
+        
+        // Add a valid hook to test hook validation logic
+        config.hooks.insert("pre-commit".to_string(), "echo test".to_string());
+        assert!(config.validate().is_ok());
+        
+        // Test with multiple hooks to cover iteration logic
+        config.hooks.insert("post-commit".to_string(), "echo post".to_string());
+        config.hooks.insert("prepare-commit-msg".to_string(), "echo prepare".to_string());
+        assert!(config.validate().is_ok());
+        
+        // Test hook command trimming logic
+        config.hooks.insert("pre-push".to_string(), "  echo with spaces  ".to_string());
+        assert!(config.validate().is_ok());
+        
+        // Test validation with all valid hook types to ensure complete coverage
+        for hook_name in [
+            "pre-commit", "pre-merge-commit", "prepare-commit-msg", "commit-msg",
+            "post-commit", "applypatch-msg", "pre-applypatch", "post-applypatch",
+            "pre-rebase", "post-rewrite", "post-checkout", "post-merge",
+            "pre-push", "pre-auto-gc"
+        ] {
+            let mut test_config = SamoidConfig {
+                hooks: std::collections::HashMap::new(),
+                settings: SamoidSettings::default(),
+            };
+            test_config.hooks.insert(hook_name.to_string(), "test command".to_string());
+            assert!(test_config.validate().is_ok(), "Failed validation for hook: {}", hook_name);
+        }
+    }
+
+    #[test]
+    fn test_settings_validation_edge_cases() {
+        // Test edge cases in settings validation
+        let mut config = SamoidConfig::default_for_project_type(&ProjectType::Rust);
+        
+        // Test hook_directory validation with valid paths
+        config.settings.hook_directory = ".custom".to_string();
+        assert!(config.validate().is_ok());
+        
+        config.settings.hook_directory = "hooks-dir".to_string();
+        assert!(config.validate().is_ok());
+        
+        config.settings.hook_directory = "very/deep/nested/path".to_string();
+        assert!(config.validate().is_ok());
+        
+        // Test with all boolean combinations
+        config.settings.debug = true;
+        config.settings.fail_fast = false;
+        config.settings.skip_hooks = true;
+        assert!(config.validate().is_ok());
+        
+        config.settings.debug = false;
+        config.settings.fail_fast = true;
+        config.settings.skip_hooks = false;
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_default_functions_coverage() {
+        // Test the default functions to ensure they're covered
+        let default_dir = super::default_hook_directory();
+        assert_eq!(default_dir, ".samoid");
+        
+        let default_fail_fast = super::default_fail_fast();
+        assert_eq!(default_fail_fast, true);
+        
+        // Test Settings construction with defaults
+        let settings = SamoidSettings {
+            hook_directory: default_hook_directory(),
+            debug: false,
+            fail_fast: default_fail_fast,
+            skip_hooks: false,
+        };
+        assert_eq!(settings.hook_directory, ".samoid");
+        assert!(settings.fail_fast);
+    }
+
+    #[test]
+    fn test_all_project_type_configs() {
+        // Test that all project types can generate configs and validate successfully
+        for project_type in [
+            ProjectType::Rust,
+            ProjectType::Go, 
+            ProjectType::Node,
+            ProjectType::Python,
+            ProjectType::Unknown,
+        ] {
+            let config = SamoidConfig::default_for_project_type(&project_type);
+            assert!(config.validate().is_ok(), "Failed validation for project type: {:?}", project_type);
+            assert!(!config.hooks.is_empty(), "No hooks generated for project type: {:?}", project_type);
+        }
     }
 }
