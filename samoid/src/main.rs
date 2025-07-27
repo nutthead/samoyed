@@ -1,8 +1,8 @@
 //! Binary entry point for the Samoid Git hooks manager
 //!
 //! This binary installs Git hooks in the current repository when executed.
-//! It respects the HUSKY environment variable for compatibility:
-//! - Set HUSKY=0 to skip installation
+//! It respects the SAMOID environment variable:
+//! - Set SAMOID=0 to skip installation
 //! - Otherwise, hooks are installed in .samoid/_ by default
 
 mod environment;
@@ -94,15 +94,15 @@ mod tests {
     use std::process::{ExitStatus, Output};
 
     #[test]
-    fn test_main_with_husky_disabled() {
+    fn test_main_with_samoid_disabled() {
         // Create mocks - each test is completely isolated
-        let env = MockEnvironment::new().with_var("HUSKY", "0");
+        let env = MockEnvironment::new().with_var("SAMOID", "0");
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new();
 
         let result = install_hooks(&env, &runner, &fs, None);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "HUSKY=0 skip install");
+        assert_eq!(result.unwrap(), "SAMOID=0 skip install");
     }
 
     #[test]
@@ -207,8 +207,8 @@ mod tests {
     fn test_main_execution_paths() {
         // Test the execution paths that main() would take
 
-        // Success case: HUSKY=0 (should return message)
-        let env_disabled = MockEnvironment::new().with_var("HUSKY", "0");
+        // Success case: SAMOID=0 (should return message)
+        let env_disabled = MockEnvironment::new().with_var("SAMOID", "0");
         let runner_disabled = MockCommandRunner::new();
         let fs_disabled = MockFileSystem::new();
 
@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn test_main_function_successful_installation_with_output() {
         // Test successful installation that would produce output in main()
-        let env = MockEnvironment::new().with_var("HUSKY", "0");
+        let env = MockEnvironment::new().with_var("SAMOID", "0");
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new();
 
@@ -312,7 +312,7 @@ mod tests {
 
         // This tests the condition in main() lines 16-18
         assert!(!message.is_empty());
-        assert_eq!(message, "HUSKY=0 skip install");
+        assert_eq!(message, "SAMOID=0 skip install");
     }
 
     #[test]
@@ -380,7 +380,7 @@ mod tests {
         // Test both success and error patterns to cover lines 14-24 in main()
 
         // Test success pattern with message (lines 15-19)
-        let env_with_msg = MockEnvironment::new().with_var("HUSKY", "0");
+        let env_with_msg = MockEnvironment::new().with_var("SAMOID", "0");
         let runner_with_msg = MockCommandRunner::new();
         let fs_with_msg = MockFileSystem::new();
 
@@ -390,7 +390,7 @@ mod tests {
                 // This covers lines 16-18 in main()
                 if !msg.is_empty() {
                     // Would trigger println! in main
-                    assert_eq!(msg, "HUSKY=0 skip install");
+                    assert_eq!(msg, "SAMOID=0 skip install");
                 }
             }
             Err(_) => panic!("Expected success"),
@@ -438,7 +438,7 @@ mod tests {
     #[test]
     fn test_main_logic_with_deps_success_with_message() {
         // Test main_logic_with_deps with success case that produces output
-        let env = MockEnvironment::new().with_var("HUSKY", "0");
+        let env = MockEnvironment::new().with_var("SAMOID", "0");
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new();
 

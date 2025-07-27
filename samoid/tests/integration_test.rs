@@ -66,14 +66,14 @@ fn test_installation_with_custom_directory() {
 }
 
 #[test]
-fn test_installation_skipped_when_husky_disabled() {
-    let env = MockEnvironment::new().with_var("HUSKY", "0");
+fn test_installation_skipped_when_samoid_disabled() {
+    let env = MockEnvironment::new().with_var("SAMOID", "0");
     let runner = MockCommandRunner::new();
     let fs = MockFileSystem::new();
 
     let result = install_hooks(&env, &runner, &fs, None);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "HUSKY=0 skip install");
+    assert_eq!(result.unwrap(), "SAMOID=0 skip install");
 }
 
 #[test]

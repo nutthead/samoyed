@@ -203,8 +203,8 @@ impl FileSystem for SystemFileSystem {
 /// use std::os::unix::process::ExitStatusExt;
 ///
 /// // Create a mock environment with a specific variable
-/// let env = MockEnvironment::new().with_var("HUSKY", "0");
-/// assert_eq!(env.get_var("HUSKY"), Some("0".to_string()));
+/// let env = MockEnvironment::new().with_var("SAMOID", "0");
+/// assert_eq!(env.get_var("SAMOID"), Some("0".to_string()));
 ///
 /// // Create a mock command runner with a predefined response
 /// let output = Output {
@@ -266,8 +266,9 @@ pub mod mocks {
         /// # Example
         ///
         /// ```
+        /// # use samoid::environment::mocks::MockEnvironment;
         /// let env = MockEnvironment::new()
-        ///     .with_var("HUSKY", "0")
+        ///     .with_var("SAMOID", "0")
         ///     .with_var("CI", "true");
         /// ```
         pub fn with_var(self, key: &str, value: &str) -> Self {
@@ -325,7 +326,7 @@ pub mod mocks {
         ///
         /// # Example
         ///
-        /// ```
+        /// ```ignore
         /// let runner = MockCommandRunner::new()
         ///     .with_response("git", &["status"], Ok(success_output))
         ///     .with_response("git", &["commit"], Err(io_error));
@@ -400,6 +401,7 @@ pub mod mocks {
         /// # Example
         ///
         /// ```
+        /// # use samoid::environment::mocks::MockFileSystem;
         /// let fs = MockFileSystem::new()
         ///     .with_file("/config.json", "{\"key\": \"value\"}")
         ///     .with_file("/script.sh", "#!/bin/bash\necho hello");
@@ -429,6 +431,7 @@ pub mod mocks {
         /// # Example
         ///
         /// ```
+        /// # use samoid::environment::mocks::MockFileSystem;
         /// let fs = MockFileSystem::new()
         ///     .with_directory(".git")
         ///     .with_directory("src/components");

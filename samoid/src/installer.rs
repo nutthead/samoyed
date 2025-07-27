@@ -6,7 +6,7 @@
 //!
 //! # Installation Process
 //!
-//! 1. Check if installation should be skipped (HUSKY=0)
+//! 1. Check if installation should be skipped (SAMOID=0)
 //! 2. Validate the hooks directory path
 //! 3. Verify we're in a Git repository
 //! 4. Configure Git to use our hooks directory
@@ -72,12 +72,12 @@ impl From<HookError> for InstallError {
 ///
 /// # Returns
 ///
-/// * `Ok(String)` - Success message (empty string or "HUSKY=0 skip install")
+/// * `Ok(String)` - Success message (empty string or "SAMOID=0 skip install")
 /// * `Err(InstallError)` - If any step of the installation fails
 ///
 /// # Environment Variables
 ///
-/// - `HUSKY=0` - Skip installation (for CI environments or debugging)
+/// - `SAMOID=0` - Skip installation (for CI environments or debugging)
 ///
 /// # Example
 ///
@@ -116,9 +116,9 @@ pub fn install_hooks(
     fs: &dyn FileSystem,
     custom_dir: Option<&str>,
 ) -> Result<String, InstallError> {
-    // Check HUSKY environment variable
-    if env.get_var("HUSKY").unwrap_or_default() == "0" {
-        return Ok("HUSKY=0 skip install".to_string());
+    // Check SAMOID environment variable
+    if env.get_var("SAMOID").unwrap_or_default() == "0" {
+        return Ok("SAMOID=0 skip install".to_string());
     }
 
     let hooks_dir_name = custom_dir.unwrap_or(".samoid");
@@ -153,14 +153,14 @@ mod tests {
     use std::process::{ExitStatus, Output};
 
     #[test]
-    fn test_install_hooks_skip_when_husky_0() {
-        let env = MockEnvironment::new().with_var("HUSKY", "0");
+    fn test_install_hooks_skip_when_samoid_0() {
+        let env = MockEnvironment::new().with_var("SAMOID", "0");
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new();
 
         let result = install_hooks(&env, &runner, &fs, None);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "HUSKY=0 skip install");
+        assert_eq!(result.unwrap(), "SAMOID=0 skip install");
     }
 
     #[test]
@@ -396,8 +396,8 @@ mod tests {
 
     #[test]
     fn test_install_hooks_empty_environment_variable() {
-        // Test when HUSKY is set to empty string (should not skip)
-        let env = MockEnvironment::new().with_var("HUSKY", "");
+        // Test when SAMOID is set to empty string (should not skip)
+        let env = MockEnvironment::new().with_var("SAMOID", "");
         let output = Output {
             status: ExitStatus::from_raw(0),
             stdout: vec![],
@@ -417,11 +417,11 @@ mod tests {
 
     #[test]
     fn test_install_hooks_other_environment_values() {
-        // Test various HUSKY environment variable values
+        // Test various SAMOID environment variable values
         let test_values = ["1", "true", "false", "disabled", "anything"];
 
         for value in &test_values {
-            let env = MockEnvironment::new().with_var("HUSKY", value);
+            let env = MockEnvironment::new().with_var("SAMOID", value);
             let output = Output {
                 status: ExitStatus::from_raw(0),
                 stdout: vec![],
@@ -435,8 +435,8 @@ mod tests {
             let fs = MockFileSystem::new().with_directory(".git");
 
             let result = install_hooks(&env, &runner, &fs, None);
-            assert!(result.is_ok(), "Failed for HUSKY={}", value);
-            assert_eq!(result.unwrap(), "", "Should not skip for HUSKY={}", value);
+            assert!(result.is_ok(), "Failed for SAMOID={}", value);
+            assert_eq!(result.unwrap(), "", "Should not skip for SAMOID={}", value);
         }
     }
 }
