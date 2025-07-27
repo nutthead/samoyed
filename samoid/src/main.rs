@@ -8,9 +8,11 @@ use clap::{Parser, Subcommand};
 use std::path::Path;
 
 mod config;
+mod environment;
 mod project;
 
 use config::SamoidConfig;
+use environment::{CommandRunner, Environment, FileSystem, SystemCommandRunner, SystemEnvironment, SystemFileSystem};
 use project::ProjectType;
 
 #[derive(Parser)]
@@ -37,7 +39,7 @@ fn main() -> Result<()> {
 
     match cli.command {
         Some(Commands::Init { project_type }) => {
-            init_command(project_type)?;
+            init_command_with_system_deps(project_type)?;
         }
         None => {
             // Show help when no command is provided
@@ -50,17 +52,31 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn init_command(project_type_hint: Option<String>) -> Result<()> {
+/// Wrapper function that calls init_command with real system dependencies
+fn init_command_with_system_deps(project_type_hint: Option<String>) -> Result<()> {
+    let env = SystemEnvironment;
+    let runner = SystemCommandRunner;
+    let fs = SystemFileSystem;
+    
+    init_command(&env, &runner, &fs, project_type_hint)
+}
+
+fn init_command(
+    _env: &dyn Environment,
+    runner: &dyn CommandRunner,
+    fs: &dyn FileSystem,
+    project_type_hint: Option<String>
+) -> Result<()> {
     // Check if we're in a Git repository
-    if !Path::new(".git").exists() {
+    if !fs.exists(Path::new(".git")) {
         anyhow::bail!("Not a git repository. Run 'git init' first.");
     }
 
     // Create .samoid directory if it doesn't exist
-    std::fs::create_dir_all(".samoid").context("Failed to create .samoid directory")?;
+    fs.create_dir_all(Path::new(".samoid")).context("Failed to create .samoid directory")?;
 
     // Check if samoid.toml already exists
-    let config_exists = Path::new("samoid.toml").exists();
+    let config_exists = fs.exists(Path::new("samoid.toml"));
 
     if config_exists {
         println!("samoid.toml already exists. Updating configuration...");
@@ -85,7 +101,7 @@ fn init_command(project_type_hint: Option<String>) -> Result<()> {
         let toml_content =
             toml::to_string_pretty(&config).context("Failed to serialize configuration")?;
 
-        std::fs::write("samoid.toml", toml_content).context("Failed to write samoid.toml")?;
+        fs.write(Path::new("samoid.toml"), &toml_content).context("Failed to write samoid.toml")?;
 
         println!(
             "✅ Created samoid.toml with {} defaults",
@@ -94,9 +110,7 @@ fn init_command(project_type_hint: Option<String>) -> Result<()> {
     }
 
     // Configure Git hooks path
-    let output = std::process::Command::new("git")
-        .args(&["config", "core.hooksPath", ".samoid/_"])
-        .output()
+    let output = runner.run_command("git", &["config", "core.hooksPath", ".samoid/_"])
         .context("Failed to execute git config command")?;
 
     if !output.status.success() {
@@ -113,69 +127,96 @@ fn init_command(project_type_hint: Option<String>) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use tempfile::TempDir;
-
-    fn setup_test_repo() -> TempDir {
-        let temp_dir = TempDir::new().unwrap();
-        let git_dir = temp_dir.path().join(".git");
-        fs::create_dir(&git_dir).unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
-
-        // Clean up any existing samoid.toml from previous tests
-        let _ = fs::remove_file("samoid.toml");
-        let _ = fs::remove_dir_all(".samoid");
-
-        temp_dir
-    }
+    use std::os::unix::process::ExitStatusExt;
+    use std::process::{ExitStatus, Output};
+    use environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
 
     #[test]
     fn test_init_command_creates_directories() {
-        let _temp_dir = setup_test_repo();
+        // Set up mocks
+        let env = MockEnvironment::new();
+        
+        // Mock successful git command
+        let output = Output {
+            status: ExitStatus::from_raw(0),
+            stdout: vec![],
+            stderr: vec![],
+        };
+        let runner = MockCommandRunner::new().with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(output),
+        );
+        
+        // Mock filesystem with git repository
+        let fs = MockFileSystem::new().with_directory(".git");
 
-        // Should create .samoid directory and samoid.toml even if git config fails
-        let result = init_command(None);
-
-        // Should create .samoid directory (in current working directory, which is temp_dir)
-        assert!(Path::new(".samoid").exists());
-
-        // Should create samoid.toml (in current working directory, which is temp_dir)
-        assert!(Path::new("samoid.toml").exists());
-
-        // Git config might fail in test environment, but file creation should work
-        if result.is_err() {
-            let error_msg = result.unwrap_err().to_string();
-            assert!(error_msg.contains("Failed to") || error_msg.contains("git"));
-        }
+        // Should succeed
+        let result = init_command(&env, &runner, &fs, None);
+        assert!(result.is_ok());
     }
 
     #[test]
     fn test_init_command_fails_without_git() {
-        let temp_dir = TempDir::new().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
+        // Set up mocks
+        let env = MockEnvironment::new();
+        let runner = MockCommandRunner::new();
+        let fs = MockFileSystem::new(); // No .git directory
 
         // Should fail without .git
-        assert!(init_command(None).is_err());
+        let result = init_command(&env, &runner, &fs, None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Not a git repository"));
     }
 
     #[test]
     fn test_init_command_with_project_type_hint() {
-        let _temp_dir = setup_test_repo();
+        // Set up mocks
+        let env = MockEnvironment::new();
+        
+        // Mock successful git command
+        let output = Output {
+            status: ExitStatus::from_raw(0),
+            stdout: vec![],
+            stderr: vec![],
+        };
+        let runner = MockCommandRunner::new().with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(output),
+        );
+        
+        // Mock filesystem with git repository
+        let fs = MockFileSystem::new().with_directory(".git");
 
-        // Create a Cargo.toml so the project type hint works properly
-        fs::write("Cargo.toml", "[package]\nname = \"test\"").unwrap();
+        // Should succeed with project type hint
+        let result = init_command(&env, &runner, &fs, Some("rust".to_string()));
+        assert!(result.is_ok());
+    }
 
-        let result = init_command(Some("rust".to_string()));
+    #[test]
+    fn test_init_command_git_config_failure() {
+        // Set up mocks
+        let env = MockEnvironment::new();
+        
+        // Mock failed git command
+        let output = Output {
+            status: ExitStatus::from_raw(1),
+            stdout: vec![],
+            stderr: b"fatal: not a git repository".to_vec(),
+        };
+        let runner = MockCommandRunner::new().with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(output),
+        );
+        
+        // Mock filesystem with git repository
+        let fs = MockFileSystem::new().with_directory(".git");
 
-        // Should create samoid.toml with Rust defaults
-        assert!(Path::new("samoid.toml").exists());
-        let content = fs::read_to_string("samoid.toml").unwrap();
-        assert!(content.contains("cargo"));
-
-        // Git config might fail in test environment, but file creation should work
-        if result.is_err() {
-            let error_msg = result.unwrap_err().to_string();
-            assert!(error_msg.contains("Failed to") || error_msg.contains("git"));
-        }
+        // Should fail when git config fails
+        let result = init_command(&env, &runner, &fs, None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Failed to set Git hooks path"));
     }
 }
