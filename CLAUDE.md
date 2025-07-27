@@ -191,3 +191,12 @@ validateAndExecute() {
 # validateAndExecute cargo "test" "Cargo.toml"
 # validateAndExecute npm "test" "package.json"
 ```
+
+
+## Session Reminders
+
+### TODO: Work on permission issues
+The Samoid hook runner is encountering permission issues during commit operations:
+- `.samoid/_/prepare-commit-msg: 3: exec: .git/COMMIT_EDITMSG: Permission denied`
+- This affects the git commit workflow when hooks are enabled
+- Need to investigate and fix the permission handling in the hook runner implementation

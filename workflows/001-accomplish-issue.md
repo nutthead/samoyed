@@ -1,6 +1,17 @@
+GITHUB_ISSUE:  https://github.com/nutthead/samoid/issues/2
+GITHUB_PROJECT_BOARDS:
+  - Feature Release: (https://github.com/orgs/nutthead/projects/5)
+  - Kanban: https://github.com/orgs/nutthead/projects/6)
+  - Product Launch: https://github.com/orgs/nutthead/projects/7
+  - Roadmap: ttps://github.com/orgs/nutthead/projects/8
+CLAUDE_PERMISSIONS: ALL GRANTED
+---
+
 # Workflow: Accomplish GitHub Issue
 
 This workflow provides a systematic approach to implementing GitHub issues with precision and without getting overwhelmed.
+
+**__Execute it for {GITHUB_ISSUE}!__**
 
 ## Type Definitions
 
@@ -23,7 +34,6 @@ type NaturalLanguage = MultilineString | Freeform
 // Enhanced label management with validation
 def validateAndUpdateLabels(issue: Issue, labels: List<Str>): Result {
   availableLabels = getLabels(repo)
-  
   for label in labels {
     if (!availableLabels.contains(label)) {
       // Try to find similar existing label
@@ -45,10 +55,12 @@ def validateAndUpdateLabels(issue: Issue, labels: List<Str>): Result {
 def updateIssueStatus(issue: Issue, forTask: Task | Str): Result {
   // Check available labels first
   availableLabels = getLabels(repo)
-  
+
+
   // Try to find appropriate status label
   statusLabels = availableLabels.filter(label => label.contains("status:"))
-  
+
+
   if (statusLabels.length > 0) {
     // Use existing status label pattern
     targetLabel = findBestStatusLabel(forTask, statusLabels)
@@ -56,10 +68,11 @@ def updateIssueStatus(issue: Issue, forTask: Task | Str): Result {
       addLabel(issue, targetLabel)
     }
   }
-  
+
+
   // Always add comment as primary communication method
   addComment(issue, generateStatusComment(forTask))
-  
+
   return Result("Status updated via labels and comments")
 }
 ```
@@ -81,18 +94,18 @@ object Git = {
     branchName = generateBranchName(issue)
     return executeCommand(`git checkout -b ${branchName}`)
   }
-  
+
   stageChanges(): Result {
     // Stage only source files, exclude build artifacts
     return executeCommand("git add src/ *.toml *.lock *.md")
   }
-  
+
   commit(messageFormat: Str): Result {
     // Use conventional commits with issue reference
     message = formatCommitMessage(messageFormat, issue)
     return executeCommand(`git commit -m "${message}"`)
   }
-  
+
   push(): Result {
     currentBranch = getCurrentBranch()
     return executeCommand(`git push -u origin ${currentBranch}`)
@@ -106,15 +119,15 @@ object Log = {
   info(rawMessage: Str): MultilineString {
     return `🔍 Log.info: ${rawMessage}`
   }
-  
+
   success(rawMessage: Str): MultilineString {
     return `✅ Log.success: ${rawMessage}`
   }
-  
+
   error(rawMessage: Str): MultilineString {
     return `❌ Log.error: ${rawMessage}`
   }
-  
+
   warning(rawMessage: Str): MultilineString {
     return `⚠️ Log.warning: ${rawMessage}`
   }
@@ -192,19 +205,19 @@ BEGIN:
 
   } catch (error) {
     Log.error(NaturalLanguage(`Workflow failed: ${error.message}`))
-    
+
     // Enhanced error recovery
     let recoveryActions = [
       "Save current progress",
-      "Document error details", 
+      "Document error details",
       "Create recovery issue if needed",
       "Notify stakeholders"
     ]
-    
+
     forEach action in recoveryActions {
       tryUntilSuccess(executeRecoveryAction(action))
     }
-    
+
     stop()
   }
 ```
@@ -219,26 +232,26 @@ def validateEnvironment(): Result {
     validatePermissions(),
     validateLabels()
   ]
-  
+
   return aggregateResults(checks)
 }
 
 def validateLabels(): Result {
   availableLabels = getLabels(repo)
   requiredPatterns = ["status:", "phase:", "priority:"]
-  
+
   missingPatterns = []
   for pattern in requiredPatterns {
     if (!availableLabels.any(label => label.contains(pattern))) {
       missingPatterns.add(pattern)
     }
   }
-  
+
   if (missingPatterns.length > 0) {
     Log.warning(`Missing label patterns: ${missingPatterns}`)
     return Result("Labels validated with warnings")
   }
-  
+
   return Result("All label patterns available")
 }
 ```
@@ -261,4 +274,6 @@ def validateLabels(): Result {
 - ✅ Documentation updated
 - ✅ Ready for code review
 
+
 This workflow ensures robust issue accomplishment with comprehensive error handling and graceful degradation when GitHub API operations fail.
+
