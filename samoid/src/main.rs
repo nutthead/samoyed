@@ -12,7 +12,10 @@ mod environment;
 mod project;
 
 use config::SamoidConfig;
-use environment::{CommandRunner, Environment, FileSystem, SystemCommandRunner, SystemEnvironment, SystemFileSystem};
+use environment::{
+    CommandRunner, Environment, FileSystem, SystemCommandRunner, SystemEnvironment,
+    SystemFileSystem,
+};
 use project::ProjectType;
 
 #[derive(Parser)]
@@ -34,6 +37,7 @@ enum Commands {
     },
 }
 
+#[cfg(not(tarpaulin_include))]
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -53,11 +57,12 @@ fn main() -> Result<()> {
 }
 
 /// Wrapper function that calls init_command with real system dependencies
+#[cfg(not(tarpaulin_include))]
 fn init_command_with_system_deps(project_type_hint: Option<String>) -> Result<()> {
     let env = SystemEnvironment;
     let runner = SystemCommandRunner;
     let fs = SystemFileSystem;
-    
+
     init_command(&env, &runner, &fs, project_type_hint)
 }
 
@@ -65,7 +70,7 @@ fn init_command(
     env: &dyn Environment,
     runner: &dyn CommandRunner,
     fs: &dyn FileSystem,
-    project_type_hint: Option<String>
+    project_type_hint: Option<String>,
 ) -> Result<()> {
     // Check if we're in a Git repository
     if !fs.exists(Path::new(".git")) {
@@ -73,7 +78,8 @@ fn init_command(
     }
 
     // Create .samoid directory if it doesn't exist
-    fs.create_dir_all(Path::new(".samoid")).context("Failed to create .samoid directory")?;
+    fs.create_dir_all(Path::new(".samoid"))
+        .context("Failed to create .samoid directory")?;
 
     // Check if samoid.toml already exists
     let config_exists = fs.exists(Path::new("samoid.toml"));
@@ -110,9 +116,12 @@ fn init_command(
             toml::to_string_pretty(&config).context("Failed to serialize configuration")?;
 
         // Validate the configuration before writing
-        config.validate().map_err(|e| anyhow::anyhow!("Generated configuration is invalid: {}", e))?;
+        config
+            .validate()
+            .map_err(|e| anyhow::anyhow!("Generated configuration is invalid: {}", e))?;
 
-        fs.write(Path::new("samoid.toml"), &toml_content).context("Failed to write samoid.toml")?;
+        fs.write(Path::new("samoid.toml"), &toml_content)
+            .context("Failed to write samoid.toml")?;
 
         if verbose {
             println!(
@@ -128,7 +137,8 @@ fn init_command(
     }
 
     // Configure Git hooks path
-    let output = runner.run_command("git", &["config", "core.hooksPath", ".samoid/_"])
+    let output = runner
+        .run_command("git", &["config", "core.hooksPath", ".samoid/_"])
         .context("Failed to execute git config command")?;
 
     if !output.status.success() {
@@ -145,15 +155,15 @@ fn init_command(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
     use std::os::unix::process::ExitStatusExt;
     use std::process::{ExitStatus, Output};
-    use environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
 
     #[test]
     fn test_init_command_creates_directories() {
         // Set up mocks
         let env = MockEnvironment::new();
-        
+
         // Mock successful git command
         let output = Output {
             status: ExitStatus::from_raw(0),
@@ -165,7 +175,7 @@ mod tests {
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(output),
         );
-        
+
         // Mock filesystem with git repository
         let fs = MockFileSystem::new().with_directory(".git");
 
@@ -184,14 +194,19 @@ mod tests {
         // Should fail without .git
         let result = init_command(&env, &runner, &fs, None);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Not a git repository"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Not a git repository")
+        );
     }
 
     #[test]
     fn test_init_command_with_project_type_hint() {
         // Set up mocks
         let env = MockEnvironment::new();
-        
+
         // Mock successful git command
         let output = Output {
             status: ExitStatus::from_raw(0),
@@ -203,7 +218,7 @@ mod tests {
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(output),
         );
-        
+
         // Mock filesystem with git repository
         let fs = MockFileSystem::new().with_directory(".git");
 
@@ -216,7 +231,7 @@ mod tests {
     fn test_init_command_git_config_failure() {
         // Set up mocks
         let env = MockEnvironment::new();
-        
+
         // Mock failed git command
         let output = Output {
             status: ExitStatus::from_raw(1),
@@ -228,21 +243,26 @@ mod tests {
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(output),
         );
-        
+
         // Mock filesystem with git repository
         let fs = MockFileSystem::new().with_directory(".git");
 
         // Should fail when git config fails
         let result = init_command(&env, &runner, &fs, None);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Failed to set Git hooks path"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Failed to set Git hooks path")
+        );
     }
 
     #[test]
     fn test_init_command_with_existing_config() {
         // Test when samoid.toml already exists
         let env = MockEnvironment::new();
-        
+
         let output = Output {
             status: ExitStatus::from_raw(0),
             stdout: vec![],
@@ -253,7 +273,7 @@ mod tests {
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(output),
         );
-        
+
         // Mock filesystem with git repository and existing config
         let fs = MockFileSystem::new()
             .with_directory(".git")
@@ -267,7 +287,7 @@ mod tests {
     fn test_init_command_with_invalid_project_type_hint() {
         // Test with invalid project type hint that falls back to auto-detection
         let env = MockEnvironment::new();
-        
+
         let output = Output {
             status: ExitStatus::from_raw(0),
             stdout: vec![],
@@ -278,7 +298,7 @@ mod tests {
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(output),
         );
-        
+
         let fs = MockFileSystem::new().with_directory(".git");
 
         // Should succeed even with invalid hint, falling back to auto-detect
@@ -289,21 +309,21 @@ mod tests {
     #[test]
     fn test_init_command_with_system_deps_wrapper() {
         // Test the wrapper function (this will use real system deps but we can still verify it compiles and links correctly)
-        
+
         // We can't easily test this without mocking at the system level,
         // but we can at least verify the function signature and that it would work
         let env = MockEnvironment::new();
         let runner = MockCommandRunner::new().with_response(
-            "git", 
+            "git",
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(Output {
                 status: ExitStatus::from_raw(0),
                 stdout: vec![],
                 stderr: vec![],
-            })
+            }),
         );
         let fs = MockFileSystem::new().with_directory(".git");
-        
+
         // Test the underlying function that the wrapper calls
         let result = init_command(&env, &runner, &fs, Some("rust".to_string()));
         assert!(result.is_ok());
@@ -313,12 +333,12 @@ mod tests {
     fn test_cli_struct_parsing() {
         // Test CLI struct can be created and parsed correctly
         use clap::Parser;
-        
+
         // Test valid arguments
         let args = vec!["samoid", "init"];
         let cli = Cli::try_parse_from(args);
         assert!(cli.is_ok());
-        
+
         let parsed = cli.unwrap();
         match parsed.command {
             Some(Commands::Init { project_type }) => {
@@ -326,12 +346,12 @@ mod tests {
             }
             _ => panic!("Expected Init command"),
         }
-        
+
         // Test with project type argument
         let args = vec!["samoid", "init", "--project-type", "rust"];
         let cli = Cli::try_parse_from(args);
         assert!(cli.is_ok());
-        
+
         let parsed = cli.unwrap();
         match parsed.command {
             Some(Commands::Init { project_type }) => {
@@ -339,12 +359,12 @@ mod tests {
             }
             _ => panic!("Expected Init command"),
         }
-        
+
         // Test with short form
         let args = vec!["samoid", "init", "-p", "go"];
         let cli = Cli::try_parse_from(args);
         assert!(cli.is_ok());
-        
+
         let parsed = cli.unwrap();
         match parsed.command {
             Some(Commands::Init { project_type }) => {
@@ -358,20 +378,20 @@ mod tests {
     fn test_cli_no_command() {
         // Test CLI with no command (None case)
         use clap::Parser;
-        
+
         let args = vec!["samoid"];
         let cli = Cli::try_parse_from(args);
         assert!(cli.is_ok());
-        
+
         let parsed = cli.unwrap();
         assert!(parsed.command.is_none());
     }
 
-    #[test] 
+    #[test]
     fn test_cli_invalid_arguments() {
         // Test CLI with invalid arguments
         use clap::Parser;
-        
+
         let args = vec!["samoid", "invalid-command"];
         let cli = Cli::try_parse_from(args);
         assert!(cli.is_err());
@@ -381,24 +401,24 @@ mod tests {
     fn test_init_command_all_project_types() {
         // Test init command with all supported project type hints
         let env = MockEnvironment::new();
-        
+
         let output = Output {
             status: ExitStatus::from_raw(0),
             stdout: vec![],
             stderr: vec![],
         };
-        
+
         let project_types = vec!["rust", "go", "node", "python", "javascript", "typescript"];
-        
+
         for project_type in project_types {
             let runner = MockCommandRunner::new().with_response(
                 "git",
                 &["config", "core.hooksPath", ".samoid/_"],
                 Ok(output.clone()),
             );
-            
+
             let fs = MockFileSystem::new().with_directory(".git");
-            
+
             let result = init_command(&env, &runner, &fs, Some(project_type.to_string()));
             assert!(result.is_ok(), "Failed for project type: {}", project_type);
         }
@@ -408,7 +428,7 @@ mod tests {
     fn test_init_command_with_various_scenarios() {
         // Test more edge cases to improve coverage
         let env = MockEnvironment::new();
-        
+
         let output = Output {
             status: ExitStatus::from_raw(0),
             stdout: vec![],
@@ -419,7 +439,7 @@ mod tests {
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(output),
         );
-        
+
         // Test with different filesystem states
         let fs = MockFileSystem::new()
             .with_directory(".git")
@@ -445,11 +465,11 @@ mod tests {
             }),
         );
         let fs = MockFileSystem::new().with_directory(".git");
-        
+
         // This tests the actual logic path that the wrapper takes
         let result = init_command(&env, &runner, &fs, None);
         assert!(result.is_ok());
-        
+
         // Test with different project types to ensure the wrapper handles them
         for project_type in &["rust", "go", "node", "python"] {
             let result = init_command(&env, &runner, &fs, Some(project_type.to_string()));
@@ -461,7 +481,7 @@ mod tests {
     fn test_project_type_detection_fallback() {
         // Test the fallback logic when project type hint is invalid
         let env = MockEnvironment::new();
-        
+
         let output = Output {
             status: ExitStatus::from_raw(0),
             stdout: vec![],
@@ -472,7 +492,7 @@ mod tests {
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(output),
         );
-        
+
         // Mock filesystem with multiple project files to test priority
         let fs = MockFileSystem::new()
             .with_directory(".git")
@@ -483,7 +503,7 @@ mod tests {
         // Test with invalid hint - should fallback to auto-detection
         let result = init_command(&env, &runner, &fs, Some("invalid-language".to_string()));
         assert!(result.is_ok());
-        
+
         // Test with empty hint
         let result = init_command(&env, &runner, &fs, Some("".to_string()));
         assert!(result.is_ok());
@@ -493,7 +513,7 @@ mod tests {
     fn test_verbose_output_with_environment_variable() {
         // Test that the SAMOID_VERBOSE environment variable affects output
         let env = MockEnvironment::new().with_var("SAMOID_VERBOSE", "1");
-        
+
         let output = Output {
             status: ExitStatus::from_raw(0),
             stdout: vec![],
@@ -504,18 +524,18 @@ mod tests {
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(output),
         );
-        
+
         let fs = MockFileSystem::new().with_directory(".git");
 
         // Should succeed with verbose environment variable set
         let result = init_command(&env, &runner, &fs, None);
         assert!(result.is_ok());
-        
+
         // Test with existing config and verbose mode
         let fs_with_config = MockFileSystem::new()
             .with_directory(".git")
             .with_file("samoid.toml", "[hooks]\npre-commit = \"test\"");
-            
+
         let result = init_command(&env, &runner, &fs_with_config, None);
         assert!(result.is_ok());
     }
@@ -524,7 +544,7 @@ mod tests {
     fn test_environment_variable_not_set() {
         // Test that when SAMOID_VERBOSE is not set or not "1", verbose mode is disabled
         let env = MockEnvironment::new(); // No environment variables set
-        
+
         let output = Output {
             status: ExitStatus::from_raw(0),
             stdout: vec![],
@@ -535,17 +555,17 @@ mod tests {
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(output),
         );
-        
+
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = init_command(&env, &runner, &fs, None);
         assert!(result.is_ok());
-        
+
         // Test with SAMOID_VERBOSE set to something other than "1"
         let env_other = MockEnvironment::new().with_var("SAMOID_VERBOSE", "0");
         let result = init_command(&env_other, &runner, &fs, None);
         assert!(result.is_ok());
-        
+
         let env_false = MockEnvironment::new().with_var("SAMOID_VERBOSE", "false");
         let result = init_command(&env_false, &runner, &fs, None);
         assert!(result.is_ok());
