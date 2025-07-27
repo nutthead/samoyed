@@ -1,3 +1,4 @@
+use crate::environment::{CommandRunner, Environment, FileSystem};
 use crate::git::{self, GitError};
 use crate::hooks::{self, HookError};
 use std::env;
@@ -36,7 +37,44 @@ impl From<HookError> for InstallError {
     }
 }
 
-pub fn install_hooks(custom_dir: Option<&str>) -> Result<String, InstallError> {
+/// Install hooks with dependency injection
+pub fn install_hooks(
+    env: &dyn Environment,
+    runner: &dyn CommandRunner,
+    fs: &dyn FileSystem,
+    custom_dir: Option<&str>,
+) -> Result<String, InstallError> {
+    // Check HUSKY environment variable
+    if env.get_var("HUSKY").unwrap_or_default() == "0" {
+        return Ok("HUSKY=0 skip install".to_string());
+    }
+
+    let hooks_dir_name = custom_dir.unwrap_or(".samoid");
+
+    if hooks_dir_name.contains("..") {
+        return Err(InstallError::InvalidPath(".. not allowed".to_string()));
+    }
+
+    // Check if we're in a git repository
+    git::check_git_repository(fs)?;
+
+    let hooks_path = format!("{}/_", hooks_dir_name);
+
+    // Set git hooks path
+    git::set_hooks_path(runner, &hooks_path)?;
+
+    let hooks_dir = PathBuf::from(&hooks_path);
+
+    // Create hook directory and files
+    hooks::create_hook_directory(fs, &hooks_dir)?;
+    hooks::copy_hook_runner(fs, &hooks_dir, None)?;
+    hooks::create_hook_files(fs, &hooks_dir)?;
+
+    Ok(String::new())
+}
+
+/// Legacy function for backward compatibility (used by main)
+pub fn install_hooks_legacy(custom_dir: Option<&str>) -> Result<String, InstallError> {
     if env::var("HUSKY").unwrap_or_default() == "0" {
         return Ok("HUSKY=0 skip install".to_string());
     }
@@ -47,18 +85,16 @@ pub fn install_hooks(custom_dir: Option<&str>) -> Result<String, InstallError> {
         return Err(InstallError::InvalidPath(".. not allowed".to_string()));
     }
 
-    git::check_git_repository()?;
+    git::check_git_repository_legacy()?;
 
     let hooks_path = format!("{}/_", hooks_dir_name);
-    git::set_hooks_path(&hooks_path)?;
+    git::set_hooks_path_legacy(&hooks_path)?;
 
     let hooks_dir = PathBuf::from(&hooks_path);
 
-    hooks::create_hook_directory(&hooks_dir)?;
-
-    hooks::copy_hook_runner(&hooks_dir, None)?;
-
-    hooks::create_hook_files(&hooks_dir)?;
+    hooks::create_hook_directory_legacy(&hooks_dir)?;
+    hooks::copy_hook_runner_legacy(&hooks_dir, None)?;
+    hooks::create_hook_files_legacy(&hooks_dir)?;
 
     Ok(String::new())
 }
@@ -66,66 +102,88 @@ pub fn install_hooks(custom_dir: Option<&str>) -> Result<String, InstallError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
-    use tempfile::TempDir;
+    use crate::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
+    use std::os::unix::process::ExitStatusExt;
+    use std::process::{ExitStatus, Output};
 
     #[test]
     fn test_install_hooks_skip_when_husky_0() {
-        // Set HUSKY=0 environment variable
-        unsafe {
-            env::set_var("HUSKY", "0");
-        }
+        let env = MockEnvironment::new().with_var("HUSKY", "0");
+        let runner = MockCommandRunner::new();
+        let fs = MockFileSystem::new();
 
-        let result = install_hooks(None);
+        let result = install_hooks(&env, &runner, &fs, None);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "HUSKY=0 skip install");
-
-        // Clean up
-        unsafe {
-            env::remove_var("HUSKY");
-        }
     }
 
     #[test]
     fn test_install_hooks_invalid_path_with_dotdot() {
-        let result = install_hooks(Some("../invalid"));
+        let env = MockEnvironment::new();
+        let runner = MockCommandRunner::new();
+        let fs = MockFileSystem::new();
+
+        let result = install_hooks(&env, &runner, &fs, Some("../invalid"));
         assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert!(matches!(error, InstallError::InvalidPath(_)));
-        assert_eq!(error.to_string(), ".. not allowed");
+        assert_eq!(result.unwrap_err().to_string(), ".. not allowed");
     }
 
     #[test]
     fn test_install_hooks_no_git_repository() {
-        let temp_dir = TempDir::new().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
+        let env = MockEnvironment::new();
+        let runner = MockCommandRunner::new();
+        let fs = MockFileSystem::new(); // No .git directory
 
-        let result = install_hooks(None);
+        let result = install_hooks(&env, &runner, &fs, None);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), InstallError::Git(_)));
+        assert_eq!(result.unwrap_err().to_string(), ".git can't be found");
     }
 
     #[test]
-    fn test_install_hooks_success_with_custom_dir() {
-        let temp_dir = TempDir::new().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
+    fn test_install_hooks_success() {
+        let env = MockEnvironment::new();
 
-        // Create .git directory
-        std::fs::create_dir(".git").unwrap();
+        // Configure git command to succeed
+        let output = Output {
+            status: ExitStatus::from_raw(0),
+            stdout: vec![],
+            stderr: vec![],
+        };
+        let runner = MockCommandRunner::new().with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(output),
+        );
 
-        // Initialize git repo to make git commands work
-        std::process::Command::new("git").arg("init").output().ok();
+        // Configure filesystem with .git directory
+        let fs = MockFileSystem::new().with_directory(".git");
 
-        let result = install_hooks(Some(".custom-hooks"));
+        let result = install_hooks(&env, &runner, &fs, None);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "");
+    }
 
-        // Should succeed if git is available
-        if std::process::Command::new("git")
-            .arg("--version")
-            .output()
-            .is_ok()
-        {
-            assert!(result.is_ok());
-        }
+    #[test]
+    fn test_install_hooks_with_custom_dir() {
+        let env = MockEnvironment::new();
+
+        // Configure git command to succeed with custom directory
+        let output = Output {
+            status: ExitStatus::from_raw(0),
+            stdout: vec![],
+            stderr: vec![],
+        };
+        let runner = MockCommandRunner::new().with_response(
+            "git",
+            &["config", "core.hooksPath", ".custom-hooks/_"],
+            Ok(output),
+        );
+
+        // Configure filesystem with .git directory
+        let fs = MockFileSystem::new().with_directory(".git");
+
+        let result = install_hooks(&env, &runner, &fs, Some(".custom-hooks"));
+        assert!(result.is_ok());
     }
 
     #[test]

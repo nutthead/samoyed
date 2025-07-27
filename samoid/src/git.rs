@@ -1,3 +1,4 @@
+use crate::environment::{CommandRunner, FileSystem};
 use std::path::Path;
 use std::process::Command;
 
@@ -20,14 +21,40 @@ impl std::fmt::Display for GitError {
 
 impl std::error::Error for GitError {}
 
-pub fn check_git_repository() -> Result<(), GitError> {
+/// Check if we're in a git repository using dependency injection
+pub fn check_git_repository(fs: &dyn FileSystem) -> Result<(), GitError> {
+    if !fs.exists(Path::new(".git")) {
+        return Err(GitError::NotGitRepository);
+    }
+    Ok(())
+}
+
+/// Set the hooks path in git configuration using dependency injection
+pub fn set_hooks_path(runner: &dyn CommandRunner, hooks_path: &str) -> Result<(), GitError> {
+    let output = runner.run_command("git", &["config", "core.hooksPath", hooks_path]);
+
+    match output {
+        Ok(output) => {
+            if output.status.success() {
+                Ok(())
+            } else {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                Err(GitError::ConfigurationFailed(stderr.to_string()))
+            }
+        }
+        Err(_) => Err(GitError::CommandNotFound),
+    }
+}
+
+/// Legacy functions for backward compatibility (used by main)
+pub fn check_git_repository_legacy() -> Result<(), GitError> {
     if !Path::new(".git").exists() {
         return Err(GitError::NotGitRepository);
     }
     Ok(())
 }
 
-pub fn set_hooks_path(hooks_path: &str) -> Result<(), GitError> {
+pub fn set_hooks_path_legacy(hooks_path: &str) -> Result<(), GitError> {
     let output = Command::new("git")
         .args(&["config", "core.hooksPath", hooks_path])
         .output();
@@ -48,31 +75,25 @@ pub fn set_hooks_path(hooks_path: &str) -> Result<(), GitError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use tempfile::TempDir;
+    use crate::environment::mocks::{MockCommandRunner, MockFileSystem};
+    use std::os::unix::process::ExitStatusExt;
+    use std::process::{ExitStatus, Output};
 
     #[test]
     fn test_check_git_repository_exists() {
-        let temp_dir = TempDir::new().unwrap();
-        let repo_path = temp_dir.path();
+        // Create a mock filesystem with .git directory
+        let fs = MockFileSystem::new().with_directory(".git");
 
-        std::env::set_current_dir(repo_path).unwrap();
-
-        // Create .git directory
-        fs::create_dir(".git").unwrap();
-
-        let result = check_git_repository();
+        let result = check_git_repository(&fs);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_check_git_repository_missing() {
-        let temp_dir = TempDir::new().unwrap();
-        let repo_path = temp_dir.path();
+        // Create a mock filesystem without .git directory
+        let fs = MockFileSystem::new();
 
-        std::env::set_current_dir(repo_path).unwrap();
-
-        let result = check_git_repository();
+        let result = check_git_repository(&fs);
         assert!(matches!(result, Err(GitError::NotGitRepository)));
     }
 
@@ -89,28 +110,49 @@ mod tests {
     }
 
     #[test]
-    fn test_set_hooks_path_in_valid_repo() {
-        let temp_dir = TempDir::new().unwrap();
-        let repo_path = temp_dir.path();
+    fn test_set_hooks_path_success() {
+        // Create a successful output
+        let output = Output {
+            status: ExitStatus::from_raw(0),
+            stdout: vec![],
+            stderr: vec![],
+        };
 
-        std::env::set_current_dir(repo_path).unwrap();
+        let runner = MockCommandRunner::new().with_response(
+            "git",
+            &["config", "core.hooksPath", ".test-hooks"],
+            Ok(output),
+        );
 
-        // Initialize a real git repo for this test
-        std::process::Command::new("git")
-            .arg("init")
-            .output()
-            .expect("Failed to init git repo");
+        let result = set_hooks_path(&runner, ".test-hooks");
+        assert!(result.is_ok());
+    }
 
-        let result = set_hooks_path(".test-hooks");
+    #[test]
+    fn test_set_hooks_path_command_not_found() {
+        let runner = MockCommandRunner::new();
+        // No response configured, so it will return command not found
 
-        // This should succeed in a real git repo if git is available
-        if std::process::Command::new("git")
-            .arg("--version")
-            .output()
-            .is_ok()
-        {
-            // In some environments git config might fail, so just check it doesn't panic
-            let _ = result;
-        }
+        let result = set_hooks_path(&runner, ".test-hooks");
+        assert!(matches!(result, Err(GitError::CommandNotFound)));
+    }
+
+    #[test]
+    fn test_set_hooks_path_configuration_failed() {
+        // Create a failed output
+        let output = Output {
+            status: ExitStatus::from_raw(1),
+            stdout: vec![],
+            stderr: b"error: could not lock config file".to_vec(),
+        };
+
+        let runner = MockCommandRunner::new().with_response(
+            "git",
+            &["config", "core.hooksPath", ".test-hooks"],
+            Ok(output),
+        );
+
+        let result = set_hooks_path(&runner, ".test-hooks");
+        assert!(matches!(result, Err(GitError::ConfigurationFailed(_))));
     }
 }

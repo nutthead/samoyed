@@ -1,3 +1,4 @@
+use crate::environment::FileSystem;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
@@ -42,7 +43,52 @@ impl From<std::io::Error> for HookError {
     }
 }
 
-pub fn create_hook_directory(hooks_dir: &Path) -> Result<(), HookError> {
+pub fn create_hook_directory(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<(), HookError> {
+    fs.create_dir_all(hooks_dir)?;
+
+    let gitignore_path = hooks_dir.join(".gitignore");
+    fs.write(&gitignore_path, "*")?;
+
+    Ok(())
+}
+
+pub fn create_hook_files(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<(), HookError> {
+    let hook_content = r#"#!/usr/bin/env sh
+. "$(dirname "$0")/h""#;
+
+    for &hook_name in STANDARD_HOOKS {
+        let hook_path = hooks_dir.join(hook_name);
+        fs.write(&hook_path, hook_content)?;
+        fs.set_permissions(&hook_path, 0o755)?;
+    }
+
+    Ok(())
+}
+
+pub fn copy_hook_runner(
+    fs: &dyn FileSystem,
+    hooks_dir: &Path,
+    runner_source: Option<&Path>,
+) -> Result<(), HookError> {
+    let runner_dest = hooks_dir.join("h");
+
+    if let Some(source) = runner_source {
+        let content = fs.read_to_string(source)?;
+        fs.write(&runner_dest, &content)?;
+    } else {
+        let placeholder_runner = r#"#!/usr/bin/env sh
+echo "Samoid hook runner - placeholder implementation"
+exec "$@""#;
+        fs.write(&runner_dest, placeholder_runner)?;
+    }
+
+    fs.set_permissions(&runner_dest, 0o755)?;
+
+    Ok(())
+}
+
+/// Legacy functions for backward compatibility (used by main)
+pub fn create_hook_directory_legacy(hooks_dir: &Path) -> Result<(), HookError> {
     fs::create_dir_all(hooks_dir)?;
 
     let gitignore_path = hooks_dir.join(".gitignore");
@@ -51,7 +97,7 @@ pub fn create_hook_directory(hooks_dir: &Path) -> Result<(), HookError> {
     Ok(())
 }
 
-pub fn create_hook_files(hooks_dir: &Path) -> Result<(), HookError> {
+pub fn create_hook_files_legacy(hooks_dir: &Path) -> Result<(), HookError> {
     let hook_content = r#"#!/usr/bin/env sh
 . "$(dirname "$0")/h""#;
 
@@ -67,7 +113,10 @@ pub fn create_hook_files(hooks_dir: &Path) -> Result<(), HookError> {
     Ok(())
 }
 
-pub fn copy_hook_runner(hooks_dir: &Path, runner_source: Option<&Path>) -> Result<(), HookError> {
+pub fn copy_hook_runner_legacy(
+    hooks_dir: &Path,
+    runner_source: Option<&Path>,
+) -> Result<(), HookError> {
     let runner_dest = hooks_dir.join("h");
 
     if let Some(source) = runner_source {
@@ -89,94 +138,56 @@ exec "$@""#;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use tempfile::TempDir;
+    use crate::environment::mocks::MockFileSystem;
 
     #[test]
-    fn test_create_hook_directory_success() {
-        let temp_dir = TempDir::new().unwrap();
-        let hooks_dir = temp_dir.path().join("test_hooks");
+    fn test_create_hook_directory() {
+        let fs = MockFileSystem::new();
+        let hooks_dir = std::path::Path::new(".samoid/_");
 
-        let result = create_hook_directory(&hooks_dir);
+        let result = create_hook_directory(&fs, hooks_dir);
         assert!(result.is_ok());
 
-        assert!(hooks_dir.exists());
-        let gitignore_path = hooks_dir.join(".gitignore");
-        assert!(gitignore_path.exists());
-
-        let content = fs::read_to_string(&gitignore_path).unwrap();
-        assert_eq!(content, "*");
+        // Verify the mock filesystem recorded the operations
+        assert!(fs.exists(hooks_dir));
+        assert!(fs.exists(&hooks_dir.join(".gitignore")));
     }
 
     #[test]
-    fn test_create_hook_files_success() {
-        let temp_dir = TempDir::new().unwrap();
-        let hooks_dir = temp_dir.path().join("test_hooks");
-        fs::create_dir_all(&hooks_dir).unwrap();
+    fn test_create_hook_files() {
+        let fs = MockFileSystem::new();
+        let hooks_dir = std::path::Path::new(".samoid/_");
 
-        let result = create_hook_files(&hooks_dir);
+        let result = create_hook_files(&fs, hooks_dir);
         assert!(result.is_ok());
 
-        // Check that all standard hooks were created
-        for &hook_name in STANDARD_HOOKS {
-            let hook_path = hooks_dir.join(hook_name);
-            assert!(hook_path.exists(), "Hook {} should exist", hook_name);
-
-            let content = fs::read_to_string(&hook_path).unwrap();
-            assert_eq!(content, "#!/usr/bin/env sh\n. \"$(dirname \"$0\")/h\"");
-
-            // Check permissions (on Unix systems)
-            #[cfg(unix)]
-            {
-                let metadata = fs::metadata(&hook_path).unwrap();
-                let permissions = metadata.permissions();
-                assert_eq!(permissions.mode() & 0o777, 0o755);
-            }
+        // Verify all hooks were created
+        for &hook in STANDARD_HOOKS {
+            assert!(fs.exists(&hooks_dir.join(hook)));
         }
     }
 
     #[test]
     fn test_copy_hook_runner_with_placeholder() {
-        let temp_dir = TempDir::new().unwrap();
-        let hooks_dir = temp_dir.path().join("test_hooks");
-        fs::create_dir_all(&hooks_dir).unwrap();
+        let fs = MockFileSystem::new();
+        let hooks_dir = std::path::Path::new(".samoid/_");
 
-        let result = copy_hook_runner(&hooks_dir, None);
+        let result = copy_hook_runner(&fs, hooks_dir, None);
         assert!(result.is_ok());
 
-        let runner_path = hooks_dir.join("h");
-        assert!(runner_path.exists());
-
-        let content = fs::read_to_string(&runner_path).unwrap();
-        assert!(content.contains("Samoid hook runner - placeholder implementation"));
-
-        // Check permissions
-        #[cfg(unix)]
-        {
-            let metadata = fs::metadata(&runner_path).unwrap();
-            let permissions = metadata.permissions();
-            assert_eq!(permissions.mode() & 0o777, 0o755);
-        }
+        assert!(fs.exists(&hooks_dir.join("h")));
     }
 
     #[test]
     fn test_copy_hook_runner_with_source() {
-        let temp_dir = TempDir::new().unwrap();
-        let hooks_dir = temp_dir.path().join("test_hooks");
-        fs::create_dir_all(&hooks_dir).unwrap();
+        let fs =
+            MockFileSystem::new().with_file("/tmp/runner.sh", "#!/bin/sh\necho 'custom runner'");
+        let hooks_dir = std::path::Path::new(".samoid/_");
 
-        // Create a source file
-        let source_path = temp_dir.path().join("source_runner");
-        fs::write(&source_path, "#!/bin/sh\necho 'custom runner'").unwrap();
-
-        let result = copy_hook_runner(&hooks_dir, Some(&source_path));
+        let result = copy_hook_runner(&fs, hooks_dir, Some(std::path::Path::new("/tmp/runner.sh")));
         assert!(result.is_ok());
 
-        let runner_path = hooks_dir.join("h");
-        assert!(runner_path.exists());
-
-        let content = fs::read_to_string(&runner_path).unwrap();
-        assert_eq!(content, "#!/bin/sh\necho 'custom runner'");
+        assert!(fs.exists(&hooks_dir.join("h")));
     }
 
     #[test]

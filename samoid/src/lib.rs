@@ -1,3 +1,4 @@
+pub mod environment;
 pub mod git;
 pub mod hooks;
 pub mod installer;
