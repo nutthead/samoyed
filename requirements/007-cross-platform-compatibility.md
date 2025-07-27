@@ -1,7 +1,7 @@
-# Requirement 009: Cross-Platform Compatibility
+# Requirement 007: Cross-Platform Compatibility
 
 ## Basic Information
-- **ID**: 9
+- **ID**: 7
 - **Title**: Cross-Platform Compatibility
 - **Type**: Non-Functional
 - **Priority**: Medium
@@ -41,6 +41,7 @@ Sprint 2
 - `compatibility`
 - `windows`
 - `unix`
+- `🔨 phase: construction`
 
 ## Traceability
 

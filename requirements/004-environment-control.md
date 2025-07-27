@@ -39,6 +39,7 @@ Sprint 2
 - `environment`
 - `configuration`
 - `debugging`
+- `🔨 phase: construction`
 
 ## Traceability
 
