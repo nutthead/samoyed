@@ -78,32 +78,8 @@ Uses dependency injection pattern for complete test isolation and exceptional qu
 - **Production**: `SystemEnvironment`, `SystemCommandRunner`, `SystemFileSystem` for real operations
 - **Testing**: `MockEnvironment`, `MockCommandRunner`, `MockFileSystem` with `Arc<Mutex<T>>` for thread safety
 
-**Test Isolation Pattern:**
-```rust
-#[test]
-fn test_example() {
-    // Completely isolated - no shared state or system dependencies
-    let env = MockEnvironment::new().with_var("HUSKY", "0");
-    let runner = MockCommandRunner::new()
-        .with_response("git", &["config", "core.hooksPath", ".samoid/_"], Ok(output));
-    let fs = MockFileSystem::new().with_directory(".git");
-
-    let result = install_hooks(&env, &runner, &fs, None);
-    assert!(result.is_ok());
-}
-```
-
-**Quality Achievements:**
-- **Coverage**: 94.33% (133/141 lines) through systematic testing approach
-- **Reliability**: 100% test pass rate (was ~70% with environment contamination)
-- **Performance**: 15x faster execution (~2s vs ~30s, 70 tests total)
-- **Architecture**: Clean codebase with zero compiler warnings after removing 77 lines of legacy code
-
-**Testing Strategy Levels:**
-1. **Real System Integration**: Tests with `SystemFileSystem` validate production implementations
-2. **Mock Error Scenarios**: Comprehensive edge case and error condition testing
-3. **Main Logic Testing**: All execution paths without binary execution
-4. **Parallel Execution**: Thread-safe mocks enable reliable concurrent testing
+**Testing Reference Guide:**
+Before writing new tests---or maintaining existing tests and fixing borken tests---proactively read [Rust Testing Catalog: Comprehensive Reference Guide](knol/references/002-rust-testing-reference.md) as a reference guide.
 
 **Coverage Tools:** Use `cargo tarpaulin` with `.tarpaulin.toml`:
 ```toml
@@ -114,12 +90,6 @@ run-types = ["Tests"]
 output-dir = "target/tarpaulin/coverage"
 out = ["Html", "Json"]
 ```
-
-**Implementation Lessons:**
-- **Interface Simplification**: Environment trait reduced from 5 methods to 1 through usage analysis
-- **Legacy Elimination**: Systematic removal of unused code improves coverage and reduces complexity
-- **Iterative Improvement**: 4-step approach: baseline → DI implementation → legacy removal → comprehensive testing
-- **Meaningful Coverage**: Focus on behavioral validation rather than just coverage numbers
 
 ## Directory Context Management
 **ALWAYS:** verify working directory before Samoid/Husky-specific commands**
