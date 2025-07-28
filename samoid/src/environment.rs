@@ -197,10 +197,17 @@ impl FileSystem for SystemFileSystem {
     }
 
     #[cfg(not(unix))]
-    fn set_permissions(&self, _path: &Path, _mode: u32) -> io::Result<()> {
-        // On non-Unix systems, we'll just return Ok
-        // In production, you might want to handle Windows permissions differently
-        Ok(())
+    fn set_permissions(&self, path: &Path, _mode: u32) -> io::Result<()> {
+        // On non-Unix systems, check if the file exists first
+        if path.exists() {
+            // On Windows, we don't set Unix-style permissions, but we still succeed
+            Ok(())
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "File not found",
+            ))
+        }
     }
 }
 
