@@ -36,9 +36,9 @@ pub enum InstallError {
 impl std::fmt::Display for InstallError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InstallError::Git(e) => write!(f, "{}", e),
-            InstallError::Hooks(e) => write!(f, "{}", e),
-            InstallError::InvalidPath(msg) => write!(f, "{}", msg),
+            InstallError::Git(e) => write!(f, "{e}"),
+            InstallError::Hooks(e) => write!(f, "{e}"),
+            InstallError::InvalidPath(msg) => write!(f, "{msg}"),
         }
     }
 }
@@ -130,7 +130,7 @@ pub fn install_hooks(
     // Check if we're in a git repository
     git::check_git_repository(fs)?;
 
-    let hooks_path = format!("{}/_", hooks_dir_name);
+    let hooks_path = format!("{hooks_dir_name}/_");
 
     // Set git hooks path
     git::set_hooks_path(runner, &hooks_path)?;
@@ -140,7 +140,7 @@ pub fn install_hooks(
     // Create hook directory and files
     hooks::create_hook_directory(fs, &hooks_dir)?;
     hooks::create_hook_files(fs, &hooks_dir)?;
-    
+
     // Create example hook scripts for users to customize in .samoid/scripts/
     // These are optional and won't overwrite existing user scripts
     let hooks_base_dir = PathBuf::from(hooks_dir_name);
@@ -153,8 +153,22 @@ pub fn install_hooks(
 mod tests {
     use super::*;
     use crate::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
-    use std::os::unix::process::ExitStatusExt;
     use std::process::{ExitStatus, Output};
+
+    // Cross-platform exit status creation
+    #[cfg(unix)]
+    use std::os::unix::process::ExitStatusExt;
+    #[cfg(windows)]
+    use std::os::windows::process::ExitStatusExt;
+
+    // Helper function to create ExitStatus cross-platform
+    fn exit_status(code: i32) -> ExitStatus {
+        #[cfg(unix)]
+        return ExitStatus::from_raw(code);
+
+        #[cfg(windows)]
+        return ExitStatus::from_raw(code as u32);
+    }
 
     #[test]
     fn test_install_hooks_skip_when_samoid_0() {
@@ -195,7 +209,7 @@ mod tests {
 
         // Configure git command to succeed
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -219,7 +233,7 @@ mod tests {
 
         // Configure git command to succeed with custom directory
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -286,7 +300,7 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -318,9 +332,9 @@ mod tests {
         let error3 = InstallError::InvalidPath("invalid".to_string());
 
         // Test Debug formatting
-        assert!(!format!("{:?}", error1).is_empty());
-        assert!(!format!("{:?}", error2).is_empty());
-        assert!(!format!("{:?}", error3).is_empty());
+        assert!(!format!("{error1:?}").is_empty());
+        assert!(!format!("{error2:?}").is_empty());
+        assert!(!format!("{error3:?}").is_empty());
 
         // Test Display formatting
         assert_eq!(error1.to_string(), "git command not found");
@@ -333,12 +347,12 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output1 = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
         let output2 = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -370,7 +384,7 @@ mod tests {
     fn test_install_hooks_edge_case_paths() {
         let env = MockEnvironment::new();
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -385,7 +399,7 @@ mod tests {
         ];
 
         for dir_name in &test_cases {
-            let expected_path = format!("{}/_", dir_name);
+            let expected_path = format!("{dir_name}/_");
             let runner = MockCommandRunner::new().with_response(
                 "git",
                 &["config", "core.hooksPath", &expected_path],
@@ -394,7 +408,7 @@ mod tests {
             let fs = MockFileSystem::new().with_directory(".git");
 
             let result = install_hooks(&env, &runner, &fs, Some(dir_name));
-            assert!(result.is_ok(), "Failed for directory: {}", dir_name);
+            assert!(result.is_ok(), "Failed for directory: {dir_name}");
         }
     }
 
@@ -403,7 +417,7 @@ mod tests {
         // Test when SAMOID is set to empty string (should not skip)
         let env = MockEnvironment::new().with_var("SAMOID", "");
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -427,7 +441,7 @@ mod tests {
         for value in &test_values {
             let env = MockEnvironment::new().with_var("SAMOID", value);
             let output = Output {
-                status: ExitStatus::from_raw(0),
+                status: exit_status(0),
                 stdout: vec![],
                 stderr: vec![],
             };
@@ -439,8 +453,8 @@ mod tests {
             let fs = MockFileSystem::new().with_directory(".git");
 
             let result = install_hooks(&env, &runner, &fs, None);
-            assert!(result.is_ok(), "Failed for SAMOID={}", value);
-            assert_eq!(result.unwrap(), "", "Should not skip for SAMOID={}", value);
+            assert!(result.is_ok(), "Failed for SAMOID={value}");
+            assert_eq!(result.unwrap(), "", "Should not skip for SAMOID={value}");
         }
     }
 }

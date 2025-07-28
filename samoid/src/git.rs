@@ -25,7 +25,7 @@ impl std::fmt::Display for GitError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GitError::CommandNotFound => write!(f, "git command not found"),
-            GitError::ConfigurationFailed(msg) => write!(f, "{}", msg),
+            GitError::ConfigurationFailed(msg) => write!(f, "{msg}"),
             GitError::NotGitRepository => write!(f, ".git can't be found"),
         }
     }
@@ -116,8 +116,22 @@ pub fn set_hooks_path(runner: &dyn CommandRunner, hooks_path: &str) -> Result<()
 mod tests {
     use super::*;
     use crate::environment::mocks::{MockCommandRunner, MockFileSystem};
-    use std::os::unix::process::ExitStatusExt;
     use std::process::{ExitStatus, Output};
+
+    // Cross-platform exit status creation
+    #[cfg(unix)]
+    use std::os::unix::process::ExitStatusExt;
+    #[cfg(windows)]
+    use std::os::windows::process::ExitStatusExt;
+
+    // Helper function to create ExitStatus cross-platform
+    fn exit_status(code: i32) -> ExitStatus {
+        #[cfg(unix)]
+        return ExitStatus::from_raw(code);
+
+        #[cfg(windows)]
+        return ExitStatus::from_raw(code as u32);
+    }
 
     #[test]
     fn test_check_git_repository_exists() {
@@ -153,7 +167,7 @@ mod tests {
     fn test_set_hooks_path_success() {
         // Create a successful output
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -181,7 +195,7 @@ mod tests {
     fn test_set_hooks_path_configuration_failed() {
         // Create a failed output
         let output = Output {
-            status: ExitStatus::from_raw(1),
+            status: exit_status(1),
             stdout: vec![],
             stderr: b"error: could not lock config file".to_vec(),
         };
@@ -204,9 +218,9 @@ mod tests {
         let error3 = GitError::NotGitRepository;
 
         // Ensure all implement Debug and Display
-        assert!(!format!("{:?}", error1).is_empty());
-        assert!(!format!("{:?}", error2).is_empty());
-        assert!(!format!("{:?}", error3).is_empty());
+        assert!(!format!("{error1:?}").is_empty());
+        assert!(!format!("{error2:?}").is_empty());
+        assert!(!format!("{error3:?}").is_empty());
         assert!(!error1.to_string().is_empty());
         assert!(!error2.to_string().is_empty());
         assert!(!error3.to_string().is_empty());
@@ -216,12 +230,12 @@ mod tests {
     fn test_set_hooks_path_with_different_paths() {
         // Test with different hook paths
         let output1 = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
         let output2 = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };

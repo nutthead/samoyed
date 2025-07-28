@@ -83,7 +83,10 @@ pub trait FileSystem {
     ///
     /// * `Ok(())` - If the directory was created or already exists
     /// * `Err(io::Error)` - If directory creation fails
-    #[allow(dead_code, reason = "Used through trait object in hooks.rs and main.rs")]
+    #[allow(
+        dead_code,
+        reason = "Used through trait object in hooks.rs and main.rs"
+    )]
     fn create_dir_all(&self, path: &Path) -> io::Result<()>;
 
     /// Writes string contents to a file
@@ -97,7 +100,10 @@ pub trait FileSystem {
     ///
     /// * `Ok(())` - If the file was written successfully
     /// * `Err(io::Error)` - If writing fails
-    #[allow(dead_code, reason = "Used through trait object in hooks.rs and main.rs")]
+    #[allow(
+        dead_code,
+        reason = "Used through trait object in hooks.rs and main.rs"
+    )]
     fn write(&self, path: &Path, contents: &str) -> io::Result<()>;
 
     /// Reads the entire contents of a file as a string
@@ -110,7 +116,10 @@ pub trait FileSystem {
     ///
     /// * `Ok(String)` - The file contents
     /// * `Err(io::Error)` - If reading fails or file doesn't exist
-    #[allow(dead_code, reason = "Used through trait object in test implementations")]
+    #[allow(
+        dead_code,
+        reason = "Used through trait object in test implementations"
+    )]
     fn read_to_string(&self, path: &Path) -> io::Result<String>;
 
     /// Sets Unix file permissions
@@ -124,7 +133,10 @@ pub trait FileSystem {
     ///
     /// * `Ok(())` - If permissions were set successfully
     /// * `Err(io::Error)` - If setting permissions fails
-    #[allow(dead_code, reason = "Used through trait object in hooks.rs for file permissions")]
+    #[allow(
+        dead_code,
+        reason = "Used through trait object in hooks.rs for file permissions"
+    )]
     fn set_permissions(&self, path: &Path, mode: u32) -> io::Result<()>;
 }
 
@@ -185,10 +197,14 @@ impl FileSystem for SystemFileSystem {
     }
 
     #[cfg(not(unix))]
-    fn set_permissions(&self, _path: &Path, _mode: u32) -> io::Result<()> {
-        // On non-Unix systems, we'll just return Ok
-        // In production, you might want to handle Windows permissions differently
-        Ok(())
+    fn set_permissions(&self, path: &Path, _mode: u32) -> io::Result<()> {
+        // On non-Unix systems, check if the file exists first
+        if path.exists() {
+            // On Windows, we don't set Unix-style permissions, but we still succeed
+            Ok(())
+        } else {
+            Err(io::Error::new(io::ErrorKind::NotFound, "File not found"))
+        }
     }
 }
 
@@ -204,7 +220,21 @@ impl FileSystem for SystemFileSystem {
 /// use samoid::environment::mocks::{MockEnvironment, MockCommandRunner, MockFileSystem};
 /// use samoid::environment::{Environment, CommandRunner, FileSystem};
 /// use std::process::{Output, ExitStatus};
+///
+/// // Cross-platform exit status creation
+/// #[cfg(unix)]
 /// use std::os::unix::process::ExitStatusExt;
+/// #[cfg(windows)]
+/// use std::os::windows::process::ExitStatusExt;
+///
+/// // Helper function to create ExitStatus cross-platform
+/// fn exit_status(code: i32) -> ExitStatus {
+///     #[cfg(unix)]
+///     return ExitStatus::from_raw(code);
+///     
+///     #[cfg(windows)]
+///     return ExitStatus::from_raw(code as u32);
+/// }
 ///
 /// // Create a mock environment with a specific variable
 /// let env = MockEnvironment::new().with_var("SAMOID", "0");
@@ -212,7 +242,7 @@ impl FileSystem for SystemFileSystem {
 ///
 /// // Create a mock command runner with a predefined response
 /// let output = Output {
-///     status: ExitStatus::from_raw(0),
+///     status: exit_status(0),
 ///     stdout: b"success".to_vec(),
 ///     stderr: vec![],
 /// };
@@ -239,6 +269,12 @@ pub mod mocks {
     pub struct MockEnvironment {
         /// Thread-safe storage for mock environment variables
         vars: Arc<Mutex<HashMap<String, String>>>,
+    }
+
+    impl Default for MockEnvironment {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl MockEnvironment {
@@ -297,6 +333,12 @@ pub mod mocks {
     pub struct MockCommandRunner {
         /// Thread-safe storage for command responses keyed by "program arg1 arg2"
         responses: Arc<Mutex<HashMap<String, io::Result<Output>>>>,
+    }
+
+    impl Default for MockCommandRunner {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl MockCommandRunner {
@@ -374,6 +416,12 @@ pub mod mocks {
         files: Arc<Mutex<HashMap<PathBuf, String>>>,
         /// Thread-safe storage for directory paths
         directories: Arc<Mutex<Vec<PathBuf>>>,
+    }
+
+    impl Default for MockFileSystem {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl MockFileSystem {
@@ -487,7 +535,21 @@ pub mod mocks {
 mod tests {
     use super::*;
     use crate::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
+
+    // Cross-platform exit status creation
+    #[cfg(unix)]
     use std::os::unix::process::ExitStatusExt;
+    #[cfg(windows)]
+    use std::os::windows::process::ExitStatusExt;
+
+    // Helper function to create ExitStatus cross-platform
+    fn exit_status(code: i32) -> std::process::ExitStatus {
+        #[cfg(unix)]
+        return std::process::ExitStatus::from_raw(code);
+
+        #[cfg(windows)]
+        return std::process::ExitStatus::from_raw(code as u32);
+    }
 
     #[test]
     fn test_system_environment_basic_operations() {
@@ -620,7 +682,7 @@ mod tests {
     #[test]
     fn test_mock_command_runner_operations() {
         let output = std::process::Output {
-            status: std::process::ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: b"success".to_vec(),
             stderr: vec![],
         };
@@ -656,12 +718,12 @@ mod tests {
     #[test]
     fn test_mock_command_runner_multiple_responses() {
         let output1 = std::process::Output {
-            status: std::process::ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: b"first".to_vec(),
             stderr: vec![],
         };
         let output2 = std::process::Output {
-            status: std::process::ExitStatus::from_raw(1),
+            status: exit_status(1),
             stdout: vec![],
             stderr: b"error".to_vec(),
         };

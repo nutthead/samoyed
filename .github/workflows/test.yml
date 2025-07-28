@@ -1,0 +1,285 @@
+name: 🧪 Test Suite
+
+on:
+  push:
+    branches: [master, develop]
+    paths:
+      - "samoid/**"
+      - ".github/workflows/test.yml"
+  pull_request:
+    branches: [master, develop]
+    paths:
+      - "samoid/**"
+      - ".github/workflows/test.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable, beta]
+        include:
+          - os: ubuntu-latest
+            rust: nightly
+          - os: ubuntu-latest
+            rust: 1.85.0 # First Rust 2024 edition
+          - os: ubuntu-24.04
+            rust: 1.88.0 # Latest stable version
+          - os: ubuntu-24.04 # Latest LTS version
+            rust: stable
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🦀 Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - name: 📦 Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            samoid/target/
+          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('samoid/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.rust }}-
+            ${{ runner.os }}-cargo-
+
+      - name: 🔧 Configure working directory
+        run: |
+          cd samoid
+          pwd
+        shell: bash
+
+      - name: 🔍 Check code formatting
+        run: |
+          cd samoid
+          cargo fmt --all -- --check
+        if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
+
+      - name: 📋 Run Clippy lints
+        run: |
+          cd samoid
+          cargo clippy --all-targets --all-features -- -D warnings
+        if: matrix.rust == 'stable'
+
+      - name: 🏗️ Build project
+        run: |
+          cd samoid
+          cargo build --verbose
+
+      - name: 🏗️ Build release
+        run: |
+          cd samoid
+          cargo build --release --verbose
+        if: matrix.rust == 'stable'
+
+      - name: 🧪 Run unit tests
+        run: |
+          cd samoid
+          cargo test --lib --verbose
+
+      - name: 🔗 Run integration tests
+        run: |
+          cd samoid
+          cargo test --test integration_test --verbose
+
+      - name: 🌐 Run cross-platform tests
+        run: |
+          cd samoid
+          cargo test --test cross_platform_tests --verbose
+
+      - name: 📊 Run comprehensive integration tests
+        run: |
+          cd samoid
+          cargo test --test comprehensive_integration_tests --verbose
+
+      - name: 🚀 Run all tests
+        run: |
+          cd samoid
+          cargo test --verbose
+
+      - name: 📚 Generate documentation
+        run: |
+          cd samoid
+          cargo doc --no-deps --verbose
+        if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
+
+      - name: ⚡ Run benchmarks
+        run: |
+          cd samoid
+          cargo bench --verbose
+        if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
+
+  coverage:
+    name: 📊 Code Coverage
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🦀 Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 📦 Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            samoid/target/
+          key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('samoid/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-coverage-
+            ${{ runner.os }}-cargo-
+
+      - name: 🔧 Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: 📊 Generate code coverage
+        run: |
+          cd samoid
+          cargo tarpaulin \
+            --verbose \
+            --all-features \
+            --workspace \
+            --engine llvm \
+            --timeout 120 \
+            --out xml \
+            --out html \
+            --out json \
+            --output-dir target/tarpaulin
+
+      - name: 📋 Display coverage summary
+        run: |
+          cd samoid
+          if [ -f target/tarpaulin/cobertura.xml ]; then
+            echo "📊 Coverage Report Generated Successfully"
+            echo "HTML Report: target/tarpaulin/tarpaulin-report.html"
+            echo "XML Report: target/tarpaulin/cobertura.xml"
+            echo "JSON Report: target/tarpaulin/tarpaulin-report.json"
+          else
+            echo "❌ Coverage report generation failed"
+            exit 1
+          fi
+
+      - name: 📤 Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            samoid/target/tarpaulin/tarpaulin-report.html
+            samoid/target/tarpaulin/cobertura.xml
+            samoid/target/tarpaulin/tarpaulin-report.json
+          retention-days: 30
+
+      - name: 📈 Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: samoid/target/tarpaulin/cobertura.xml
+          directory: samoid/target/tarpaulin/
+          flags: unittests
+          name: samoid-coverage
+          fail_ci_if_error: false
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  security:
+    name: 🔒 Security Audit
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🦀 Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 📦 Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-audit-${{ hashFiles('samoid/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-audit-
+
+      - name: 🔧 Install cargo-audit
+        run: cargo install --force cargo-audit
+
+      - name: 🔍 Run security audit
+        run: |
+          cd samoid
+          cargo audit
+
+  summary:
+    name: ✅ Test Summary
+    runs-on: ubuntu-latest
+    needs: [test, coverage, security]
+    if: always()
+
+    steps:
+      - name: 📊 Generate test summary
+        run: |
+          echo "# 🧪 Test Suite Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.test.result }}" == "success" ]; then
+            echo "✅ **Tests**: All test suites passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Tests**: Some tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.coverage.result }}" == "success" ]; then
+            echo "✅ **Coverage**: Code coverage generated successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Coverage**: Code coverage generation failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.security.result }}" == "success" ]; then
+            echo "✅ **Security**: No security vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Security**: Security audit found issues" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Workflow Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Actor**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: 🎯 Check overall success
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.coverage.result }}" != "success" ]; then
+            echo "❌ Workflow failed - check individual job results"
+            exit 1
+          else
+            echo "✅ All checks passed successfully!"
+          fi
