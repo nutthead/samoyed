@@ -78,8 +78,8 @@ fn run_hook(
         eprintln!("samoid: Detected hook name: {}", hook_name);
     }
 
-    // Build the expected hook script path: .samoid/_/{hook_name}
-    let hook_script_path = PathBuf::from(".samoid").join("_").join(hook_name);
+    // Build the expected hook script path: .samoid/scripts/{hook_name}
+    let hook_script_path = PathBuf::from(".samoid").join("scripts").join(hook_name);
 
     if debug_mode {
         eprintln!(
@@ -281,12 +281,12 @@ mod tests {
         };
         let runner = MockCommandRunner::new().with_response(
             "sh",
-            &["-e", ".samoid/_/pre-commit", ""],
+            &["-e", ".samoid/scripts/pre-commit", ""],
             Ok(output),
         );
 
         let fs = MockFileSystem::new().with_file(
-            ".samoid/_/pre-commit",
+            ".samoid/scripts/pre-commit",
             "#!/bin/sh\necho 'Hook executed successfully'",
         );
 
@@ -312,11 +312,11 @@ mod tests {
         };
         let runner = MockCommandRunner::new().with_response(
             "sh",
-            &["-e", ".samoid/_/pre-commit", ""],
+            &["-e", ".samoid/scripts/pre-commit", ""],
             Ok(output),
         );
 
-        let fs = MockFileSystem::new().with_file(".samoid/_/pre-commit", "#!/bin/sh\nexit 1");
+        let fs = MockFileSystem::new().with_file(".samoid/scripts/pre-commit", "#!/bin/sh\nexit 1");
 
         let args = vec!["samoid-hook".to_string(), "pre-commit".to_string()];
 
@@ -340,12 +340,12 @@ mod tests {
         };
         let runner = MockCommandRunner::new().with_response(
             "sh",
-            &["-e", ".samoid/_/pre-commit", ""],
+            &["-e", ".samoid/scripts/pre-commit", ""],
             Ok(output),
         );
 
         let fs = MockFileSystem::new()
-            .with_file(".samoid/_/pre-commit", "#!/bin/sh\nnonexistent_command");
+            .with_file(".samoid/scripts/pre-commit", "#!/bin/sh\nnonexistent_command");
 
         let args = vec!["samoid-hook".to_string(), "pre-commit".to_string()];
 
@@ -426,11 +426,11 @@ mod tests {
         };
         let runner = MockCommandRunner::new().with_response(
             "sh",
-            &["-e", ".samoid/_/pre-push", "origin main"],
+            &["-e", ".samoid/scripts/pre-push", "origin main"],
             Ok(output),
         );
 
-        let fs = MockFileSystem::new().with_file(".samoid/_/pre-push", "#!/bin/sh\necho $1 $2");
+        let fs = MockFileSystem::new().with_file(".samoid/scripts/pre-push", "#!/bin/sh\necho $1 $2");
 
         let args = vec![
             "samoid-hook".to_string(),

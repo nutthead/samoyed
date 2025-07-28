@@ -9,6 +9,9 @@ use std::path::Path;
 
 mod config;
 mod environment;
+mod git;
+mod hooks;
+mod installer;
 mod project;
 
 use config::SamoidConfig;
@@ -16,6 +19,7 @@ use environment::{
     CommandRunner, Environment, FileSystem, SystemCommandRunner, SystemEnvironment,
     SystemFileSystem,
 };
+use installer::install_hooks;
 
 use project::ProjectType;
 
@@ -137,17 +141,16 @@ fn init_command(
         }
     }
 
-    // Configure Git hooks path
-    let output = runner
-        .run_command("git", &["config", "core.hooksPath", ".samoid/_"])
-        .context("Failed to execute git config command")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("Failed to set Git hooks path: {}", stderr);
+    // Install Git hooks using the core installation system
+    match install_hooks(env, runner, fs, Some(".samoid")) {
+        Ok(msg) => {
+            if !msg.is_empty() {
+                println!("{}", msg);
+            }
+        }
+        Err(e) => anyhow::bail!("Failed to install hooks: {}", e),
     }
 
-    println!("✅ Configured Git to use .samoid/_ for hooks");
     println!("✅ samoid is ready! Edit samoid.toml to customize your hooks.");
 
     Ok(())
@@ -255,7 +258,7 @@ mod tests {
             result
                 .unwrap_err()
                 .to_string()
-                .contains("Failed to set Git hooks path")
+                .contains("Failed to install hooks")
         );
     }
 
