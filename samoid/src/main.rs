@@ -95,18 +95,15 @@ fn init_command(
     if config_exists {
         let message = "samoid.toml already exists. Updating configuration...";
         if verbose {
-            println!("🔧 {}", message);
+            println!("🔧 {message}");
         } else {
-            println!("{}", message);
+            println!("{message}");
         }
     } else {
         // Detect project type
         let project_type = if let Some(hint) = project_type_hint {
             ProjectType::from_string(&hint).unwrap_or_else(|| {
-                println!(
-                    "Warning: Unknown project type '{}', auto-detecting...",
-                    hint
-                );
+                println!("Warning: Unknown project type '{hint}', auto-detecting...");
                 ProjectType::auto_detect()
             })
         } else {
@@ -145,7 +142,7 @@ fn init_command(
     match install_hooks(env, runner, fs, Some(".samoid")) {
         Ok(msg) => {
             if !msg.is_empty() {
-                println!("{}", msg);
+                println!("{msg}");
             }
         }
         Err(e) => anyhow::bail!("Failed to install hooks: {}", e),
@@ -160,8 +157,22 @@ fn init_command(
 mod tests {
     use super::*;
     use environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
-    use std::os::unix::process::ExitStatusExt;
     use std::process::{ExitStatus, Output};
+
+    // Cross-platform exit status creation
+    #[cfg(unix)]
+    use std::os::unix::process::ExitStatusExt;
+    #[cfg(windows)]
+    use std::os::windows::process::ExitStatusExt;
+
+    // Helper function to create ExitStatus cross-platform
+    fn exit_status(code: i32) -> ExitStatus {
+        #[cfg(unix)]
+        return ExitStatus::from_raw(code);
+
+        #[cfg(windows)]
+        return ExitStatus::from_raw(code as u32);
+    }
 
     #[test]
     fn test_init_command_creates_directories() {
@@ -170,7 +181,7 @@ mod tests {
 
         // Mock successful git command
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -213,7 +224,7 @@ mod tests {
 
         // Mock successful git command
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -238,7 +249,7 @@ mod tests {
 
         // Mock failed git command
         let output = Output {
-            status: ExitStatus::from_raw(1),
+            status: exit_status(1),
             stdout: vec![],
             stderr: b"fatal: not a git repository".to_vec(),
         };
@@ -268,7 +279,7 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -293,7 +304,7 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -322,7 +333,7 @@ mod tests {
             "git",
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(Output {
-                status: ExitStatus::from_raw(0),
+                status: exit_status(0),
                 stdout: vec![],
                 stderr: vec![],
             }),
@@ -408,7 +419,7 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -425,7 +436,7 @@ mod tests {
             let fs = MockFileSystem::new().with_directory(".git");
 
             let result = init_command(&env, &runner, &fs, Some(project_type.to_string()));
-            assert!(result.is_ok(), "Failed for project type: {}", project_type);
+            assert!(result.is_ok(), "Failed for project type: {project_type}");
         }
     }
 
@@ -435,7 +446,7 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -464,7 +475,7 @@ mod tests {
             "git",
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(Output {
-                status: ExitStatus::from_raw(0),
+                status: exit_status(0),
                 stdout: vec![],
                 stderr: vec![],
             }),
@@ -488,7 +499,7 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -521,7 +532,7 @@ mod tests {
         let env = MockEnvironment::new().with_var("SAMOID_VERBOSE", "1");
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -552,7 +563,7 @@ mod tests {
         let env = MockEnvironment::new(); // No environment variables set
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };

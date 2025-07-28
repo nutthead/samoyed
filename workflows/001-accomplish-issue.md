@@ -1,5 +1,5 @@
 ---
-GITHUB_ISSUE:  https://github.com/nutthead/samoid/issues/4
+GITHUB_ISSUE:  https://github.com/nutthead/samoid/issues/5
 GITHUB_PROJECT_BOARDS:
   - Feature Release: (https://github.com/orgs/nutthead/projects/5)
   - Kanban: https://github.com/orgs/nutthead/projects/6)
@@ -12,7 +12,7 @@ CLAUDE_PERMISSIONS: ALL GRANTED
 
 This workflow provides a systematic approach to implementing GitHub issues with precision and without getting overwhelmed.
 
-**__Execute it for {GITHUB_ISSUE}!__**
+**__Execute it, <em>WITH PRECISION</em> for {GITHUB_ISSUE}!__**
 
 ## Type Definitions
 

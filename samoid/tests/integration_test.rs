@@ -1,8 +1,22 @@
 use samoid::environment::FileSystem;
 use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
 use samoid::install_hooks;
-use std::os::unix::process::ExitStatusExt;
 use std::process::{ExitStatus, Output};
+
+// Cross-platform exit status creation
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
+#[cfg(windows)]
+use std::os::windows::process::ExitStatusExt;
+
+// Helper function to create ExitStatus cross-platform
+fn exit_status(code: i32) -> ExitStatus {
+    #[cfg(unix)]
+    return ExitStatus::from_raw(code);
+
+    #[cfg(windows)]
+    return ExitStatus::from_raw(code as u32);
+}
 
 #[test]
 fn test_core_installation() {
@@ -10,12 +24,12 @@ fn test_core_installation() {
 
     // Mock successful git commands
     let init_output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
     let config_output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -45,7 +59,7 @@ fn test_installation_with_custom_directory() {
     let env = MockEnvironment::new();
 
     let config_output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -103,7 +117,7 @@ fn test_all_standard_hooks_created() {
     let env = MockEnvironment::new();
 
     let config_output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -137,7 +151,7 @@ fn test_all_standard_hooks_created() {
 
     for hook in &expected_hooks {
         let hook_path = std::path::Path::new(".samoid/_").join(hook);
-        assert!(fs.exists(&hook_path), "Hook {} should exist", hook);
+        assert!(fs.exists(&hook_path), "Hook {hook} should exist");
     }
 }
 
@@ -146,7 +160,7 @@ fn test_hook_runner_content() {
     let env = MockEnvironment::new();
 
     let config_output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -170,7 +184,7 @@ fn test_gitignore_content() {
     let env = MockEnvironment::new();
 
     let config_output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };

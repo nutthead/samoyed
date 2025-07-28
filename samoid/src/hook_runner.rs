@@ -61,7 +61,7 @@ fn run_hook(
 
     if debug_mode {
         eprintln!("samoid: Debug mode enabled (SAMOID=2)");
-        eprintln!("samoid: Hook runner args: {:?}", args);
+        eprintln!("samoid: Hook runner args: {args:?}");
     }
 
     // Determine hook name from the first argument (e.g., pre-commit, post-commit)
@@ -75,7 +75,7 @@ fn run_hook(
     };
 
     if debug_mode {
-        eprintln!("samoid: Detected hook name: {}", hook_name);
+        eprintln!("samoid: Detected hook name: {hook_name}");
     }
 
     // Build the expected hook script path: .samoid/scripts/{hook_name}
@@ -118,7 +118,7 @@ fn load_init_script(
 
     let xdg_config_home = env
         .get_var("XDG_CONFIG_HOME")
-        .unwrap_or_else(|| format!("{}/.config", home_dir));
+        .unwrap_or_else(|| format!("{home_dir}/.config"));
 
     let init_script_path = PathBuf::from(xdg_config_home)
         .join("samoid")
@@ -164,7 +164,7 @@ fn execute_hook_script(
 ) -> Result<()> {
     if debug_mode {
         eprintln!("samoid: Executing hook script: {}", script_path.display());
-        eprintln!("samoid: Hook arguments: {:?}", hook_args);
+        eprintln!("samoid: Hook arguments: {hook_args:?}");
     }
 
     // Convert String args to &str for the runner interface
@@ -182,7 +182,7 @@ fn execute_hook_script(
     let exit_code = output.status.code().unwrap_or(1);
 
     if debug_mode {
-        eprintln!("samoid: Hook script exit code: {}", exit_code);
+        eprintln!("samoid: Hook script exit code: {exit_code}");
         if !output.stdout.is_empty() {
             eprintln!(
                 "samoid: Hook stdout: {}",
@@ -212,13 +212,13 @@ fn execute_hook_script(
             .and_then(|name| name.to_str())
             .unwrap_or("unknown");
 
-        eprintln!("samoid - {} script failed (code {})", hook_name, exit_code);
+        eprintln!("samoid - {hook_name} script failed (code {exit_code})");
 
         // Check for command not found (exit code 127)
         if exit_code == 127 {
             eprintln!("samoid - command not found in PATH");
-            if let Some(path) = std::env::var("PATH").ok() {
-                eprintln!("samoid - PATH={}", path);
+            if let Ok(path) = std::env::var("PATH") {
+                eprintln!("samoid - PATH={path}");
             }
         }
     }
@@ -231,8 +231,22 @@ fn execute_hook_script(
 mod tests {
     use super::*;
     use environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
-    use std::os::unix::process::ExitStatusExt;
     use std::process::{ExitStatus, Output};
+
+    // Cross-platform exit status creation
+    #[cfg(unix)]
+    use std::os::unix::process::ExitStatusExt;
+    #[cfg(windows)]
+    use std::os::windows::process::ExitStatusExt;
+
+    // Helper function to create ExitStatus cross-platform
+    fn exit_status(code: i32) -> ExitStatus {
+        #[cfg(unix)]
+        return ExitStatus::from_raw(code);
+
+        #[cfg(windows)]
+        return ExitStatus::from_raw(code as u32);
+    }
 
     #[test]
     fn test_run_hook_with_samoid_0_skips_execution() {
@@ -275,7 +289,7 @@ mod tests {
 
         // Mock successful hook execution
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: b"Hook executed successfully".to_vec(),
             stderr: vec![],
         };
@@ -306,7 +320,7 @@ mod tests {
 
         // Mock failed hook execution
         let output = Output {
-            status: ExitStatus::from_raw(1),
+            status: exit_status(1),
             stdout: vec![],
             stderr: b"Hook failed".to_vec(),
         };
@@ -334,7 +348,7 @@ mod tests {
 
         // Mock command not found (exit code 127)
         let output = Output {
-            status: ExitStatus::from_raw(127),
+            status: exit_status(127),
             stdout: vec![],
             stderr: b"command not found".to_vec(),
         };
@@ -344,8 +358,10 @@ mod tests {
             Ok(output),
         );
 
-        let fs = MockFileSystem::new()
-            .with_file(".samoid/scripts/pre-commit", "#!/bin/sh\nnonexistent_command");
+        let fs = MockFileSystem::new().with_file(
+            ".samoid/scripts/pre-commit",
+            "#!/bin/sh\nnonexistent_command",
+        );
 
         let args = vec!["samoid-hook".to_string(), "pre-commit".to_string()];
 
@@ -420,7 +436,7 @@ mod tests {
             .with_var("HOME", "/home/test");
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -430,7 +446,8 @@ mod tests {
             Ok(output),
         );
 
-        let fs = MockFileSystem::new().with_file(".samoid/scripts/pre-push", "#!/bin/sh\necho $1 $2");
+        let fs =
+            MockFileSystem::new().with_file(".samoid/scripts/pre-push", "#!/bin/sh\necho $1 $2");
 
         let args = vec![
             "samoid-hook".to_string(),
