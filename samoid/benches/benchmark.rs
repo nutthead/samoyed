@@ -3,7 +3,7 @@
 //! These benchmarks measure the performance of core operations to ensure
 //! Samoid meets performance requirements and detects regressions.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
 use samoid::install_hooks;
 use std::os::unix::process::ExitStatusExt;
@@ -84,7 +84,7 @@ fn benchmark_skip_installation(c: &mut Criterion) {
 fn benchmark_large_mock_filesystem(c: &mut Criterion) {
     c.bench_function("large_mock_filesystem", |b| {
         let mut fs = MockFileSystem::new().with_directory(".git");
-        
+
         // Simulate a large project with many files
         for i in 0..1000 {
             fs = fs.with_file(&format!("src/file_{}.rs", i), "// Mock file content");

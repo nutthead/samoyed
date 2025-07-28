@@ -344,8 +344,10 @@ mod tests {
             Ok(output),
         );
 
-        let fs = MockFileSystem::new()
-            .with_file(".samoid/scripts/pre-commit", "#!/bin/sh\nnonexistent_command");
+        let fs = MockFileSystem::new().with_file(
+            ".samoid/scripts/pre-commit",
+            "#!/bin/sh\nnonexistent_command",
+        );
 
         let args = vec!["samoid-hook".to_string(), "pre-commit".to_string()];
 
@@ -430,7 +432,8 @@ mod tests {
             Ok(output),
         );
 
-        let fs = MockFileSystem::new().with_file(".samoid/scripts/pre-push", "#!/bin/sh\necho $1 $2");
+        let fs =
+            MockFileSystem::new().with_file(".samoid/scripts/pre-push", "#!/bin/sh\necho $1 $2");
 
         let args = vec![
             "samoid-hook".to_string(),

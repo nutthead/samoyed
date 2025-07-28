@@ -202,7 +202,7 @@ echo "Pre-commit checks passed!"
 "#,
         ),
         (
-            "pre-push", 
+            "pre-push",
             r#"#!/usr/bin/env sh
 # Example pre-push hook
 # Add your test runs or other pre-push validations here
@@ -278,8 +278,10 @@ mod tests {
 
     #[test]
     fn test_create_example_hook_scripts_no_overwrite() {
-        let fs = MockFileSystem::new()
-            .with_file(".samoid/scripts/pre-commit", "#!/bin/sh\n# User's existing script");
+        let fs = MockFileSystem::new().with_file(
+            ".samoid/scripts/pre-commit",
+            "#!/bin/sh\n# User's existing script",
+        );
         let hooks_base_dir = std::path::Path::new(".samoid");
 
         let result = create_example_hook_scripts(&fs, hooks_base_dir);

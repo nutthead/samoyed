@@ -3,8 +3,8 @@
 //! These tests ensure Samoid works correctly across different operating systems
 //! and environments, handling path separators, permissions, and shell differences.
 
-use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
 use samoid::environment::FileSystem;
+use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
 use samoid::install_hooks;
 use std::os::unix::process::ExitStatusExt;
 use std::process::{ExitStatus, Output};
@@ -34,7 +34,7 @@ fn test_windows_style_paths() {
     let env = MockEnvironment::new()
         .with_var("USERPROFILE", "C:\\Users\\test")
         .with_var("SAMOID", "1");
-    
+
     let output = Output {
         status: ExitStatus::from_raw(0),
         stdout: vec![],
@@ -45,7 +45,7 @@ fn test_windows_style_paths() {
         &["config", "core.hooksPath", ".samoid/_"],
         Ok(output),
     );
-    
+
     let fs = MockFileSystem::new().with_directory(".git");
 
     let result = install_hooks(&env, &runner, &fs, None);
@@ -60,14 +60,10 @@ fn test_mixed_path_separators() {
         stdout: vec![],
         stderr: vec![],
     };
-    
+
     // Test various path formats that might occur on different systems
-    let test_dirs = vec![
-        ".hooks\\windows",
-        "./unix/style", 
-        "mixed\\and/separated",
-    ];
-    
+    let test_dirs = vec![".hooks\\windows", "./unix/style", "mixed\\and/separated"];
+
     for dir in test_dirs {
         let runner = MockCommandRunner::new().with_response(
             "git",
@@ -112,7 +108,7 @@ fn test_xdg_config_home_handling() {
     let env = MockEnvironment::new()
         .with_var("HOME", "/home/user")
         .with_var("XDG_CONFIG_HOME", "/home/user/.config");
-    
+
     let output = Output {
         status: ExitStatus::from_raw(0),
         stdout: vec![],
@@ -132,34 +128,38 @@ fn test_xdg_config_home_handling() {
 #[test]
 fn test_shell_command_compatibility() {
     let env = MockEnvironment::new();
-    
+
     // Test different shell command formats that might exist on different systems
     let shell_commands = vec![
         ("sh", vec!["-c", "echo test"]),
         ("bash", vec!["-c", "echo test"]),
         ("cmd", vec!["/c", "echo test"]),
     ];
-    
+
     for (shell, args) in shell_commands {
         let output = Output {
             status: ExitStatus::from_raw(0),
             stdout: b"test\n".to_vec(),
             stderr: vec![],
         };
-        
+
         let mut runner = MockCommandRunner::new();
-        
+
         // Add git config response
         let git_output = Output {
             status: ExitStatus::from_raw(0),
             stdout: vec![],
             stderr: vec![],
         };
-        runner = runner.with_response("git", &["config", "core.hooksPath", ".samoid/_"], Ok(git_output));
-        
+        runner = runner.with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(git_output),
+        );
+
         // Add shell command response
         runner = runner.with_response(shell, &args, Ok(output));
-        
+
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, None);
@@ -186,7 +186,7 @@ fn test_file_permissions_cross_platform() {
 
     let result = install_hooks(&env, &runner, &fs, None);
     assert!(result.is_ok());
-    
+
     // Verify that hooks directory was created
     assert!(fs.exists(std::path::Path::new(".samoid/_")));
 }
@@ -195,13 +195,13 @@ fn test_file_permissions_cross_platform() {
 fn test_git_command_variations() {
     // Test different Git command variations that might exist on different systems
     let env = MockEnvironment::new();
-    
+
     let git_commands = vec![
         "git",
-        "git.exe", // Windows
+        "git.exe",      // Windows
         "/usr/bin/git", // Full path
     ];
-    
+
     for git_cmd in git_commands {
         let output = Output {
             status: ExitStatus::from_raw(0),
@@ -239,12 +239,12 @@ fn test_line_ending_handling() {
         &["config", "core.hooksPath", ".samoid/_"],
         Ok(output),
     );
-    
+
     // Create filesystem with different line ending styles
     let unix_fs = MockFileSystem::new()
         .with_directory(".git")
         .with_file("test_unix.txt", "line1\nline2\nline3\n");
-        
+
     let windows_fs = MockFileSystem::new()
         .with_directory(".git")
         .with_file("test_windows.txt", "line1\r\nline2\r\nline3\r\n");
@@ -252,7 +252,7 @@ fn test_line_ending_handling() {
     // Both should work correctly
     let result1 = install_hooks(&env, &runner, &unix_fs, None);
     let result2 = install_hooks(&env, &runner, &windows_fs, None);
-    
+
     assert!(result1.is_ok());
     assert!(result2.is_ok());
 }
@@ -266,13 +266,9 @@ fn test_unicode_path_handling() {
         stdout: vec![],
         stderr: vec![],
     };
-    
-    let unicode_dirs = vec![
-        ".hooks-测试",
-        ".hooks-🚀",
-        ".hooks-café",
-    ];
-    
+
+    let unicode_dirs = vec![".hooks-测试", ".hooks-🚀", ".hooks-café"];
+
     for unicode_dir in unicode_dirs {
         let runner = MockCommandRunner::new().with_response(
             "git",
@@ -282,7 +278,11 @@ fn test_unicode_path_handling() {
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, Some(unicode_dir));
-        assert!(result.is_ok(), "Failed for Unicode directory: {}", unicode_dir);
+        assert!(
+            result.is_ok(),
+            "Failed for Unicode directory: {}",
+            unicode_dir
+        );
     }
 }
 
@@ -293,7 +293,7 @@ fn test_unix_specific_features() {
     let env = MockEnvironment::new()
         .with_var("HOME", "/home/user")
         .with_var("USER", "testuser");
-    
+
     let output = Output {
         status: ExitStatus::from_raw(0),
         stdout: vec![],
@@ -317,7 +317,7 @@ fn test_windows_specific_features() {
     let env = MockEnvironment::new()
         .with_var("USERPROFILE", "C:\\Users\\user")
         .with_var("USERNAME", "testuser");
-    
+
     let output = Output {
         status: ExitStatus::from_raw(0),
         stdout: vec![],
