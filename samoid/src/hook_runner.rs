@@ -26,10 +26,13 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 mod environment;
+mod logging;
+
 use environment::{
     CommandRunner, Environment, FileSystem, SystemCommandRunner, SystemEnvironment,
     SystemFileSystem,
 };
+use logging::{log_command_execution, log_file_operation_with_env, sanitize_args, sanitize_path};
 
 #[cfg(not(tarpaulin_include))]
 fn main() -> Result<()> {
@@ -61,7 +64,8 @@ fn run_hook(
 
     if debug_mode {
         eprintln!("samoid: Debug mode enabled (SAMOID=2)");
-        eprintln!("samoid: Hook runner args: {args:?}");
+        let sanitized_args = sanitize_args(args);
+        eprintln!("samoid: Hook runner args: {:?}", sanitized_args);
     }
 
     // Determine hook name from the first argument (e.g., pre-commit, post-commit)
@@ -82,10 +86,7 @@ fn run_hook(
     let hook_script_path = PathBuf::from(".samoid").join("scripts").join(hook_name);
 
     if debug_mode {
-        eprintln!(
-            "samoid: Looking for hook script at: {}",
-            hook_script_path.display()
-        );
+        log_file_operation_with_env(env, debug_mode, "Looking for hook script at", &hook_script_path);
     }
 
     // Check if the hook script exists - if not, exit silently (this is normal)
@@ -125,19 +126,13 @@ fn load_init_script(
         .join("init.sh");
 
     if debug_mode {
-        eprintln!(
-            "samoid: Checking for init script at: {}",
-            init_script_path.display()
-        );
+        log_file_operation_with_env(env, debug_mode, "Checking for init script at", &init_script_path);
     }
 
     // If the init script exists, source it using shell
     if fs.exists(&init_script_path) {
         if debug_mode {
-            eprintln!(
-                "samoid: Loading init script: {}",
-                init_script_path.display()
-            );
+            log_file_operation_with_env(env, debug_mode, "Loading init script", &init_script_path);
         }
 
         // Note: We can't actually source the script into our environment easily
@@ -155,7 +150,7 @@ fn load_init_script(
 
 /// Execute the actual hook script and handle exit codes
 fn execute_hook_script(
-    _env: &dyn Environment,
+    env: &dyn Environment,
     runner: &dyn CommandRunner,
     _fs: &dyn FileSystem,
     script_path: &Path,
@@ -163,20 +158,27 @@ fn execute_hook_script(
     debug_mode: bool,
 ) -> Result<()> {
     if debug_mode {
-        eprintln!("samoid: Executing hook script: {}", script_path.display());
-        eprintln!("samoid: Hook arguments: {hook_args:?}");
+        log_file_operation_with_env(env, debug_mode, "Executing hook script", script_path);
+        let sanitized_hook_args = sanitize_args(hook_args);
+        eprintln!("samoid: Hook arguments: {:?}", sanitized_hook_args);
     }
 
     // Convert String args to &str for the runner interface
     let str_args: Vec<&str> = hook_args.iter().map(|s| s.as_str()).collect();
 
     // Execute the hook script using shell
+    let shell_args = vec!["-e".to_string(), script_path.to_string_lossy().to_string(), str_args.join(" ")];
+    
+    if debug_mode {
+        log_command_execution(debug_mode, "sh", &shell_args);
+    }
+    
     let output = runner
         .run_command(
             "sh",
             &["-e", &script_path.to_string_lossy(), &str_args.join(" ")],
         )
-        .with_context(|| format!("Failed to execute hook script: {}", script_path.display()))?;
+        .with_context(|| format!("Failed to execute hook script: {}", sanitize_path(script_path)))?;
 
     // Check exit code and provide appropriate error messages
     let exit_code = output.status.code().unwrap_or(1);
@@ -217,8 +219,15 @@ fn execute_hook_script(
         // Check for command not found (exit code 127)
         if exit_code == 127 {
             eprintln!("samoid - command not found in PATH");
-            if let Ok(path) = std::env::var("PATH") {
-                eprintln!("samoid - PATH={path}");
+            if debug_mode {
+                // Only show PATH in debug mode, and sanitize it
+                if let Ok(path) = std::env::var("PATH") {
+                    // Sanitize PATH by showing only directory count to avoid exposing system structure
+                    let dir_count = path.split(':').count();
+                    eprintln!("samoid - PATH contains {dir_count} directories");
+                }
+            } else {
+                eprintln!("samoid - run with SAMOID=2 for more details");
             }
         }
     }

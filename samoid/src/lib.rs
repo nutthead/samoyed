@@ -31,5 +31,8 @@ pub mod hooks;
 /// Core installation logic for setting up Git hooks
 pub mod installer;
 
+/// Secure logging utilities
+pub mod logging;
+
 /// Re-export the main installation function for convenience
 pub use installer::install_hooks;

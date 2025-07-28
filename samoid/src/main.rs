@@ -6,6 +6,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use std::path::Path;
+use std::process;
 
 mod config;
 mod environment;
@@ -22,6 +23,54 @@ use environment::{
 use installer::install_hooks;
 
 use project::ProjectType;
+
+/// Exit codes following the sysexits.h convention
+const EX_OK: i32 = 0;          // Successful termination
+const EX_USAGE: i32 = 64;      // Command line usage error
+const EX_DATAERR: i32 = 65;    // Data format error
+const EX_NOINPUT: i32 = 66;    // Cannot open input
+const EX_NOUSER: i32 = 67;     // Addressee unknown
+const EX_NOHOST: i32 = 68;     // Host name unknown
+const EX_UNAVAILABLE: i32 = 69; // Service unavailable
+const EX_SOFTWARE: i32 = 70;   // Internal software error
+const EX_OSERR: i32 = 71;      // System error (e.g., can't fork)
+const EX_OSFILE: i32 = 72;     // Critical OS file missing
+const EX_CANTCREATE: i32 = 73; // Can't create (user) output file
+const EX_IOERR: i32 = 74;      // Input/output error
+const EX_TEMPFAIL: i32 = 75;   // Temp failure; user is invited to retry
+const EX_PROTOCOL: i32 = 76;   // Remote error in protocol
+const EX_NOPERM: i32 = 77;     // Permission denied
+const EX_CONFIG: i32 = 78;     // Configuration error
+
+/// Determines the appropriate exit code based on the error type
+///
+/// This function maps different error scenarios to standard exit codes
+/// following the sysexits.h convention, providing meaningful exit codes
+/// for shell scripts and CI/CD systems.
+fn determine_exit_code(error: &anyhow::Error) -> i32 {
+    let error_str = error.to_string();
+    
+    // Check for specific error patterns and map to appropriate exit codes
+    if error_str.contains("Git command not found") {
+        EX_UNAVAILABLE // Service unavailable - Git is required but not available
+    } else if error_str.contains("Not a Git repository") {
+        EX_NOINPUT // Cannot open input - Git repository is required but not found
+    } else if error_str.contains("Permission denied") {
+        EX_NOPERM // Permission denied
+    } else if error_str.contains("Directory traversal") || error_str.contains("Invalid path") {
+        EX_DATAERR // Data format error - invalid path provided
+    } else if error_str.contains("Path cannot be empty") || error_str.contains("Invalid characters") {
+        EX_USAGE // Command line usage error - invalid arguments
+    } else if error_str.contains("could not lock config file") {
+        EX_TEMPFAIL // Temporary failure - user can retry
+    } else if error_str.contains("Configuration failed") {
+        EX_CONFIG // Configuration error
+    } else if error_str.contains("IO error") || error_str.contains("Failed to") {
+        EX_IOERR // Input/output error
+    } else {
+        EX_SOFTWARE // Internal software error - fallback for unknown errors
+    }
+}
 
 #[derive(Parser)]
 #[command(name = "samoid")]
@@ -48,13 +97,17 @@ fn main() -> Result<()> {
 
     match cli.command {
         Some(Commands::Init { project_type }) => {
-            init_command_with_system_deps(project_type)?;
+            if let Err(e) = init_command_with_system_deps(project_type) {
+                let exit_code = determine_exit_code(&e);
+                eprintln!("Error: {}", e);
+                process::exit(exit_code);
+            }
         }
         None => {
             // Show help when no command is provided
             eprintln!("Error: No command specified. Use 'samoid init' to get started.");
             eprintln!("Run 'samoid --help' for usage information.");
-            std::process::exit(1);
+            process::exit(EX_USAGE); // Command line usage error
         }
     }
 
@@ -145,7 +198,10 @@ fn init_command(
                 println!("{msg}");
             }
         }
-        Err(e) => anyhow::bail!("Failed to install hooks: {}", e),
+        Err(e) => {
+            // Convert InstallError to anyhow::Error while preserving error context
+            return Err(anyhow::anyhow!("Failed to install hooks").context(e.to_string()));
+        }
     }
 
     println!("✅ samoid is ready! Edit samoid.toml to customize your hooks.");
@@ -586,5 +642,36 @@ mod tests {
         let env_false = MockEnvironment::new().with_var("SAMOID_VERBOSE", "false");
         let result = init_command(&env_false, &runner, &fs, None);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_determine_exit_code() {
+        // Test various error messages map to correct exit codes
+        let git_not_found = anyhow::anyhow!("Git command not found in PATH");
+        assert_eq!(determine_exit_code(&git_not_found), EX_UNAVAILABLE);
+
+        let not_git_repo = anyhow::anyhow!("Not a Git repository (no .git directory found)");
+        assert_eq!(determine_exit_code(&not_git_repo), EX_NOINPUT);
+
+        let permission_denied = anyhow::anyhow!("Permission denied: set Git configuration");
+        assert_eq!(determine_exit_code(&permission_denied), EX_NOPERM);
+
+        let invalid_path = anyhow::anyhow!("Invalid path '../invalid': Directory traversal detected");
+        assert_eq!(determine_exit_code(&invalid_path), EX_DATAERR);
+
+        let empty_path = anyhow::anyhow!("Path cannot be empty");
+        assert_eq!(determine_exit_code(&empty_path), EX_USAGE);
+
+        let config_lock = anyhow::anyhow!("error: could not lock config file");
+        assert_eq!(determine_exit_code(&config_lock), EX_TEMPFAIL);
+
+        let config_failed = anyhow::anyhow!("Git configuration failed: bad config");
+        assert_eq!(determine_exit_code(&config_failed), EX_CONFIG);
+
+        let io_error = anyhow::anyhow!("IO error: Failed to write file");
+        assert_eq!(determine_exit_code(&io_error), EX_IOERR);
+
+        let unknown_error = anyhow::anyhow!("Some unknown error occurred");
+        assert_eq!(determine_exit_code(&unknown_error), EX_SOFTWARE);
     }
 }
