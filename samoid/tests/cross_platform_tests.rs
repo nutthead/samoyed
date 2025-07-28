@@ -18,7 +18,7 @@ use std::os::windows::process::ExitStatusExt;
 fn exit_status(code: i32) -> std::process::ExitStatus {
     #[cfg(unix)]
     return std::process::ExitStatus::from_raw(code);
-    
+
     #[cfg(windows)]
     return std::process::ExitStatus::from_raw(code as u32);
 }

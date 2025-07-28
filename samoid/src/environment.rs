@@ -216,13 +216,13 @@ impl FileSystem for SystemFileSystem {
 /// use samoid::environment::mocks::{MockEnvironment, MockCommandRunner, MockFileSystem};
 /// use samoid::environment::{Environment, CommandRunner, FileSystem};
 /// use std::process::{Output, ExitStatus};
-/// 
+///
 /// // Cross-platform exit status creation
 /// #[cfg(unix)]
 /// use std::os::unix::process::ExitStatusExt;
 /// #[cfg(windows)]
 /// use std::os::windows::process::ExitStatusExt;
-/// 
+///
 /// // Helper function to create ExitStatus cross-platform
 /// fn exit_status(code: i32) -> ExitStatus {
 ///     #[cfg(unix)]
@@ -531,18 +531,18 @@ pub mod mocks {
 mod tests {
     use super::*;
     use crate::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
-    
+
     // Cross-platform exit status creation
     #[cfg(unix)]
     use std::os::unix::process::ExitStatusExt;
     #[cfg(windows)]
     use std::os::windows::process::ExitStatusExt;
-    
+
     // Helper function to create ExitStatus cross-platform
     fn exit_status(code: i32) -> std::process::ExitStatus {
         #[cfg(unix)]
         return std::process::ExitStatus::from_raw(code);
-        
+
         #[cfg(windows)]
         return std::process::ExitStatus::from_raw(code as u32);
     }

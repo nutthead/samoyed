@@ -158,18 +158,18 @@ mod tests {
     use super::*;
     use environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
     use std::process::{ExitStatus, Output};
-    
+
     // Cross-platform exit status creation
     #[cfg(unix)]
     use std::os::unix::process::ExitStatusExt;
     #[cfg(windows)]
     use std::os::windows::process::ExitStatusExt;
-    
+
     // Helper function to create ExitStatus cross-platform
     fn exit_status(code: i32) -> ExitStatus {
         #[cfg(unix)]
         return ExitStatus::from_raw(code);
-        
+
         #[cfg(windows)]
         return ExitStatus::from_raw(code as u32);
     }
