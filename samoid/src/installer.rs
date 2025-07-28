@@ -139,8 +139,12 @@ pub fn install_hooks(
 
     // Create hook directory and files
     hooks::create_hook_directory(fs, &hooks_dir)?;
-    hooks::copy_hook_runner(fs, &hooks_dir, None)?;
     hooks::create_hook_files(fs, &hooks_dir)?;
+    
+    // Create example hook scripts for users to customize in .samoid/scripts/
+    // These are optional and won't overwrite existing user scripts
+    let hooks_base_dir = PathBuf::from(hooks_dir_name);
+    hooks::create_example_hook_scripts(fs, &hooks_base_dir)?;
 
     Ok(String::new())
 }

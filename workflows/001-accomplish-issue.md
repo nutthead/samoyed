@@ -1,4 +1,5 @@
-GITHUB_ISSUE:  https://github.com/nutthead/samoid/issues/2
+---
+GITHUB_ISSUE:  https://github.com/nutthead/samoid/issues/4
 GITHUB_PROJECT_BOARDS:
   - Feature Release: (https://github.com/orgs/nutthead/projects/5)
   - Kanban: https://github.com/orgs/nutthead/projects/6)
@@ -276,4 +277,3 @@ def validateLabels(): Result {
 
 
 This workflow ensures robust issue accomplishment with comprehensive error handling and graceful degradation when GitHub API operations fail.
-

@@ -119,8 +119,8 @@ pub fn create_hook_directory(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<()
 /// Creates all standard Git hook files
 ///
 /// This function creates a hook file for each standard Git hook. Each hook
-/// file is a simple shell script that sources and executes the main hook
-/// runner (`h`). All hook files are made executable (mode 0755).
+/// file is a simple shell script that delegates to the `samoid-hook` binary
+/// runner. All hook files are made executable (mode 0755).
 ///
 /// # Arguments
 ///
@@ -137,13 +137,13 @@ pub fn create_hook_directory(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<()
 /// Each hook file contains:
 /// ```bash
 /// #!/usr/bin/env sh
-/// . "$(dirname "$0")/h"
+/// exec samoid-hook "$(basename "$0")" "$@"
 /// ```
 ///
-/// This sources the hook runner `h` from the same directory as the hook.
+/// This delegates to the `samoid-hook` binary, passing the hook name and all arguments.
 pub fn create_hook_files(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<(), HookError> {
     let hook_content = r#"#!/usr/bin/env sh
-. "$(dirname "$0")/h""#;
+exec samoid-hook "$(basename "$0")" "$@""#;
 
     for &hook_name in STANDARD_HOOKS {
         let hook_path = hooks_dir.join(hook_name);
@@ -154,55 +154,79 @@ pub fn create_hook_files(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<(), Ho
     Ok(())
 }
 
-/// Creates or copies the main hook runner script
+/// Creates example hook scripts for common Git hooks
 ///
-/// The hook runner (`h`) is the central script that all individual hooks
-/// delegate to. It can either be copied from an existing source file or
-/// created with placeholder content.
+/// This function creates example hook scripts in a scripts subdirectory that users
+/// can customize. These are the actual scripts that will be executed by the hook
+/// runner when the corresponding Git hook is triggered.
 ///
 /// # Arguments
 ///
 /// * `fs` - File system abstraction for file operations
-/// * `hooks_dir` - Directory where the runner should be created
-/// * `runner_source` - Optional path to an existing runner script to copy
+/// * `hooks_base_dir` - Base directory (e.g., `.samoid`) where scripts should be created
 ///
 /// # Returns
 ///
-/// * `Ok(())` - If the runner was created successfully
+/// * `Ok(())` - If the example scripts were created successfully
 /// * `Err(HookError)` - If any file operation fails
 ///
-/// # Behavior
+/// # Created Examples
 ///
-/// - If `runner_source` is provided, its contents are copied
-/// - If `runner_source` is `None`, a placeholder runner is created
-/// - The runner is always made executable (mode 0755)
-///
-/// # Placeholder Runner
-///
-/// When no source is provided, the following placeholder is created:
-/// ```bash
-/// #!/usr/bin/env sh
-/// echo "Samoid hook runner - placeholder implementation"
-/// exec "$@"
-/// ```
-pub fn copy_hook_runner(
+/// Creates example scripts for:
+/// - `pre-commit`: Basic formatting and linting example
+/// - `pre-push`: Basic testing example
+/// - Other hooks get placeholder examples
+pub fn create_example_hook_scripts(
     fs: &dyn FileSystem,
-    hooks_dir: &Path,
-    runner_source: Option<&Path>,
+    hooks_base_dir: &Path,
 ) -> Result<(), HookError> {
-    let runner_dest = hooks_dir.join("h");
+    // Create the scripts directory
+    let scripts_dir = hooks_base_dir.join("scripts");
+    fs.create_dir_all(&scripts_dir)?;
+    // Create a few example hook scripts that users can customize
+    let examples = [
+        (
+            "pre-commit",
+            r#"#!/usr/bin/env sh
+# Example pre-commit hook
+# Add your formatting, linting, or other pre-commit checks here
 
-    if let Some(source) = runner_source {
-        let content = fs.read_to_string(source)?;
-        fs.write(&runner_dest, &content)?;
-    } else {
-        let placeholder_runner = r#"#!/usr/bin/env sh
-echo "Samoid hook runner - placeholder implementation"
-exec "$@""#;
-        fs.write(&runner_dest, placeholder_runner)?;
+echo "Running pre-commit checks..."
+
+# Example: Run formatter (uncomment and customize as needed)
+# cargo fmt --check
+# npm run format:check
+# black --check .
+
+echo "Pre-commit checks passed!"
+"#,
+        ),
+        (
+            "pre-push", 
+            r#"#!/usr/bin/env sh
+# Example pre-push hook
+# Add your test runs or other pre-push validations here
+
+echo "Running pre-push validations..."
+
+# Example: Run tests (uncomment and customize as needed)  
+# cargo test
+# npm test
+# pytest
+
+echo "Pre-push validations passed!"
+"#,
+        ),
+    ];
+
+    for (hook_name, content) in &examples {
+        let script_path = scripts_dir.join(hook_name);
+        // Only create if it doesn't already exist (don't overwrite user customizations)
+        if !fs.exists(&script_path) {
+            fs.write(&script_path, content)?;
+            fs.set_permissions(&script_path, 0o755)?;
+        }
     }
-
-    fs.set_permissions(&runner_dest, 0o755)?;
 
     Ok(())
 }
@@ -240,26 +264,31 @@ mod tests {
     }
 
     #[test]
-    fn test_copy_hook_runner_with_placeholder() {
+    fn test_create_example_hook_scripts() {
         let fs = MockFileSystem::new();
-        let hooks_dir = std::path::Path::new(".samoid/_");
+        let hooks_base_dir = std::path::Path::new(".samoid");
 
-        let result = copy_hook_runner(&fs, hooks_dir, None);
+        let result = create_example_hook_scripts(&fs, hooks_base_dir);
         assert!(result.is_ok());
 
-        assert!(fs.exists(&hooks_dir.join("h")));
+        // Verify example scripts were created in scripts subdirectory
+        assert!(fs.exists(&hooks_base_dir.join("scripts/pre-commit")));
+        assert!(fs.exists(&hooks_base_dir.join("scripts/pre-push")));
     }
 
     #[test]
-    fn test_copy_hook_runner_with_source() {
-        let fs =
-            MockFileSystem::new().with_file("/tmp/runner.sh", "#!/bin/sh\necho 'custom runner'");
-        let hooks_dir = std::path::Path::new(".samoid/_");
+    fn test_create_example_hook_scripts_no_overwrite() {
+        let fs = MockFileSystem::new()
+            .with_file(".samoid/scripts/pre-commit", "#!/bin/sh\n# User's existing script");
+        let hooks_base_dir = std::path::Path::new(".samoid");
 
-        let result = copy_hook_runner(&fs, hooks_dir, Some(std::path::Path::new("/tmp/runner.sh")));
+        let result = create_example_hook_scripts(&fs, hooks_base_dir);
         assert!(result.is_ok());
 
-        assert!(fs.exists(&hooks_dir.join("h")));
+        // Verify existing file was not overwritten (still exists)
+        assert!(fs.exists(&hooks_base_dir.join("scripts/pre-commit")));
+        // Verify other example was still created
+        assert!(fs.exists(&hooks_base_dir.join("scripts/pre-push")));
     }
 
     #[test]
@@ -298,13 +327,21 @@ mod tests {
     }
 
     #[test]
-    fn test_copy_hook_runner_with_read_error() {
-        let fs = MockFileSystem::new(); // No files, so read will fail
-        let hooks_dir = std::path::Path::new(".samoid/_");
-        let source_path = std::path::Path::new("/nonexistent/file.sh");
+    fn test_create_example_hook_scripts_multiple_calls() {
+        let fs = MockFileSystem::new();
+        let hooks_base_dir = std::path::Path::new(".samoid");
 
-        let result = copy_hook_runner(&fs, hooks_dir, Some(source_path));
-        assert!(result.is_err());
+        // First call should create examples
+        let result1 = create_example_hook_scripts(&fs, hooks_base_dir);
+        assert!(result1.is_ok());
+
+        // Second call should not fail (examples already exist)
+        let result2 = create_example_hook_scripts(&fs, hooks_base_dir);
+        assert!(result2.is_ok());
+
+        // Verify scripts still exist
+        assert!(fs.exists(&hooks_base_dir.join("scripts/pre-commit")));
+        assert!(fs.exists(&hooks_base_dir.join("scripts/pre-push")));
     }
 
     #[test]
@@ -347,37 +384,28 @@ mod tests {
     }
 
     #[test]
-    fn test_copy_hook_runner_multiple_scenarios() {
-        let fs = MockFileSystem::new()
-            .with_file("/custom/runner1.sh", "#!/bin/sh\necho 'runner1'")
-            .with_file("/custom/runner2.sh", "#!/bin/sh\necho 'runner2'");
+    fn test_create_example_hook_scripts_different_directories() {
+        let fs = MockFileSystem::new();
 
-        let hooks_dir1 = std::path::Path::new(".hooks1/_");
-        let hooks_dir2 = std::path::Path::new(".hooks2/_");
-        let hooks_dir3 = std::path::Path::new(".hooks3/_");
+        let hooks_base_dir1 = std::path::Path::new(".hooks1");
+        let hooks_base_dir2 = std::path::Path::new(".hooks2");
+        let hooks_base_dir3 = std::path::Path::new(".samoid");
 
-        // Test with custom source 1
-        let result1 = copy_hook_runner(
-            &fs,
-            hooks_dir1,
-            Some(std::path::Path::new("/custom/runner1.sh")),
-        );
+        // Test creating examples in different directories
+        let result1 = create_example_hook_scripts(&fs, hooks_base_dir1);
         assert!(result1.is_ok());
-        assert!(fs.exists(&hooks_dir1.join("h")));
+        assert!(fs.exists(&hooks_base_dir1.join("scripts/pre-commit")));
+        assert!(fs.exists(&hooks_base_dir1.join("scripts/pre-push")));
 
-        // Test with custom source 2
-        let result2 = copy_hook_runner(
-            &fs,
-            hooks_dir2,
-            Some(std::path::Path::new("/custom/runner2.sh")),
-        );
+        let result2 = create_example_hook_scripts(&fs, hooks_base_dir2);
         assert!(result2.is_ok());
-        assert!(fs.exists(&hooks_dir2.join("h")));
+        assert!(fs.exists(&hooks_base_dir2.join("scripts/pre-commit")));
+        assert!(fs.exists(&hooks_base_dir2.join("scripts/pre-push")));
 
-        // Test with no source (placeholder)
-        let result3 = copy_hook_runner(&fs, hooks_dir3, None);
+        let result3 = create_example_hook_scripts(&fs, hooks_base_dir3);
         assert!(result3.is_ok());
-        assert!(fs.exists(&hooks_dir3.join("h")));
+        assert!(fs.exists(&hooks_base_dir3.join("scripts/pre-commit")));
+        assert!(fs.exists(&hooks_base_dir3.join("scripts/pre-push")));
     }
 
     #[test]
