@@ -83,6 +83,7 @@ pub trait FileSystem {
     ///
     /// * `Ok(())` - If the directory was created or already exists
     /// * `Err(io::Error)` - If directory creation fails
+    #[allow(dead_code)]
     fn create_dir_all(&self, path: &Path) -> io::Result<()>;
 
     /// Writes string contents to a file
@@ -96,6 +97,7 @@ pub trait FileSystem {
     ///
     /// * `Ok(())` - If the file was written successfully
     /// * `Err(io::Error)` - If writing fails
+    #[allow(dead_code)]
     fn write(&self, path: &Path, contents: &str) -> io::Result<()>;
 
     /// Reads the entire contents of a file as a string
@@ -108,6 +110,7 @@ pub trait FileSystem {
     ///
     /// * `Ok(String)` - The file contents
     /// * `Err(io::Error)` - If reading fails or file doesn't exist
+    #[allow(dead_code)]
     fn read_to_string(&self, path: &Path) -> io::Result<String>;
 
     /// Sets Unix file permissions
@@ -121,6 +124,7 @@ pub trait FileSystem {
     ///
     /// * `Ok(())` - If permissions were set successfully
     /// * `Err(io::Error)` - If setting permissions fails
+    #[allow(dead_code)]
     fn set_permissions(&self, path: &Path, mode: u32) -> io::Result<()>;
 }
 
