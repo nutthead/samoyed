@@ -286,18 +286,18 @@ mod tests {
         let rust_cmd = ProjectType::Rust.default_pre_commit_command();
         assert!(rust_cmd.contains("cargo fmt"));
         assert!(rust_cmd.contains("clippy"));
-        
+
         let go_cmd = ProjectType::Go.default_pre_commit_command();
         assert!(go_cmd.contains("go fmt"));
         assert!(go_cmd.contains("go vet"));
-        
+
         let node_cmd = ProjectType::Node.default_pre_commit_command();
         assert!(node_cmd.contains("npm"));
-        
+
         let python_cmd = ProjectType::Python.default_pre_commit_command();
         assert!(python_cmd.contains("black"));
         assert!(python_cmd.contains("flake8"));
-        
+
         let unknown_cmd = ProjectType::Unknown.default_pre_commit_command();
         assert!(unknown_cmd.contains("echo"));
         assert!(unknown_cmd.contains("samoid.toml"));
@@ -309,19 +309,19 @@ mod tests {
         let rust_cmd = ProjectType::Rust.default_pre_push_command();
         assert!(rust_cmd.is_some());
         assert!(rust_cmd.unwrap().contains("cargo test"));
-        
+
         let go_cmd = ProjectType::Go.default_pre_push_command();
         assert!(go_cmd.is_some());
         assert!(go_cmd.unwrap().contains("go test"));
-        
+
         let node_cmd = ProjectType::Node.default_pre_push_command();
         assert!(node_cmd.is_some());
         assert!(node_cmd.unwrap().contains("npm test"));
-        
+
         let python_cmd = ProjectType::Python.default_pre_push_command();
         assert!(python_cmd.is_some());
         assert!(python_cmd.unwrap().contains("pytest"));
-        
+
         let unknown_cmd = ProjectType::Unknown.default_pre_push_command();
         assert!(unknown_cmd.is_none());
     }
