@@ -103,9 +103,7 @@ fn init_command(
         // Detect project type
         let project_type = if let Some(hint) = project_type_hint {
             ProjectType::from_string(&hint).unwrap_or_else(|| {
-                println!(
-                    "Warning: Unknown project type '{hint}', auto-detecting..."
-                );
+                println!("Warning: Unknown project type '{hint}', auto-detecting...");
                 ProjectType::auto_detect()
             })
         } else {

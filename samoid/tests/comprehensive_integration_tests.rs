@@ -76,10 +76,7 @@ fn test_installation_with_multiple_custom_directories() {
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, Some(custom_dir));
-        assert!(
-            result.is_ok(),
-            "Failed for custom directory: {custom_dir}"
-        );
+        assert!(result.is_ok(), "Failed for custom directory: {custom_dir}");
         assert_eq!(result.unwrap(), ""); // Success returns empty string
 
         // Verify hooks were created in custom directory
@@ -167,10 +164,7 @@ fn test_git_command_failure_scenarios() {
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, None);
-        assert!(
-            result.is_err(),
-            "Should fail for git exit code {exit_code}"
-        );
+        assert!(result.is_err(), "Should fail for git exit code {exit_code}");
     }
 }
 

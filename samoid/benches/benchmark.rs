@@ -4,8 +4,8 @@
 //! Samoid meets performance requirements and detects regressions.
 
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
-use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
 use samoid::environment::FileSystem;
+use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
 use samoid::install_hooks;
 use std::os::unix::process::ExitStatusExt;
 use std::process::{ExitStatus, Output};

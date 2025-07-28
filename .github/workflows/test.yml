@@ -67,7 +67,7 @@ jobs:
         run: |
           cd samoid
           pwd
-          ls -la
+        shell: bash
 
       - name: 🔍 Check code formatting
         run: |
