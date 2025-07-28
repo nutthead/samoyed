@@ -67,7 +67,7 @@ pub enum HookError {
 impl std::fmt::Display for HookError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HookError::IoError(e) => write!(f, "IO error: {}", e),
+            HookError::IoError(e) => write!(f, "IO error: {e}"),
         }
     }
 }
@@ -315,7 +315,7 @@ mod tests {
         let error1 = HookError::IoError(io_error);
 
         // Ensure all implement Debug and Display
-        assert!(!format!("{:?}", error1).is_empty());
+        assert!(!format!("{error1:?}").is_empty());
         assert!(error1.to_string().contains("IO error"));
     }
 

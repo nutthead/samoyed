@@ -67,13 +67,13 @@ fn test_mixed_path_separators() {
     for dir in test_dirs {
         let runner = MockCommandRunner::new().with_response(
             "git",
-            &["config", "core.hooksPath", &format!("{}/_", dir)],
+            &["config", "core.hooksPath", &format!("{dir}/_")],
             Ok(output.clone()),
         );
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, Some(dir));
-        assert!(result.is_ok(), "Failed for directory: {}", dir);
+        assert!(result.is_ok(), "Failed for directory: {dir}");
     }
 }
 
@@ -163,7 +163,7 @@ fn test_shell_command_compatibility() {
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, None);
-        assert!(result.is_ok(), "Failed for shell: {}", shell);
+        assert!(result.is_ok(), "Failed for shell: {shell}");
     }
 }
 
@@ -220,7 +220,7 @@ fn test_git_command_variations() {
         let result = install_hooks(&env, &runner, &fs, None);
         // Only test with "git" as other commands are not configured in mock
         if git_cmd == "git" {
-            assert!(result.is_ok(), "Failed for git command: {}", git_cmd);
+            assert!(result.is_ok(), "Failed for git command: {git_cmd}");
         }
     }
 }
@@ -272,7 +272,7 @@ fn test_unicode_path_handling() {
     for unicode_dir in unicode_dirs {
         let runner = MockCommandRunner::new().with_response(
             "git",
-            &["config", "core.hooksPath", &format!("{}/_", unicode_dir)],
+            &["config", "core.hooksPath", &format!("{unicode_dir}/_")],
             Ok(output.clone()),
         );
         let fs = MockFileSystem::new().with_directory(".git");
@@ -280,8 +280,7 @@ fn test_unicode_path_handling() {
         let result = install_hooks(&env, &runner, &fs, Some(unicode_dir));
         assert!(
             result.is_ok(),
-            "Failed for Unicode directory: {}",
-            unicode_dir
+            "Failed for Unicode directory: {unicode_dir}"
         );
     }
 }

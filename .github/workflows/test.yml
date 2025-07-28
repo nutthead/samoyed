@@ -2,15 +2,15 @@ name: 🧪 Test Suite
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [master, develop]
     paths:
-      - 'samoid/**'
-      - '.github/workflows/test.yml'
+      - "samoid/**"
+      - ".github/workflows/test.yml"
   pull_request:
-    branches: [ master, develop ]
+    branches: [master, develop]
     paths:
-      - 'samoid/**'
-      - '.github/workflows/test.yml'
+      - "samoid/**"
+      - ".github/workflows/test.yml"
   workflow_dispatch:
 
 concurrency:
@@ -33,11 +33,11 @@ jobs:
         include:
           - os: ubuntu-latest
             rust: nightly
-          - os: ubuntu-latest  
-            rust: 1.70.0  # MSRV (Minimum Supported Rust Version)
+          - os: ubuntu-latest
+            rust: 1.70.0 # MSRV (Minimum Supported Rust Version)
           - os: ubuntu-24.04
-            rust: 1.88.0  # Latest stable version
-          - os: ubuntu-24.04
+            rust: 1.88.0 # Latest stable version
+          - os: ubuntu-24.04 # Latest LTS version
             rust: stable
 
     steps:
@@ -177,7 +177,7 @@ jobs:
           if [ -f target/tarpaulin/cobertura.xml ]; then
             echo "📊 Coverage Report Generated Successfully"
             echo "HTML Report: target/tarpaulin/tarpaulin-report.html"
-            echo "XML Report: target/tarpaulin/cobertura.xml" 
+            echo "XML Report: target/tarpaulin/cobertura.xml"
             echo "JSON Report: target/tarpaulin/tarpaulin-report.json"
           else
             echo "❌ Coverage report generation failed"
@@ -249,25 +249,25 @@ jobs:
           echo "# 🧪 Test Suite Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Test Results" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "${{ needs.test.result }}" == "success" ]; then
             echo "✅ **Tests**: All test suites passed" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Tests**: Some tests failed" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ "${{ needs.coverage.result }}" == "success" ]; then
             echo "✅ **Coverage**: Code coverage generated successfully" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Coverage**: Code coverage generation failed" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ "${{ needs.security.result }}" == "success" ]; then
             echo "✅ **Security**: No security vulnerabilities found" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ **Security**: Security audit found issues" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Workflow Details" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY

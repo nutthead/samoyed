@@ -25,7 +25,7 @@ impl std::fmt::Display for GitError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GitError::CommandNotFound => write!(f, "git command not found"),
-            GitError::ConfigurationFailed(msg) => write!(f, "{}", msg),
+            GitError::ConfigurationFailed(msg) => write!(f, "{msg}"),
             GitError::NotGitRepository => write!(f, ".git can't be found"),
         }
     }
@@ -204,9 +204,9 @@ mod tests {
         let error3 = GitError::NotGitRepository;
 
         // Ensure all implement Debug and Display
-        assert!(!format!("{:?}", error1).is_empty());
-        assert!(!format!("{:?}", error2).is_empty());
-        assert!(!format!("{:?}", error3).is_empty());
+        assert!(!format!("{error1:?}").is_empty());
+        assert!(!format!("{error2:?}").is_empty());
+        assert!(!format!("{error3:?}").is_empty());
         assert!(!error1.to_string().is_empty());
         assert!(!error2.to_string().is_empty());
         assert!(!error3.to_string().is_empty());

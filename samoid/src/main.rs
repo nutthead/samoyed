@@ -95,17 +95,16 @@ fn init_command(
     if config_exists {
         let message = "samoid.toml already exists. Updating configuration...";
         if verbose {
-            println!("🔧 {}", message);
+            println!("🔧 {message}");
         } else {
-            println!("{}", message);
+            println!("{message}");
         }
     } else {
         // Detect project type
         let project_type = if let Some(hint) = project_type_hint {
             ProjectType::from_string(&hint).unwrap_or_else(|| {
                 println!(
-                    "Warning: Unknown project type '{}', auto-detecting...",
-                    hint
+                    "Warning: Unknown project type '{hint}', auto-detecting..."
                 );
                 ProjectType::auto_detect()
             })
@@ -145,7 +144,7 @@ fn init_command(
     match install_hooks(env, runner, fs, Some(".samoid")) {
         Ok(msg) => {
             if !msg.is_empty() {
-                println!("{}", msg);
+                println!("{msg}");
             }
         }
         Err(e) => anyhow::bail!("Failed to install hooks: {}", e),
@@ -425,7 +424,7 @@ mod tests {
             let fs = MockFileSystem::new().with_directory(".git");
 
             let result = init_command(&env, &runner, &fs, Some(project_type.to_string()));
-            assert!(result.is_ok(), "Failed for project type: {}", project_type);
+            assert!(result.is_ok(), "Failed for project type: {project_type}");
         }
     }
 

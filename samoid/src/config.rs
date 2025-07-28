@@ -88,14 +88,14 @@ impl SamoidConfig {
         // Validate hook names
         for hook_name in self.hooks.keys() {
             if !is_valid_git_hook(hook_name) {
-                return Err(format!("Invalid Git hook name: '{}'", hook_name));
+                return Err(format!("Invalid Git hook name: '{hook_name}'"));
             }
         }
 
         // Validate hook commands are not empty
         for (hook_name, command) in &self.hooks {
             if command.trim().is_empty() {
-                return Err(format!("Hook '{}' cannot have empty command", hook_name));
+                return Err(format!("Hook '{hook_name}' cannot have empty command"));
             }
         }
 
@@ -377,8 +377,7 @@ fail_fast = false
                 .insert(hook_name.to_string(), "test command".to_string());
             assert!(
                 test_config.validate().is_ok(),
-                "Failed validation for hook: {}",
-                hook_name
+                "Failed validation for hook: {hook_name}"
             );
         }
     }
@@ -417,7 +416,7 @@ fail_fast = false
         assert_eq!(default_dir, ".samoid");
 
         let default_fail_fast = super::default_fail_fast();
-        assert_eq!(default_fail_fast, true);
+        assert!(default_fail_fast);
 
         // Test Settings construction with defaults
         let settings = SamoidSettings {
@@ -443,13 +442,11 @@ fail_fast = false
             let config = SamoidConfig::default_for_project_type(&project_type);
             assert!(
                 config.validate().is_ok(),
-                "Failed validation for project type: {:?}",
-                project_type
+                "Failed validation for project type: {project_type:?}"
             );
             assert!(
                 !config.hooks.is_empty(),
-                "No hooks generated for project type: {:?}",
-                project_type
+                "No hooks generated for project type: {project_type:?}"
             );
         }
     }

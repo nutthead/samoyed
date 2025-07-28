@@ -5,6 +5,7 @@
 
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
+use samoid::environment::FileSystem;
 use samoid::install_hooks;
 use std::os::unix::process::ExitStatusExt;
 use std::process::{ExitStatus, Output};
@@ -87,7 +88,7 @@ fn benchmark_large_mock_filesystem(c: &mut Criterion) {
 
         // Simulate a large project with many files
         for i in 0..1000 {
-            fs = fs.with_file(&format!("src/file_{}.rs", i), "// Mock file content");
+            fs = fs.with_file(format!("src/file_{i}.rs"), "// Mock file content");
         }
 
         b.iter(|| {

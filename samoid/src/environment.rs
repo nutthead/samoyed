@@ -253,6 +253,12 @@ pub mod mocks {
         vars: Arc<Mutex<HashMap<String, String>>>,
     }
 
+    impl Default for MockEnvironment {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl MockEnvironment {
         /// Creates a new empty mock environment
         ///
@@ -309,6 +315,12 @@ pub mod mocks {
     pub struct MockCommandRunner {
         /// Thread-safe storage for command responses keyed by "program arg1 arg2"
         responses: Arc<Mutex<HashMap<String, io::Result<Output>>>>,
+    }
+
+    impl Default for MockCommandRunner {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl MockCommandRunner {
@@ -386,6 +398,12 @@ pub mod mocks {
         files: Arc<Mutex<HashMap<PathBuf, String>>>,
         /// Thread-safe storage for directory paths
         directories: Arc<Mutex<Vec<PathBuf>>>,
+    }
+
+    impl Default for MockFileSystem {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl MockFileSystem {

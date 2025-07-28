@@ -53,7 +53,7 @@ fn test_complete_installation_flow() {
 
     for hook in &standard_hooks {
         let hook_path = std::path::Path::new(".samoid/_").join(hook);
-        assert!(fs.exists(&hook_path), "Hook {} should exist", hook);
+        assert!(fs.exists(&hook_path), "Hook {hook} should exist");
     }
 }
 
@@ -70,7 +70,7 @@ fn test_installation_with_multiple_custom_directories() {
         };
         let runner = MockCommandRunner::new().with_response(
             "git",
-            &["config", "core.hooksPath", &format!("{}/_", custom_dir)],
+            &["config", "core.hooksPath", &format!("{custom_dir}/_")],
             Ok(output),
         );
         let fs = MockFileSystem::new().with_directory(".git");
@@ -78,8 +78,7 @@ fn test_installation_with_multiple_custom_directories() {
         let result = install_hooks(&env, &runner, &fs, Some(custom_dir));
         assert!(
             result.is_ok(),
-            "Failed for custom directory: {}",
-            custom_dir
+            "Failed for custom directory: {custom_dir}"
         );
         assert_eq!(result.unwrap(), ""); // Success returns empty string
 
@@ -131,13 +130,12 @@ fn test_environment_variable_scenarios() {
         let result = install_hooks(&env, &runner, &fs, None);
 
         if should_succeed {
-            assert!(result.is_ok(), "Failed for SAMOID={:?}", samoid_value);
+            assert!(result.is_ok(), "Failed for SAMOID={samoid_value:?}");
             assert_eq!(result.unwrap(), expected_message);
         } else {
             assert!(
                 result.is_err(),
-                "Should have failed for SAMOID={:?}",
-                samoid_value
+                "Should have failed for SAMOID={samoid_value:?}"
             );
         }
     }
@@ -171,8 +169,7 @@ fn test_git_command_failure_scenarios() {
         let result = install_hooks(&env, &runner, &fs, None);
         assert!(
             result.is_err(),
-            "Should fail for git exit code {}",
-            exit_code
+            "Should fail for git exit code {exit_code}"
         );
     }
 }
@@ -230,7 +227,7 @@ fn test_edge_case_paths() {
         };
         let runner = MockCommandRunner::new().with_response(
             "git",
-            &["config", "core.hooksPath", &format!("{}/_", path)],
+            &["config", "core.hooksPath", &format!("{path}/_")],
             Ok(output),
         );
         let fs = MockFileSystem::new().with_directory(".git");
@@ -239,20 +236,19 @@ fn test_edge_case_paths() {
 
         // Paths with ".." should be rejected
         if path.contains("..") {
-            assert!(result.is_err(), "Should reject path with '..': {}", path);
+            assert!(result.is_err(), "Should reject path with '..': {path}");
             if let Err(e) = result {
                 assert!(
                     e.to_string().contains("not allowed"),
-                    "Error message should mention 'not allowed' for path: {}",
-                    path
+                    "Error message should mention 'not allowed' for path: {path}"
                 );
             }
         } else if path.is_empty() {
             // Empty paths should use default behavior
-            assert!(result.is_ok(), "Empty path should use default: {}", path);
+            assert!(result.is_ok(), "Empty path should use default: {path}");
         } else {
             // Other paths should work
-            assert!(result.is_ok(), "Valid path should work: {}", path);
+            assert!(result.is_ok(), "Valid path should work: {path}");
         }
     }
 }
@@ -277,7 +273,7 @@ fn test_concurrent_installation_simulation() {
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, None);
-        assert!(result.is_ok(), "Simulation {} should succeed", i);
+        assert!(result.is_ok(), "Simulation {i} should succeed");
         assert_eq!(result.unwrap(), ""); // Success returns empty string
     }
 }
@@ -289,8 +285,8 @@ fn test_large_number_of_files_simulation() {
 
     // Add many files to simulate a large repository
     for i in 0..1000 {
-        fs = fs.with_file(&format!("src/file_{}.rs", i), "// Mock file content");
-        fs = fs.with_file(&format!("tests/test_{}.rs", i), "// Mock test content");
+        fs = fs.with_file(format!("src/file_{i}.rs"), "// Mock file content");
+        fs = fs.with_file(format!("tests/test_{i}.rs"), "// Mock test content");
     }
 
     let env = MockEnvironment::new();
@@ -316,8 +312,7 @@ fn test_large_number_of_files_simulation() {
     // Should be fast even with many files
     assert!(
         duration.as_millis() < 100,
-        "Installation took too long: {:?}",
-        duration
+        "Installation took too long: {duration:?}"
     );
 }
 
@@ -395,7 +390,7 @@ fn test_hook_content_validation() {
     let hooks_to_verify = ["pre-commit", "post-commit", "pre-push"];
     for hook in &hooks_to_verify {
         let hook_path = std::path::Path::new(".samoid/_").join(hook);
-        assert!(fs.exists(&hook_path), "Hook {} should exist", hook);
+        assert!(fs.exists(&hook_path), "Hook {hook} should exist");
     }
 }
 
@@ -427,8 +422,7 @@ fn test_directory_structure_validation() {
     for file in &essential_files {
         assert!(
             fs.exists(std::path::Path::new(file)),
-            "Essential file {} should exist",
-            file
+            "Essential file {file} should exist"
         );
     }
 }
@@ -447,8 +441,7 @@ fn test_error_message_quality() {
     let error_msg = result.unwrap_err().to_string();
     assert!(
         error_msg.contains("not allowed"),
-        "Error message should be informative: {}",
-        error_msg
+        "Error message should be informative: {error_msg}"
     );
 
     // Test without git repository
@@ -458,8 +451,7 @@ fn test_error_message_quality() {
     let error_msg = result.unwrap_err().to_string();
     assert!(
         error_msg.contains(".git can't be found"),
-        "Error message should be informative: {}",
-        error_msg
+        "Error message should be informative: {error_msg}"
     );
 }
 
@@ -502,7 +494,7 @@ fn test_comprehensive_hook_coverage() {
 
     for hook in &all_git_hooks {
         let hook_path = std::path::Path::new(".samoid/_").join(hook);
-        assert!(fs.exists(&hook_path), "Git hook {} should be created", hook);
+        assert!(fs.exists(&hook_path), "Git hook {hook} should be created");
     }
 
     // Verify we have the expected total count

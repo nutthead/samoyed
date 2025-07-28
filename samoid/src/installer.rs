@@ -36,9 +36,9 @@ pub enum InstallError {
 impl std::fmt::Display for InstallError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InstallError::Git(e) => write!(f, "{}", e),
-            InstallError::Hooks(e) => write!(f, "{}", e),
-            InstallError::InvalidPath(msg) => write!(f, "{}", msg),
+            InstallError::Git(e) => write!(f, "{e}"),
+            InstallError::Hooks(e) => write!(f, "{e}"),
+            InstallError::InvalidPath(msg) => write!(f, "{msg}"),
         }
     }
 }
@@ -130,7 +130,7 @@ pub fn install_hooks(
     // Check if we're in a git repository
     git::check_git_repository(fs)?;
 
-    let hooks_path = format!("{}/_", hooks_dir_name);
+    let hooks_path = format!("{hooks_dir_name}/_");
 
     // Set git hooks path
     git::set_hooks_path(runner, &hooks_path)?;
@@ -318,9 +318,9 @@ mod tests {
         let error3 = InstallError::InvalidPath("invalid".to_string());
 
         // Test Debug formatting
-        assert!(!format!("{:?}", error1).is_empty());
-        assert!(!format!("{:?}", error2).is_empty());
-        assert!(!format!("{:?}", error3).is_empty());
+        assert!(!format!("{error1:?}").is_empty());
+        assert!(!format!("{error2:?}").is_empty());
+        assert!(!format!("{error3:?}").is_empty());
 
         // Test Display formatting
         assert_eq!(error1.to_string(), "git command not found");
@@ -385,7 +385,7 @@ mod tests {
         ];
 
         for dir_name in &test_cases {
-            let expected_path = format!("{}/_", dir_name);
+            let expected_path = format!("{dir_name}/_");
             let runner = MockCommandRunner::new().with_response(
                 "git",
                 &["config", "core.hooksPath", &expected_path],
@@ -394,7 +394,7 @@ mod tests {
             let fs = MockFileSystem::new().with_directory(".git");
 
             let result = install_hooks(&env, &runner, &fs, Some(dir_name));
-            assert!(result.is_ok(), "Failed for directory: {}", dir_name);
+            assert!(result.is_ok(), "Failed for directory: {dir_name}");
         }
     }
 
@@ -439,8 +439,8 @@ mod tests {
             let fs = MockFileSystem::new().with_directory(".git");
 
             let result = install_hooks(&env, &runner, &fs, None);
-            assert!(result.is_ok(), "Failed for SAMOID={}", value);
-            assert_eq!(result.unwrap(), "", "Should not skip for SAMOID={}", value);
+            assert!(result.is_ok(), "Failed for SAMOID={value}");
+            assert_eq!(result.unwrap(), "", "Should not skip for SAMOID={value}");
         }
     }
 }

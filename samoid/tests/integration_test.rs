@@ -137,7 +137,7 @@ fn test_all_standard_hooks_created() {
 
     for hook in &expected_hooks {
         let hook_path = std::path::Path::new(".samoid/_").join(hook);
-        assert!(fs.exists(&hook_path), "Hook {} should exist", hook);
+        assert!(fs.exists(&hook_path), "Hook {hook} should exist");
     }
 }
 
