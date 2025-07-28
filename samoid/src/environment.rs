@@ -203,10 +203,7 @@ impl FileSystem for SystemFileSystem {
             // On Windows, we don't set Unix-style permissions, but we still succeed
             Ok(())
         } else {
-            Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                "File not found",
-            ))
+            Err(io::Error::new(io::ErrorKind::NotFound, "File not found"))
         }
     }
 }
