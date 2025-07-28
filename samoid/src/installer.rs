@@ -153,8 +153,22 @@ pub fn install_hooks(
 mod tests {
     use super::*;
     use crate::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
-    use std::os::unix::process::ExitStatusExt;
     use std::process::{ExitStatus, Output};
+    
+    // Cross-platform exit status creation
+    #[cfg(unix)]
+    use std::os::unix::process::ExitStatusExt;
+    #[cfg(windows)]
+    use std::os::windows::process::ExitStatusExt;
+    
+    // Helper function to create ExitStatus cross-platform
+    fn exit_status(code: i32) -> ExitStatus {
+        #[cfg(unix)]
+        return ExitStatus::from_raw(code);
+        
+        #[cfg(windows)]
+        return ExitStatus::from_raw(code as u32);
+    }
 
     #[test]
     fn test_install_hooks_skip_when_samoid_0() {
@@ -195,7 +209,7 @@ mod tests {
 
         // Configure git command to succeed
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -219,7 +233,7 @@ mod tests {
 
         // Configure git command to succeed with custom directory
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -286,7 +300,7 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -333,12 +347,12 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output1 = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
         let output2 = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -370,7 +384,7 @@ mod tests {
     fn test_install_hooks_edge_case_paths() {
         let env = MockEnvironment::new();
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -403,7 +417,7 @@ mod tests {
         // Test when SAMOID is set to empty string (should not skip)
         let env = MockEnvironment::new().with_var("SAMOID", "");
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -427,7 +441,7 @@ mod tests {
         for value in &test_values {
             let env = MockEnvironment::new().with_var("SAMOID", value);
             let output = Output {
-                status: ExitStatus::from_raw(0),
+                status: exit_status(0),
                 stdout: vec![],
                 stderr: vec![],
             };

@@ -6,14 +6,28 @@
 use samoid::environment::FileSystem;
 use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
 use samoid::install_hooks;
-use std::os::unix::process::ExitStatusExt;
 use std::process::{ExitStatus, Output};
+
+// Cross-platform exit status creation
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
+#[cfg(windows)]
+use std::os::windows::process::ExitStatusExt;
+
+// Helper function to create ExitStatus cross-platform
+fn exit_status(code: i32) -> ExitStatus {
+    #[cfg(unix)]
+    return ExitStatus::from_raw(code);
+    
+    #[cfg(windows)]
+    return ExitStatus::from_raw(code as u32);
+}
 
 #[test]
 fn test_complete_installation_flow() {
     let env = MockEnvironment::new();
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -64,7 +78,7 @@ fn test_installation_with_multiple_custom_directories() {
     for custom_dir in custom_dirs {
         let env = MockEnvironment::new();
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -113,7 +127,7 @@ fn test_environment_variable_scenarios() {
         }
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -152,7 +166,7 @@ fn test_git_command_failure_scenarios() {
     for (exit_code, stderr) in failure_scenarios {
         let env = MockEnvironment::new();
         let output = Output {
-            status: ExitStatus::from_raw(exit_code),
+            status: exit_status(exit_code),
             stdout: vec![],
             stderr,
         };
@@ -172,7 +186,7 @@ fn test_git_command_failure_scenarios() {
 fn test_filesystem_error_scenarios() {
     let env = MockEnvironment::new();
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -215,7 +229,7 @@ fn test_edge_case_paths() {
     for path in edge_case_paths {
         let env = MockEnvironment::new();
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -255,7 +269,7 @@ fn test_concurrent_installation_simulation() {
     for i in 0..num_simulations {
         let env = MockEnvironment::new();
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -285,7 +299,7 @@ fn test_large_number_of_files_simulation() {
 
     let env = MockEnvironment::new();
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -314,7 +328,7 @@ fn test_large_number_of_files_simulation() {
 fn test_reinstallation_idempotency() {
     let env = MockEnvironment::new();
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -358,7 +372,7 @@ fn test_reinstallation_idempotency() {
 fn test_hook_content_validation() {
     let env = MockEnvironment::new();
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -392,7 +406,7 @@ fn test_hook_content_validation() {
 fn test_directory_structure_validation() {
     let env = MockEnvironment::new();
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -454,7 +468,7 @@ fn test_comprehensive_hook_coverage() {
     // Ensure all Git hooks are supported
     let env = MockEnvironment::new();
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };

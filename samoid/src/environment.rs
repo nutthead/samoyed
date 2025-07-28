@@ -216,7 +216,21 @@ impl FileSystem for SystemFileSystem {
 /// use samoid::environment::mocks::{MockEnvironment, MockCommandRunner, MockFileSystem};
 /// use samoid::environment::{Environment, CommandRunner, FileSystem};
 /// use std::process::{Output, ExitStatus};
+/// 
+/// // Cross-platform exit status creation
+/// #[cfg(unix)]
 /// use std::os::unix::process::ExitStatusExt;
+/// #[cfg(windows)]
+/// use std::os::windows::process::ExitStatusExt;
+/// 
+/// // Helper function to create ExitStatus cross-platform
+/// fn exit_status(code: i32) -> ExitStatus {
+///     #[cfg(unix)]
+///     return ExitStatus::from_raw(code);
+///     
+///     #[cfg(windows)]
+///     return ExitStatus::from_raw(code as u32);
+/// }
 ///
 /// // Create a mock environment with a specific variable
 /// let env = MockEnvironment::new().with_var("SAMOID", "0");
@@ -224,7 +238,7 @@ impl FileSystem for SystemFileSystem {
 ///
 /// // Create a mock command runner with a predefined response
 /// let output = Output {
-///     status: ExitStatus::from_raw(0),
+///     status: exit_status(0),
 ///     stdout: b"success".to_vec(),
 ///     stderr: vec![],
 /// };
@@ -517,7 +531,21 @@ pub mod mocks {
 mod tests {
     use super::*;
     use crate::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
+    
+    // Cross-platform exit status creation
+    #[cfg(unix)]
     use std::os::unix::process::ExitStatusExt;
+    #[cfg(windows)]
+    use std::os::windows::process::ExitStatusExt;
+    
+    // Helper function to create ExitStatus cross-platform
+    fn exit_status(code: i32) -> std::process::ExitStatus {
+        #[cfg(unix)]
+        return std::process::ExitStatus::from_raw(code);
+        
+        #[cfg(windows)]
+        return std::process::ExitStatus::from_raw(code as u32);
+    }
 
     #[test]
     fn test_system_environment_basic_operations() {
@@ -650,7 +678,7 @@ mod tests {
     #[test]
     fn test_mock_command_runner_operations() {
         let output = std::process::Output {
-            status: std::process::ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: b"success".to_vec(),
             stderr: vec![],
         };
@@ -686,12 +714,12 @@ mod tests {
     #[test]
     fn test_mock_command_runner_multiple_responses() {
         let output1 = std::process::Output {
-            status: std::process::ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: b"first".to_vec(),
             stderr: vec![],
         };
         let output2 = std::process::Output {
-            status: std::process::ExitStatus::from_raw(1),
+            status: exit_status(1),
             stdout: vec![],
             stderr: b"error".to_vec(),
         };

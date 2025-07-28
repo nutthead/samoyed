@@ -231,8 +231,22 @@ fn execute_hook_script(
 mod tests {
     use super::*;
     use environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
-    use std::os::unix::process::ExitStatusExt;
     use std::process::{ExitStatus, Output};
+    
+    // Cross-platform exit status creation
+    #[cfg(unix)]
+    use std::os::unix::process::ExitStatusExt;
+    #[cfg(windows)]
+    use std::os::windows::process::ExitStatusExt;
+    
+    // Helper function to create ExitStatus cross-platform
+    fn exit_status(code: i32) -> ExitStatus {
+        #[cfg(unix)]
+        return ExitStatus::from_raw(code);
+        
+        #[cfg(windows)]
+        return ExitStatus::from_raw(code as u32);
+    }
 
     #[test]
     fn test_run_hook_with_samoid_0_skips_execution() {
@@ -275,7 +289,7 @@ mod tests {
 
         // Mock successful hook execution
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: b"Hook executed successfully".to_vec(),
             stderr: vec![],
         };
@@ -306,7 +320,7 @@ mod tests {
 
         // Mock failed hook execution
         let output = Output {
-            status: ExitStatus::from_raw(1),
+            status: exit_status(1),
             stdout: vec![],
             stderr: b"Hook failed".to_vec(),
         };
@@ -334,7 +348,7 @@ mod tests {
 
         // Mock command not found (exit code 127)
         let output = Output {
-            status: ExitStatus::from_raw(127),
+            status: exit_status(127),
             stdout: vec![],
             stderr: b"command not found".to_vec(),
         };
@@ -422,7 +436,7 @@ mod tests {
             .with_var("HOME", "/home/test");
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };

@@ -7,15 +7,29 @@ use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use samoid::environment::FileSystem;
 use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
 use samoid::install_hooks;
-use std::os::unix::process::ExitStatusExt;
 use std::process::{ExitStatus, Output};
+
+// Cross-platform exit status creation
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
+#[cfg(windows)]
+use std::os::windows::process::ExitStatusExt;
+
+// Helper function to create ExitStatus cross-platform
+fn exit_status(code: i32) -> ExitStatus {
+    #[cfg(unix)]
+    return ExitStatus::from_raw(code);
+    
+    #[cfg(windows)]
+    return ExitStatus::from_raw(code as u32);
+}
 
 fn benchmark_mock_installation(c: &mut Criterion) {
     c.bench_function("mock_installation", |b| {
         b.iter(|| {
             let env = MockEnvironment::new();
             let output = Output {
-                status: ExitStatus::from_raw(0),
+                status: exit_status(0),
                 stdout: vec![],
                 stderr: vec![],
             };
@@ -37,7 +51,7 @@ fn benchmark_mock_installation_with_custom_dir(c: &mut Criterion) {
         b.iter(|| {
             let env = MockEnvironment::new();
             let output = Output {
-                status: ExitStatus::from_raw(0),
+                status: exit_status(0),
                 stdout: vec![],
                 stderr: vec![],
             };
@@ -94,7 +108,7 @@ fn benchmark_large_mock_filesystem(c: &mut Criterion) {
         b.iter(|| {
             let env = MockEnvironment::new();
             let output = Output {
-                status: ExitStatus::from_raw(0),
+                status: exit_status(0),
                 stdout: vec![],
                 stderr: vec![],
             };

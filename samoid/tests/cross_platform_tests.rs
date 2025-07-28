@@ -6,14 +6,28 @@
 use samoid::environment::FileSystem;
 use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
 use samoid::install_hooks;
+use std::process::Output;
+
+// Cross-platform exit status creation
+#[cfg(unix)]
 use std::os::unix::process::ExitStatusExt;
-use std::process::{ExitStatus, Output};
+#[cfg(windows)]
+use std::os::windows::process::ExitStatusExt;
+
+// Helper function to create ExitStatus cross-platform
+fn exit_status(code: i32) -> std::process::ExitStatus {
+    #[cfg(unix)]
+    return std::process::ExitStatus::from_raw(code);
+    
+    #[cfg(windows)]
+    return std::process::ExitStatus::from_raw(code as u32);
+}
 
 #[test]
 fn test_unix_path_handling() {
     let env = MockEnvironment::new();
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -36,7 +50,7 @@ fn test_windows_style_paths() {
         .with_var("SAMOID", "1");
 
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -56,7 +70,7 @@ fn test_windows_style_paths() {
 fn test_mixed_path_separators() {
     let env = MockEnvironment::new();
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -82,7 +96,7 @@ fn test_environment_variable_differences() {
     // Test Unix-style HOME variable
     let unix_env = MockEnvironment::new().with_var("HOME", "/home/user");
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -110,7 +124,7 @@ fn test_xdg_config_home_handling() {
         .with_var("XDG_CONFIG_HOME", "/home/user/.config");
 
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -138,7 +152,7 @@ fn test_shell_command_compatibility() {
 
     for (shell, args) in shell_commands {
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: b"test\n".to_vec(),
             stderr: vec![],
         };
@@ -147,7 +161,7 @@ fn test_shell_command_compatibility() {
 
         // Add git config response
         let git_output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -173,7 +187,7 @@ fn test_file_permissions_cross_platform() {
     // across platforms (executable on Unix, appropriate on Windows)
     let env = MockEnvironment::new();
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -204,7 +218,7 @@ fn test_git_command_variations() {
 
     for git_cmd in git_commands {
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -230,7 +244,7 @@ fn test_line_ending_handling() {
     // Test handling of different line endings (Unix \n vs Windows \r\n)
     let env = MockEnvironment::new();
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -262,7 +276,7 @@ fn test_unicode_path_handling() {
     // Test handling of Unicode characters in file paths
     let env = MockEnvironment::new();
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -294,7 +308,7 @@ fn test_unix_specific_features() {
         .with_var("USER", "testuser");
 
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
@@ -318,7 +332,7 @@ fn test_windows_specific_features() {
         .with_var("USERNAME", "testuser");
 
     let output = Output {
-        status: ExitStatus::from_raw(0),
+        status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };

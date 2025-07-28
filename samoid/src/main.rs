@@ -157,8 +157,22 @@ fn init_command(
 mod tests {
     use super::*;
     use environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
-    use std::os::unix::process::ExitStatusExt;
     use std::process::{ExitStatus, Output};
+    
+    // Cross-platform exit status creation
+    #[cfg(unix)]
+    use std::os::unix::process::ExitStatusExt;
+    #[cfg(windows)]
+    use std::os::windows::process::ExitStatusExt;
+    
+    // Helper function to create ExitStatus cross-platform
+    fn exit_status(code: i32) -> ExitStatus {
+        #[cfg(unix)]
+        return ExitStatus::from_raw(code);
+        
+        #[cfg(windows)]
+        return ExitStatus::from_raw(code as u32);
+    }
 
     #[test]
     fn test_init_command_creates_directories() {
@@ -167,7 +181,7 @@ mod tests {
 
         // Mock successful git command
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -210,7 +224,7 @@ mod tests {
 
         // Mock successful git command
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -235,7 +249,7 @@ mod tests {
 
         // Mock failed git command
         let output = Output {
-            status: ExitStatus::from_raw(1),
+            status: exit_status(1),
             stdout: vec![],
             stderr: b"fatal: not a git repository".to_vec(),
         };
@@ -265,7 +279,7 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -290,7 +304,7 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -319,7 +333,7 @@ mod tests {
             "git",
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(Output {
-                status: ExitStatus::from_raw(0),
+                status: exit_status(0),
                 stdout: vec![],
                 stderr: vec![],
             }),
@@ -405,7 +419,7 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -432,7 +446,7 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -461,7 +475,7 @@ mod tests {
             "git",
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(Output {
-                status: ExitStatus::from_raw(0),
+                status: exit_status(0),
                 stdout: vec![],
                 stderr: vec![],
             }),
@@ -485,7 +499,7 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -518,7 +532,7 @@ mod tests {
         let env = MockEnvironment::new().with_var("SAMOID_VERBOSE", "1");
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -549,7 +563,7 @@ mod tests {
         let env = MockEnvironment::new(); // No environment variables set
 
         let output = Output {
-            status: ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
