@@ -34,7 +34,7 @@ jobs:
           - os: ubuntu-latest
             rust: nightly
           - os: ubuntu-latest
-            rust: 1.70.0 # MSRV (Minimum Supported Rust Version)
+            rust: 1.85.0 # First Rust 2024 edition
           - os: ubuntu-24.04
             rust: 1.88.0 # Latest stable version
           - os: ubuntu-24.04 # Latest LTS version
