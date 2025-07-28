@@ -83,13 +83,22 @@ impl std::fmt::Display for InstallError {
                 write!(f, "Invalid path '{path}': {reason}")?;
                 match reason {
                     PathValidationError::DirectoryTraversal => {
-                        write!(f, "\n\nSecurity: Directory traversal attacks are not allowed.\nUse a relative path within the current directory.")?;
+                        write!(
+                            f,
+                            "\n\nSecurity: Directory traversal attacks are not allowed.\nUse a relative path within the current directory."
+                        )?;
                     }
                     PathValidationError::AbsolutePath => {
-                        write!(f, "\n\nUse a relative path like '.samoid' or 'hooks' instead.")?;
+                        write!(
+                            f,
+                            "\n\nUse a relative path like '.samoid' or 'hooks' instead."
+                        )?;
                     }
                     PathValidationError::InvalidCharacters(_) => {
-                        write!(f, "\n\nUse only alphanumeric characters, hyphens, underscores, and dots.")?;
+                        write!(
+                            f,
+                            "\n\nUse only alphanumeric characters, hyphens, underscores, and dots."
+                        )?;
                     }
                     PathValidationError::EmptyPath => {
                         write!(f, "\n\nProvide a valid directory name like '.samoid'.")?;
@@ -239,7 +248,7 @@ fn validate_hooks_directory_path(path: &str) -> Result<(), InstallError> {
             reason: PathValidationError::EmptyPath,
         });
     }
-    
+
     // Check path length (filesystem limits vary, but 255 is a safe limit)
     if path.len() > 255 {
         return Err(InstallError::InvalidPath {
@@ -247,7 +256,7 @@ fn validate_hooks_directory_path(path: &str) -> Result<(), InstallError> {
             reason: PathValidationError::TooLong(path.len()),
         });
     }
-    
+
     // Check for directory traversal sequences
     if path.contains("..") {
         return Err(InstallError::InvalidPath {
@@ -255,7 +264,7 @@ fn validate_hooks_directory_path(path: &str) -> Result<(), InstallError> {
             reason: PathValidationError::DirectoryTraversal,
         });
     }
-    
+
     // Check for absolute paths (security and portability)
     if std::path::Path::new(path).is_absolute() {
         return Err(InstallError::InvalidPath {
@@ -263,7 +272,7 @@ fn validate_hooks_directory_path(path: &str) -> Result<(), InstallError> {
             reason: PathValidationError::AbsolutePath,
         });
     }
-    
+
     // Check for invalid characters (platform-specific, but these are commonly problematic)
     let invalid_chars: Vec<char> = path
         .chars()
@@ -272,7 +281,7 @@ fn validate_hooks_directory_path(path: &str) -> Result<(), InstallError> {
             !c.is_alphanumeric() && !matches!(c, '-' | '_' | '.' | '/')
         })
         .collect();
-    
+
     if !invalid_chars.is_empty() {
         let invalid_str: String = invalid_chars.into_iter().collect();
         return Err(InstallError::InvalidPath {
@@ -280,7 +289,7 @@ fn validate_hooks_directory_path(path: &str) -> Result<(), InstallError> {
             reason: PathValidationError::InvalidCharacters(invalid_str),
         });
     }
-    
+
     Ok(())
 }
 
@@ -324,7 +333,12 @@ mod tests {
 
         let result = install_hooks(&env, &runner, &fs, Some("../invalid"));
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Directory traversal detected"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Directory traversal detected")
+        );
     }
 
     #[test]
@@ -335,7 +349,12 @@ mod tests {
 
         let result = install_hooks(&env, &runner, &fs, None);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Not a Git repository"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Not a Git repository")
+        );
     }
 
     #[test]
@@ -418,7 +437,11 @@ mod tests {
             path: "test/path".to_string(),
             reason: PathValidationError::DirectoryTraversal,
         };
-        assert!(invalid_error.to_string().contains("Directory traversal detected"));
+        assert!(
+            invalid_error
+                .to_string()
+                .contains("Directory traversal detected")
+        );
     }
 
     #[test]
@@ -485,7 +508,9 @@ mod tests {
     #[test]
     fn test_install_error_variants_coverage() {
         // Test all InstallError variants for coverage
-        let git_error = git::GitError::CommandNotFound { os_hint: Some("linux".to_string()) };
+        let git_error = git::GitError::CommandNotFound {
+            os_hint: Some("linux".to_string()),
+        };
         let hook_error = hooks::HookError::IoError(std::io::Error::new(
             std::io::ErrorKind::PermissionDenied,
             "test",
@@ -663,7 +688,7 @@ mod tests {
         // Test various directory traversal attempts
         let invalid_paths = [
             "../invalid",
-            "valid/../invalid", 
+            "valid/../invalid",
             "..\\invalid",
             "valid\\..\\invalid",
             "hooks/../../../etc/passwd",

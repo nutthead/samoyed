@@ -65,7 +65,7 @@ fn run_hook(
     if debug_mode {
         eprintln!("samoid: Debug mode enabled (SAMOID=2)");
         let sanitized_args = sanitize_args(args);
-        eprintln!("samoid: Hook runner args: {:?}", sanitized_args);
+        eprintln!("samoid: Hook runner args: {sanitized_args:?}");
     }
 
     // Determine hook name from the first argument (e.g., pre-commit, post-commit)
@@ -86,7 +86,12 @@ fn run_hook(
     let hook_script_path = PathBuf::from(".samoid").join("scripts").join(hook_name);
 
     if debug_mode {
-        log_file_operation_with_env(env, debug_mode, "Looking for hook script at", &hook_script_path);
+        log_file_operation_with_env(
+            env,
+            debug_mode,
+            "Looking for hook script at",
+            &hook_script_path,
+        );
     }
 
     // Check if the hook script exists - if not, exit silently (this is normal)
@@ -126,7 +131,12 @@ fn load_init_script(
         .join("init.sh");
 
     if debug_mode {
-        log_file_operation_with_env(env, debug_mode, "Checking for init script at", &init_script_path);
+        log_file_operation_with_env(
+            env,
+            debug_mode,
+            "Checking for init script at",
+            &init_script_path,
+        );
     }
 
     // If the init script exists, source it using shell
@@ -160,25 +170,34 @@ fn execute_hook_script(
     if debug_mode {
         log_file_operation_with_env(env, debug_mode, "Executing hook script", script_path);
         let sanitized_hook_args = sanitize_args(hook_args);
-        eprintln!("samoid: Hook arguments: {:?}", sanitized_hook_args);
+        eprintln!("samoid: Hook arguments: {sanitized_hook_args:?}");
     }
 
     // Convert String args to &str for the runner interface
     let str_args: Vec<&str> = hook_args.iter().map(|s| s.as_str()).collect();
 
     // Execute the hook script using shell
-    let shell_args = vec!["-e".to_string(), script_path.to_string_lossy().to_string(), str_args.join(" ")];
-    
+    let shell_args = vec![
+        "-e".to_string(),
+        script_path.to_string_lossy().to_string(),
+        str_args.join(" "),
+    ];
+
     if debug_mode {
         log_command_execution(debug_mode, "sh", &shell_args);
     }
-    
+
     let output = runner
         .run_command(
             "sh",
             &["-e", &script_path.to_string_lossy(), &str_args.join(" ")],
         )
-        .with_context(|| format!("Failed to execute hook script: {}", sanitize_path(script_path)))?;
+        .with_context(|| {
+            format!(
+                "Failed to execute hook script: {}",
+                sanitize_path(script_path)
+            )
+        })?;
 
     // Check exit code and provide appropriate error messages
     let exit_code = output.status.code().unwrap_or(1);

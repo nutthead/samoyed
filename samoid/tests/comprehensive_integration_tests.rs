@@ -26,16 +26,25 @@ fn exit_status(code: i32) -> ExitStatus {
 #[test]
 fn test_complete_installation_flow() {
     let env = MockEnvironment::new();
-    let output = Output {
+
+    // Mock git --version first
+    let version_output = Output {
+        status: exit_status(0),
+        stdout: b"git version 2.34.1".to_vec(),
+        stderr: vec![],
+    };
+    let config_output = Output {
         status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
-    let runner = MockCommandRunner::new().with_response(
-        "git",
-        &["config", "core.hooksPath", ".samoid/_"],
-        Ok(output),
-    );
+    let runner = MockCommandRunner::new()
+        .with_response("git", &["--version"], Ok(version_output))
+        .with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(config_output),
+        );
     let fs = MockFileSystem::new().with_directory(".git");
 
     let result = install_hooks(&env, &runner, &fs, None);
@@ -77,16 +86,25 @@ fn test_installation_with_multiple_custom_directories() {
 
     for custom_dir in custom_dirs {
         let env = MockEnvironment::new();
-        let output = Output {
+
+        // Mock git --version first
+        let version_output = Output {
+            status: exit_status(0),
+            stdout: b"git version 2.34.1".to_vec(),
+            stderr: vec![],
+        };
+        let config_output = Output {
             status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
-        let runner = MockCommandRunner::new().with_response(
-            "git",
-            &["config", "core.hooksPath", &format!("{custom_dir}/_")],
-            Ok(output),
-        );
+        let runner = MockCommandRunner::new()
+            .with_response("git", &["--version"], Ok(version_output))
+            .with_response(
+                "git",
+                &["config", "core.hooksPath", &format!("{custom_dir}/_")],
+                Ok(config_output),
+            );
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, Some(custom_dir));
@@ -126,16 +144,24 @@ fn test_environment_variable_scenarios() {
             env = env.with_var("SAMOID", value);
         }
 
-        let output = Output {
+        // Mock git --version first
+        let version_output = Output {
+            status: exit_status(0),
+            stdout: b"git version 2.34.1".to_vec(),
+            stderr: vec![],
+        };
+        let config_output = Output {
             status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
-        let runner = MockCommandRunner::new().with_response(
-            "git",
-            &["config", "core.hooksPath", ".samoid/_"],
-            Ok(output),
-        );
+        let runner = MockCommandRunner::new()
+            .with_response("git", &["--version"], Ok(version_output))
+            .with_response(
+                "git",
+                &["config", "core.hooksPath", ".samoid/_"],
+                Ok(config_output),
+            );
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, None);
@@ -204,7 +230,7 @@ fn test_filesystem_error_scenarios() {
         result
             .unwrap_err()
             .to_string()
-            .contains(".git can't be found")
+            .contains("Not a Git repository")
     );
 }
 
@@ -228,16 +254,25 @@ fn test_edge_case_paths() {
 
     for path in edge_case_paths {
         let env = MockEnvironment::new();
-        let output = Output {
+
+        // Mock git --version first
+        let version_output = Output {
+            status: exit_status(0),
+            stdout: b"git version 2.34.1".to_vec(),
+            stderr: vec![],
+        };
+        let config_output = Output {
             status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
-        let runner = MockCommandRunner::new().with_response(
-            "git",
-            &["config", "core.hooksPath", &format!("{path}/_")],
-            Ok(output),
-        );
+        let runner = MockCommandRunner::new()
+            .with_response("git", &["--version"], Ok(version_output))
+            .with_response(
+                "git",
+                &["config", "core.hooksPath", &format!("{path}/_")],
+                Ok(config_output),
+            );
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, Some(path));
@@ -252,8 +287,8 @@ fn test_edge_case_paths() {
                 );
             }
         } else if path.is_empty() {
-            // Empty paths should use default behavior
-            assert!(result.is_ok(), "Empty path should use default: {path}");
+            // Empty paths should be rejected (they're invalid)
+            assert!(result.is_err(), "Empty path should be rejected: {path}");
         } else {
             // Other paths should work
             assert!(result.is_ok(), "Valid path should work: {path}");
@@ -268,16 +303,25 @@ fn test_concurrent_installation_simulation() {
 
     for i in 0..num_simulations {
         let env = MockEnvironment::new();
-        let output = Output {
+
+        // Mock git --version first
+        let version_output = Output {
+            status: exit_status(0),
+            stdout: b"git version 2.34.1".to_vec(),
+            stderr: vec![],
+        };
+        let config_output = Output {
             status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
-        let runner = MockCommandRunner::new().with_response(
-            "git",
-            &["config", "core.hooksPath", ".samoid/_"],
-            Ok(output),
-        );
+        let runner = MockCommandRunner::new()
+            .with_response("git", &["--version"], Ok(version_output))
+            .with_response(
+                "git",
+                &["config", "core.hooksPath", ".samoid/_"],
+                Ok(config_output),
+            );
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, None);
@@ -298,16 +342,25 @@ fn test_large_number_of_files_simulation() {
     }
 
     let env = MockEnvironment::new();
-    let output = Output {
+
+    // Mock git --version first
+    let version_output = Output {
+        status: exit_status(0),
+        stdout: b"git version 2.34.1".to_vec(),
+        stderr: vec![],
+    };
+    let config_output = Output {
         status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
-    let runner = MockCommandRunner::new().with_response(
-        "git",
-        &["config", "core.hooksPath", ".samoid/_"],
-        Ok(output),
-    );
+    let runner = MockCommandRunner::new()
+        .with_response("git", &["--version"], Ok(version_output))
+        .with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(config_output),
+        );
 
     // Installation should still work efficiently
     let start = std::time::Instant::now();
@@ -327,16 +380,25 @@ fn test_large_number_of_files_simulation() {
 #[test]
 fn test_reinstallation_idempotency() {
     let env = MockEnvironment::new();
-    let output = Output {
+
+    // Mock git --version first
+    let version_output = Output {
+        status: exit_status(0),
+        stdout: b"git version 2.34.1".to_vec(),
+        stderr: vec![],
+    };
+    let config_output = Output {
         status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
-    let runner = MockCommandRunner::new().with_response(
-        "git",
-        &["config", "core.hooksPath", ".samoid/_"],
-        Ok(output.clone()),
-    );
+    let runner = MockCommandRunner::new()
+        .with_response("git", &["--version"], Ok(version_output.clone()))
+        .with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(config_output.clone()),
+        );
 
     // Start with existing hook files
     let fs = MockFileSystem::new()
@@ -354,11 +416,13 @@ fn test_reinstallation_idempotency() {
     assert!(result1.is_ok());
 
     // Add the git response again for second call
-    let runner2 = MockCommandRunner::new().with_response(
-        "git",
-        &["config", "core.hooksPath", ".samoid/_"],
-        Ok(output),
-    );
+    let runner2 = MockCommandRunner::new()
+        .with_response("git", &["--version"], Ok(version_output))
+        .with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(config_output),
+        );
 
     // Second installation should also succeed (idempotent)
     let result2 = install_hooks(&env, &runner2, &fs, None);
@@ -371,16 +435,25 @@ fn test_reinstallation_idempotency() {
 #[test]
 fn test_hook_content_validation() {
     let env = MockEnvironment::new();
-    let output = Output {
+
+    // Mock git --version first
+    let version_output = Output {
+        status: exit_status(0),
+        stdout: b"git version 2.34.1".to_vec(),
+        stderr: vec![],
+    };
+    let config_output = Output {
         status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
-    let runner = MockCommandRunner::new().with_response(
-        "git",
-        &["config", "core.hooksPath", ".samoid/_"],
-        Ok(output),
-    );
+    let runner = MockCommandRunner::new()
+        .with_response("git", &["--version"], Ok(version_output))
+        .with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(config_output),
+        );
     let fs = MockFileSystem::new().with_directory(".git");
 
     let result = install_hooks(&env, &runner, &fs, None);
@@ -405,16 +478,25 @@ fn test_hook_content_validation() {
 #[test]
 fn test_directory_structure_validation() {
     let env = MockEnvironment::new();
-    let output = Output {
+
+    // Mock git --version first
+    let version_output = Output {
+        status: exit_status(0),
+        stdout: b"git version 2.34.1".to_vec(),
+        stderr: vec![],
+    };
+    let config_output = Output {
         status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
-    let runner = MockCommandRunner::new().with_response(
-        "git",
-        &["config", "core.hooksPath", ".samoid/_"],
-        Ok(output),
-    );
+    let runner = MockCommandRunner::new()
+        .with_response("git", &["--version"], Ok(version_output))
+        .with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(config_output),
+        );
     let fs = MockFileSystem::new().with_directory(".git");
 
     let result = install_hooks(&env, &runner, &fs, None);
@@ -458,7 +540,7 @@ fn test_error_message_quality() {
     assert!(result.is_err());
     let error_msg = result.unwrap_err().to_string();
     assert!(
-        error_msg.contains(".git can't be found"),
+        error_msg.contains("Not a Git repository"),
         "Error message should be informative: {error_msg}"
     );
 }
@@ -467,16 +549,25 @@ fn test_error_message_quality() {
 fn test_comprehensive_hook_coverage() {
     // Ensure all Git hooks are supported
     let env = MockEnvironment::new();
-    let output = Output {
+
+    // Mock git --version first
+    let version_output = Output {
+        status: exit_status(0),
+        stdout: b"git version 2.34.1".to_vec(),
+        stderr: vec![],
+    };
+    let config_output = Output {
         status: exit_status(0),
         stdout: vec![],
         stderr: vec![],
     };
-    let runner = MockCommandRunner::new().with_response(
-        "git",
-        &["config", "core.hooksPath", ".samoid/_"],
-        Ok(output),
-    );
+    let runner = MockCommandRunner::new()
+        .with_response("git", &["--version"], Ok(version_output))
+        .with_response(
+            "git",
+            &["config", "core.hooksPath", ".samoid/_"],
+            Ok(config_output),
+        );
     let fs = MockFileSystem::new().with_directory(".git");
 
     let result = install_hooks(&env, &runner, &fs, None);

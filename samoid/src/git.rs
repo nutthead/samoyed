@@ -52,38 +52,59 @@ impl std::fmt::Display for GitError {
                 write!(f, "Git command not found in PATH")?;
                 if let Some(os) = os_hint {
                     match os.as_str() {
-                        "linux" => write!(f, "\n\nTo install Git:\n  • Ubuntu/Debian: sudo apt install git\n  • RHEL/CentOS: sudo yum install git\n  • Arch: sudo pacman -S git")?,
-                        "macos" => write!(f, "\n\nTo install Git:\n  • Using Homebrew: brew install git\n  • Using Xcode tools: xcode-select --install")?,
-                        "windows" => write!(f, "\n\nTo install Git:\n  • Download from: https://git-scm.com/download/windows\n  • Or use winget: winget install Git.Git")?,
+                        "linux" => write!(
+                            f,
+                            "\n\nTo install Git:\n  • Ubuntu/Debian: sudo apt install git\n  • RHEL/CentOS: sudo yum install git\n  • Arch: sudo pacman -S git"
+                        )?,
+                        "macos" => write!(
+                            f,
+                            "\n\nTo install Git:\n  • Using Homebrew: brew install git\n  • Using Xcode tools: xcode-select --install"
+                        )?,
+                        "windows" => write!(
+                            f,
+                            "\n\nTo install Git:\n  • Download from: https://git-scm.com/download/windows\n  • Or use winget: winget install Git.Git"
+                        )?,
                         _ => write!(f, "\n\nPlease install Git and ensure it's in your PATH")?,
                     }
                 } else {
                     write!(f, "\n\nPlease install Git and ensure it's in your PATH")?;
                 }
                 Ok(())
-            },
-            GitError::ConfigurationFailed { message, suggestion } => {
+            }
+            GitError::ConfigurationFailed {
+                message,
+                suggestion,
+            } => {
                 write!(f, "Git configuration failed: {message}")?;
                 if let Some(hint) = suggestion {
                     write!(f, "\n\nSuggestion: {hint}")?;
                 }
                 Ok(())
-            },
-            GitError::NotGitRepository { checked_path, suggest_init } => {
-                write!(f, "Not a Git repository (no .git directory found in '{checked_path}')")?;
+            }
+            GitError::NotGitRepository {
+                checked_path,
+                suggest_init,
+            } => {
+                write!(
+                    f,
+                    "Not a Git repository (no .git directory found in '{checked_path}')"
+                )?;
                 if *suggest_init {
                     write!(f, "\n\nTo initialize a new Git repository:\n  git init")?;
                 }
                 Ok(())
-            },
+            }
             GitError::PermissionDenied { operation, path } => {
                 write!(f, "Permission denied: {operation}")?;
                 if let Some(p) = path {
                     write!(f, " (path: {p})")?;
                 }
-                write!(f, "\n\nCheck file permissions and try:\n  • Running with appropriate user permissions\n  • Ensuring the repository is not locked by another process")?;
+                write!(
+                    f,
+                    "\n\nCheck file permissions and try:\n  • Running with appropriate user permissions\n  • Ensuring the repository is not locked by another process"
+                )?;
                 Ok(())
-            },
+            }
         }
     }
 }
@@ -124,7 +145,7 @@ pub fn check_git_repository(fs: &dyn FileSystem) -> Result<(), GitError> {
             .unwrap_or_else(|_| std::path::PathBuf::from("."))
             .display()
             .to_string();
-            
+
         return Err(GitError::NotGitRepository {
             checked_path: current_dir,
             suggest_init: true,
@@ -179,7 +200,7 @@ pub fn set_hooks_path(runner: &dyn CommandRunner, hooks_path: &str) -> Result<()
             });
         }
     }
-    
+
     // Attempt to set the hooks path configuration
     let output = runner.run_command("git", &["config", "core.hooksPath", hooks_path]);
 
@@ -190,7 +211,7 @@ pub fn set_hooks_path(runner: &dyn CommandRunner, hooks_path: &str) -> Result<()
             } else {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 let suggestion = analyze_git_config_error(&stderr);
-                
+
                 // Check for permission-related errors
                 if stderr.contains("Permission denied") || stderr.contains("permission denied") {
                     Err(GitError::PermissionDenied {
@@ -227,13 +248,16 @@ fn detect_os() -> Option<String> {
 /// Analyzes Git configuration errors and provides specific suggestions  
 fn analyze_git_config_error(stderr: &str) -> Option<String> {
     let lower_error = stderr.to_lowercase();
-    
+
     if lower_error.contains("could not lock config file") {
         Some("Another Git process may be running. Wait and try again, or check for stale .git/config.lock files.".to_string())
     } else if lower_error.contains("not a git repository") {
         Some("Run this command from within a Git repository.".to_string())
     } else if lower_error.contains("bad config") {
-        Some("Git configuration file may be corrupted. Check .git/config for syntax errors.".to_string())
+        Some(
+            "Git configuration file may be corrupted. Check .git/config for syntax errors."
+                .to_string(),
+        )
     } else if lower_error.contains("invalid key") {
         Some("The configuration key format is invalid. Check the Git documentation.".to_string())
     } else {
@@ -308,7 +332,7 @@ mod tests {
             stdout: b"git version 2.34.1".to_vec(),
             stderr: vec![],
         };
-        
+
         // Create a successful config output
         let config_output = Output {
             status: exit_status(0),
@@ -345,7 +369,7 @@ mod tests {
             stdout: b"git version 2.34.1".to_vec(),
             stderr: vec![],
         };
-        
+
         // Create a failed output for config command
         let config_output = Output {
             status: exit_status(1),
@@ -368,7 +392,9 @@ mod tests {
     #[test]
     fn test_git_error_variants_coverage() {
         // Test all GitError variants for coverage
-        let error1 = GitError::CommandNotFound { os_hint: Some("linux".to_string()) };
+        let error1 = GitError::CommandNotFound {
+            os_hint: Some("linux".to_string()),
+        };
         let error2 = GitError::ConfigurationFailed {
             message: "test".to_string(),
             suggestion: None,
@@ -406,7 +432,7 @@ mod tests {
             stdout: b"git version 2.34.1".to_vec(),
             stderr: vec![],
         };
-        
+
         // Test with different hook paths
         let config_output1 = Output {
             status: exit_status(0),
@@ -421,7 +447,11 @@ mod tests {
 
         let runner = MockCommandRunner::new()
             .with_response("git", &["--version"], Ok(version_output1))
-            .with_response("git", &["config", "core.hooksPath", ".hooks"], Ok(config_output1))
+            .with_response(
+                "git",
+                &["config", "core.hooksPath", ".hooks"],
+                Ok(config_output1),
+            )
             .with_response("git", &["--version"], Ok(version_output2))
             .with_response(
                 "git",
@@ -478,7 +508,7 @@ mod tests {
             stdout: b"git version 2.34.1".to_vec(),
             stderr: vec![],
         };
-        
+
         // Create a permission denied error
         let config_output = Output {
             status: exit_status(128),
@@ -570,8 +600,8 @@ mod tests {
             stderr: b"git: command not found".to_vec(),
         };
 
-        let runner = MockCommandRunner::new()
-            .with_response("git", &["--version"], Ok(version_output));
+        let runner =
+            MockCommandRunner::new().with_response("git", &["--version"], Ok(version_output));
 
         let result = set_hooks_path(&runner, ".test-hooks");
         assert!(matches!(result, Err(GitError::CommandNotFound { .. })));

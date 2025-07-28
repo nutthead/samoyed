@@ -31,29 +31,34 @@ use std::path::Path;
 pub fn sanitize_path_with_env<P: AsRef<Path>>(env: &dyn Environment, path: P) -> String {
     let path = path.as_ref();
     let path_str = path.to_string_lossy();
-    
+
     // Handle absolute paths
     if path.is_absolute() {
         // Check for home directory patterns
         if let Some(home) = env.get_var("HOME").or_else(|| env.get_var("USERPROFILE")) {
             if path_str.starts_with(&home) {
                 let relative = path_str.strip_prefix(&home).unwrap_or(&path_str);
-                return format!("~{}", relative);
+                return format!("~{relative}");
             }
         }
-        
+
         // Check for common sensitive directories and redact them
         let sensitive_patterns = [
-            "/etc/passwd", "/etc/shadow", "/etc/hosts",
-            "/.ssh/", "/.gnupg/", "/proc/", "/sys/",
+            "/etc/passwd",
+            "/etc/shadow",
+            "/etc/hosts",
+            "/.ssh/",
+            "/.gnupg/",
+            "/proc/",
+            "/sys/",
         ];
-        
+
         for pattern in &sensitive_patterns {
             if path_str.contains(pattern) {
                 return "[REDACTED_SENSITIVE_PATH]".to_string();
             }
         }
-        
+
         // For other absolute paths, show only the last few components
         let components: Vec<_> = path.components().collect();
         if components.len() > 3 {
@@ -67,31 +72,36 @@ pub fn sanitize_path_with_env<P: AsRef<Path>>(env: &dyn Environment, path: P) ->
             return format!(".../{}", last_three.join("/"));
         }
     }
-    
+
     // For relative paths, return as-is (they're generally safe)
     path_str.to_string()
 }
 
 /// Convenience function for sanitizing paths without environment context
-/// 
+///
 /// This is a simpler version that doesn't redact home directories but still
 /// protects against other sensitive path exposure.
 pub fn sanitize_path<P: AsRef<Path>>(path: P) -> String {
     let path = path.as_ref();
     let path_str = path.to_string_lossy();
-    
+
     // Check for common sensitive directories and redact them
     let sensitive_patterns = [
-        "/etc/passwd", "/etc/shadow", "/etc/hosts",
-        "/.ssh/", "/.gnupg/", "/proc/", "/sys/",
+        "/etc/passwd",
+        "/etc/shadow",
+        "/etc/hosts",
+        "/.ssh/",
+        "/.gnupg/",
+        "/proc/",
+        "/sys/",
     ];
-    
+
     for pattern in &sensitive_patterns {
         if path_str.contains(pattern) {
             return "[REDACTED_SENSITIVE_PATH]".to_string();
         }
     }
-    
+
     // For absolute paths, show only the last few components
     if path.is_absolute() {
         let components: Vec<_> = path.components().collect();
@@ -106,7 +116,7 @@ pub fn sanitize_path<P: AsRef<Path>>(path: P) -> String {
             return format!(".../{}", last_three.join("/"));
         }
     }
-    
+
     // For relative paths, return as-is (they're generally safe)
     path_str.to_string()
 }
@@ -134,25 +144,29 @@ pub fn sanitize_args(args: &[String]) -> Vec<String> {
         .map(|arg| {
             // Check for sensitive patterns
             let lower_arg = arg.to_lowercase();
-            
+
             // Redact obvious secrets
-            if lower_arg.contains("password") || 
-               lower_arg.contains("token") || 
-               lower_arg.contains("secret") ||
-               lower_arg.contains("key=") ||
-               lower_arg.starts_with("--password") ||
-               lower_arg.starts_with("--token") {
+            if lower_arg.contains("password")
+                || lower_arg.contains("token")
+                || lower_arg.contains("secret")
+                || lower_arg.contains("key=")
+                || lower_arg.starts_with("--password")
+                || lower_arg.starts_with("--token")
+            {
                 "[REDACTED]".to_string()
             }
             // Redact long base64-like strings (potential tokens)
-            else if arg.len() > 32 && arg.chars().all(|c| c.is_alphanumeric() || c == '+' || c == '/' || c == '=') {
+            else if arg.len() > 32
+                && arg
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '+' || c == '/' || c == '=')
+            {
                 "[REDACTED_TOKEN]".to_string()
             }
             // Sanitize file paths in arguments
             else if arg.contains('/') || arg.contains('\\') {
                 sanitize_path(arg)
-            }
-            else {
+            } else {
                 arg.clone()
             }
         })
@@ -172,33 +186,43 @@ pub fn sanitize_args(args: &[String]) -> Vec<String> {
 /// # Returns
 ///
 /// A sanitized value safe for logging, or None if the variable should be completely hidden
+#[allow(dead_code)] // Function is part of public API but not used internally yet
 pub fn sanitize_env_var(name: &str, value: &str) -> Option<String> {
     let lower_name = name.to_lowercase();
-    
+
     // Completely hide sensitive environment variables
     let sensitive_vars = [
-        "password", "secret", "token", "key", "api_key", "auth",
-        "ssh_", "gpg_", "pgp_", "private", "cert", "credential"
+        "password",
+        "secret",
+        "token",
+        "key",
+        "api_key",
+        "auth",
+        "ssh_",
+        "gpg_",
+        "pgp_",
+        "private",
+        "cert",
+        "credential",
     ];
-    
+
     for sensitive in &sensitive_vars {
         if lower_name.contains(sensitive) {
             return None; // Don't log at all
         }
     }
-    
+
     // Redact but show presence of semi-sensitive variables
     let semi_sensitive = [
-        "path", "home", "user", "pwd", "tmp", "temp",
-        "config", "cache", "data"
+        "path", "home", "user", "pwd", "tmp", "temp", "config", "cache", "data",
     ];
-    
+
     for semi in &semi_sensitive {
         if lower_name.contains(semi) {
             return Some(format!("[REDACTED_{}_VALUE]", name.to_uppercase()));
         }
     }
-    
+
     // Safe to log non-sensitive environment variables
     Some(value.to_string())
 }
@@ -224,11 +248,16 @@ pub fn log_file_operation_with_env(
     path: &Path,
 ) {
     if debug_mode {
-        eprintln!("samoid: {} file: {}", operation, sanitize_path_with_env(env, path));
+        eprintln!(
+            "samoid: {} file: {}",
+            operation,
+            sanitize_path_with_env(env, path)
+        );
     }
 }
 
 /// Secure logging for file operations
+#[allow(dead_code)] // Function is part of public API but not used internally yet
 pub fn log_file_operation(debug_mode: bool, operation: &str, path: &Path) {
     if debug_mode {
         eprintln!("samoid: {} file: {}", operation, sanitize_path(path));
@@ -239,7 +268,7 @@ pub fn log_file_operation(debug_mode: bool, operation: &str, path: &Path) {
 pub fn log_command_execution(debug_mode: bool, command: &str, args: &[String]) {
     if debug_mode {
         let sanitized_args = sanitize_args(args);
-        eprintln!("samoid: Executing command: {} {:?}", command, sanitized_args);
+        eprintln!("samoid: Executing command: {command} {sanitized_args:?}");
     }
 }
 
@@ -250,10 +279,10 @@ mod tests {
     #[test]
     fn test_sanitize_path_home_directory() {
         use crate::environment::mocks::MockEnvironment;
-        
+
         // Mock HOME environment variable
         let env = MockEnvironment::new().with_var("HOME", "/home/testuser");
-        
+
         let result = sanitize_path_with_env(&env, "/home/testuser/.config/samoid");
         assert_eq!(result, "~/.config/samoid");
     }
@@ -278,7 +307,7 @@ mod tests {
             "--password=secret123".to_string(),
             "repo.git".to_string(),
         ];
-        
+
         let result = sanitize_args(&args);
         assert_eq!(result[2], "[REDACTED]");
         assert_eq!(result[0], "git");
@@ -292,7 +321,7 @@ mod tests {
             "-H".to_string(),
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9".to_string(),
         ];
-        
+
         let result = sanitize_args(&args);
         assert_eq!(result[2], "[REDACTED_TOKEN]");
     }

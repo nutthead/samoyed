@@ -51,6 +51,7 @@ A fully functional Rust reimplementation of Husky with comprehensive features:
 
 ## Development Commands
 
+<!-- markdownlint-disable MD031 MD024 -->
 ### Current Husky (`husky/`)
 ```bash
 cd husky/
