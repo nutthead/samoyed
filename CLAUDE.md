@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-This project's root directory is file:~/Projects/github.com/typicode/husky-to-samoid/.
+This project's root directory is <file:~/Projects/github.com/typicode/husky-to-samoid/>.
 
 ## Project Overview
 
@@ -80,14 +80,14 @@ Uses dependency injection pattern for complete test isolation and exceptional qu
 
 **Test Isolation Pattern:**
 ```rust
-#[test] 
+#[test]
 fn test_example() {
     // Completely isolated - no shared state or system dependencies
     let env = MockEnvironment::new().with_var("HUSKY", "0");
     let runner = MockCommandRunner::new()
         .with_response("git", &["config", "core.hooksPath", ".samoid/_"], Ok(output));
     let fs = MockFileSystem::new().with_directory(".git");
-    
+
     let result = install_hooks(&env, &runner, &fs, None);
     assert!(result.is_ok());
 }
@@ -101,7 +101,7 @@ fn test_example() {
 
 **Testing Strategy Levels:**
 1. **Real System Integration**: Tests with `SystemFileSystem` validate production implementations
-2. **Mock Error Scenarios**: Comprehensive edge case and error condition testing  
+2. **Mock Error Scenarios**: Comprehensive edge case and error condition testing
 3. **Main Logic Testing**: All execution paths without binary execution
 4. **Parallel Execution**: Thread-safe mocks enable reliable concurrent testing
 
@@ -110,7 +110,7 @@ fn test_example() {
 [default]
 run-types = ["Tests"]
 
-[report] 
+[report]
 output-dir = "target/tarpaulin/coverage"
 out = ["Html", "Json"]
 ```
@@ -121,129 +121,11 @@ out = ["Html", "Json"]
 - **Iterative Improvement**: 4-step approach: baseline → DI implementation → legacy removal → comprehensive testing
 - **Meaningful Coverage**: Focus on behavioral validation rather than just coverage numbers
 
-## Error Prevention Guidelines
+## Directory Context Management
+**ALWAYS:** verify working directory before Samoid/Husky-specific commands**
+**REMEMBER:** the project's root directory is <file:~/Projects/github.com/typicode/husky-to-samoid/>
+**REMEMBER:** you can always use `pwd` to verify current location
+**REMEMBER:** some commands accept absolute paths via flags, and when possible, that can help you avoid changing directory with `cd`
 
-### GitHub API Operations
-**Always validate before GitHub operations to prevent API failures:**
-
-```bash
-# Validate labels before adding them
-gh label list --repo OWNER/REPO --json name | jq -r '.[].name' | grep -q "^TARGET_LABEL$"
-if [ $? -eq 0 ]; then
-    gh issue edit ISSUE --add-label "TARGET_LABEL"
-else
-    # Fallback: use comments for status tracking
-    gh issue comment ISSUE --body "Status: TARGET_STATUS"
-fi
-```
-
-**Required validations:**
-- Check label existence before `gh issue edit --add-label`
-- Verify repository permissions before label creation
-- Always provide comment fallbacks for status tracking
-
-### Directory Context Management
-**Always verify working directory before language-specific commands:**
-
-```bash
-# For Rust commands - verify Cargo.toml exists
-if [[ ! -f "Cargo.toml" ]]; then
-    echo "Error: Not in Rust project directory"
-    # Search for Rust project: find . -name "Cargo.toml" -type f
-    exit 1
-fi
-cargo test
-
-# Alternative: Use explicit paths for monorepo
-cargo test --manifest-path ~/Projects/github.com/typicode/husky-to-samoid/samoid/Cargo.toml
-```
-
-**Directory validation patterns:**
-- Check for `Cargo.toml` before `cargo` commands
-- Check for `package.json` before `npm`/`yarn` commands
-- Use `pwd` to verify current location
-- Prefer explicit paths (`--manifest-path`) over `cd` when possible
-
-### Tool Execution Safety
-**Validate environment before executing commands:**
-
-```bash
-# Template for safe command execution
-validateAndExecute() {
-    local tool="$1"
-    local cmd="$2"
-    local required_file="$3"
-
-    if [[ ! -f "$required_file" ]]; then
-        echo "❌ Missing $required_file for $tool command"
-        return 1
-    fi
-
-    if ! command -v "$tool" >/dev/null 2>&1; then
-        echo "❌ $tool not found in PATH"
-        return 1
-    fi
-
-    eval "$tool $cmd"
-}
-
-# Usage examples:
-# validateAndExecute cargo "test" "Cargo.toml"
-# validateAndExecute npm "test" "package.json"
-```
-
-
-## Acceptance Criteria Format Standards
-
-### Required Format for GitHub Issues
-
-Use this format for all acceptance criteria in GitHub issues:
-
-**For 9+ acceptance criteria (use phases):**
-```
-#### Phase <n>: <Phase Name> (<n> story points)
-- [ ] **AC<issueNumber>.<n>** Description of acceptance criterion
-- [ ] **AC<issueNumber>.<n>** Description of acceptance criterion
-```
-
-**For <9 acceptance criteria (no phases):**
-```
-- [ ] **AC<issueNumber>.<n>** Description of acceptance criterion
-- [ ] **AC<issueNumber>.<n>** Description of acceptance criterion
-```
-
-**Examples:**
-
-*Multi-phase format:*
-```
-#### Phase 1: Core Infrastructure (8 story points)
-- [ ] **AC5.1** Implement `IsolatedEnvironment` trait and `MockIsolatedEnvironment`
-- [ ] **AC5.2** Implement `IsolatedFileSystem` trait with temp directory management
-- [ ] **AC5.3** Create `TestContext` with automatic cleanup
-
-#### Phase 2: Advanced Features (5 story points)  
-- [ ] **AC5.4** Implement `StatefulMock` system for complex behavior simulation
-- [ ] **AC5.5** Add `TimeProvider` abstraction for time-dependent testing
-```
-
-*Simple format:*
-```
-- [ ] **AC5.1** Implement `IsolatedEnvironment` trait and `MockIsolatedEnvironment`
-- [ ] **AC5.2** Implement `IsolatedFileSystem` trait with temp directory management
-- [ ] **AC5.3** Create `TestContext` with automatic cleanup
-```
-
-### Guidelines:
-- Always prefix with `AC<issueNumber>.` for traceability
-- Use descriptive but concise criterion descriptions
-- Group into logical phases for complex features (9+ criteria)
-- Assign story points to phases, not individual criteria
-- Ensure criteria are testable and unambiguous
-
-## Session Reminders
-
-### TODO: Work on permission issues
-The Samoid hook runner is encountering permission issues during commit operations:
-- `.samoid/_/prepare-commit-msg: 3: exec: .git/COMMIT_EDITMSG: Permission denied`
-- This affects the git commit workflow when hooks are enabled
-- Need to investigate and fix the permission handling in the hook runner implementation
+- For Samoid, check for `Cargo.toml` before `cargo` commands
+- For Husky, check for `package.json` before reading files.
