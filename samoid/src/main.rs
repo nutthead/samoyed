@@ -442,7 +442,6 @@ mod tests {
             Ok(output),
         );
 
-
         // Test with different filesystem states
         let fs = MockFileSystem::new()
             .with_directory(".git")
@@ -486,7 +485,6 @@ mod tests {
         let env = MockEnvironment::new();
 
         let output = Output {
-
             status: ExitStatus::from_raw(0),
             stdout: vec![],
             stderr: vec![],
@@ -529,7 +527,6 @@ mod tests {
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(output),
         );
-
 
         let fs = MockFileSystem::new().with_directory(".git");
 
@@ -575,6 +572,5 @@ mod tests {
         let env_false = MockEnvironment::new().with_var("SAMOID_VERBOSE", "false");
         let result = init_command(&env_false, &runner, &fs, None);
         assert!(result.is_ok());
-
     }
 }
