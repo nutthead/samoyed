@@ -34,9 +34,20 @@ Key files:
 - `husky/husky:1-23` - Hook execution runtime with environment setup and error handling
 
 ### Samoid (`samoid/`)
-Currently minimal Rust project structure:
-- `samoid/src/main.rs:1-3` - Basic entry point (placeholder implementation)
-- `samoid/Cargo.toml:1-6` - Cargo configuration using Rust 2024 edition
+A fully functional Rust reimplementation of Husky with comprehensive features:
+- **CLI binary** (`samoid/src/main.rs`): Command-line interface with `init` command using clap
+- **Hook runner binary** (`samoid-hook`): Separate binary for executing git hooks at runtime
+- **Core modules**:
+  - `samoid/src/lib.rs`: Public API exposing install_hooks function and modules
+  - `samoid/src/installer.rs`: Main installation logic with error handling
+  - `samoid/src/environment.rs`: Dependency injection traits (Environment, CommandRunner, FileSystem) and implementations
+  - `samoid/src/git.rs`: Git repository validation and configuration management
+  - `samoid/src/hooks.rs`: Hook file creation and management for all 14 standard git hooks
+  - `samoid/src/config.rs`: TOML-based configuration with SamoidConfig and SamoidSettings
+  - `samoid/src/project.rs`: Project type detection (Node.js, Rust, etc.)
+- **Testing infrastructure**: Mock implementations for complete test isolation
+- **Benchmarks**: Performance testing suite with Criterion
+- **Dependencies**: clap (CLI), toml/serde (config), anyhow (error handling)
 
 ## Development Commands
 
