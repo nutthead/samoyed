@@ -814,7 +814,7 @@ mod tests {
         // When MSYSTEM is set, should use sh even on Windows
         #[cfg(target_os = "windows")]
         {
-            let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+            let (shell, shell_args) = determine_shell_execution(&_env, _script_path, &_args, false);
             assert_eq!(shell, "sh");
             assert_eq!(
                 shell_args,
@@ -832,7 +832,7 @@ mod tests {
         // Windows batch files should use cmd
         #[cfg(target_os = "windows")]
         {
-            let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+            let (shell, shell_args) = determine_shell_execution(&_env, _script_path, &_args, false);
             assert_eq!(shell, "cmd");
             assert_eq!(
                 shell_args,
@@ -850,7 +850,7 @@ mod tests {
         // PowerShell scripts should use powershell
         #[cfg(target_os = "windows")]
         {
-            let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+            let (shell, shell_args) = determine_shell_execution(&_env, _script_path, &_args, false);
             assert_eq!(shell, "powershell");
             assert_eq!(
                 shell_args,

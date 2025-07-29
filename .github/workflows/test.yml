@@ -34,12 +34,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04, macos-latest, windows-latest]
+        os: [ubuntu-latest, ubuntu-24.04, macos-latest]
         rust: [stable]
         include:
           - os: ubuntu-latest
             rust: nightly
           - os: ubuntu-latest
+            rust: beta
+          - os: macos-latest
             rust: beta
           - os: windows-latest
             rust: stable
