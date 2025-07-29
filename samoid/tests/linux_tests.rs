@@ -185,6 +185,9 @@ mod linux_tests {
             "git", // System PATH
         ];
 
+        // Note: The actual implementation always calls "git", not the specific paths
+        // This test verifies that different git installations work by simulating
+        // the "git" command being available, regardless of the installation path
         for git_path in git_paths {
             let env = MockEnvironment::new().with_var("HOME", "/home/user");
             let output = Output {
@@ -194,13 +197,13 @@ mod linux_tests {
             };
             let version_output = Output {
                 status: exit_status(0),
-                stdout: b"git version 2.34.1".to_vec(),
+                stdout: format!("git version 2.34.1 (from {git_path})").into_bytes(),
                 stderr: vec![],
             };
             let runner = MockCommandRunner::new()
-                .with_response(git_path, &["--version"], Ok(version_output))
+                .with_response("git", &["--version"], Ok(version_output))
                 .with_response(
-                    git_path,
+                    "git",
                     &["config", "core.hooksPath", ".samoid/_"],
                     Ok(output),
                 );

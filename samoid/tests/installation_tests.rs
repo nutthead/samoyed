@@ -62,31 +62,29 @@ fn test_complete_installation_flow() {
         .unwrap();
     assert_eq!(gitignore_content, "*");
 
-    // Verify runner script permissions (Unix only)
-    #[cfg(unix)]
-    {
-        let runner_content = fs
-            .read_to_string(std::path::Path::new(".samoid/_/h"))
-            .unwrap();
-        assert!(runner_content.starts_with("#!/usr/bin/env sh"));
-    }
+    // Verify hook files are created with correct content
+    let pre_commit_content = fs
+        .read_to_string(std::path::Path::new(".samoid/_/pre-commit"))
+        .unwrap();
+    assert!(pre_commit_content.starts_with("#!/usr/bin/env sh"));
+    assert!(pre_commit_content.contains("exec samoid-hook"));
 
-    // Verify all standard Git hooks were created
+    // Verify all standard Git hooks were created (use the actual STANDARD_HOOKS constant)
     let standard_hooks = [
         "pre-commit",
+        "pre-merge-commit",
         "prepare-commit-msg",
         "commit-msg",
         "post-commit",
-        "pre-push",
+        "applypatch-msg",
+        "pre-applypatch",
+        "post-applypatch",
         "pre-rebase",
         "post-rewrite",
         "post-checkout",
         "post-merge",
+        "pre-push",
         "pre-auto-gc",
-        "post-update",
-        "push-to-checkout",
-        "pre-applypatch",
-        "applypatch-msg",
     ];
 
     for hook in &standard_hooks {
@@ -99,7 +97,7 @@ fn test_complete_installation_flow() {
 fn test_installation_with_multiple_custom_directories() {
     // Test multiple custom directory scenarios
     let test_cases = vec![
-        ("hooks", ".samoid/_"),
+        ("hooks", "hooks/_"),
         (".custom-hooks", ".custom-hooks/_"),
         ("path/to/hooks", "path/to/hooks/_"),
     ];
@@ -220,7 +218,7 @@ fn test_directory_structure_validation() {
     assert!(fs.exists(std::path::Path::new(".samoid/_")));
 
     // Check all required files exist
-    let required_files = [".gitignore", "h"];
+    let required_files = [".gitignore"];
     for file in &required_files {
         let file_path = std::path::Path::new(".samoid/_").join(file);
         assert!(
@@ -228,4 +226,10 @@ fn test_directory_structure_validation() {
             "Required file {file} should exist in .samoid/_"
         );
     }
+    
+    // Also verify that a sample hook file exists
+    assert!(
+        fs.exists(std::path::Path::new(".samoid/_/pre-commit")),
+        "Hook files should be created"
+    );
 }

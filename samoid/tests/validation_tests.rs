@@ -92,11 +92,11 @@ fn test_hook_content_validation() {
     let result = install_hooks(&env, &runner, &fs, None);
     assert!(result.is_ok());
 
-    // Verify hook runner content
-    let runner_path = std::path::Path::new(".samoid/_/h");
-    let runner_content = fs.read_to_string(runner_path).expect("Runner should exist");
-    assert!(runner_content.starts_with("#!/usr/bin/env sh"));
-    assert!(runner_content.contains("samoid"));
+    // Verify that hook files were created
+    let pre_commit_path = std::path::Path::new(".samoid/_/pre-commit");
+    let pre_commit_content = fs.read_to_string(pre_commit_path).expect("pre-commit hook should exist");
+    assert!(pre_commit_content.starts_with("#!/usr/bin/env sh"));
+    assert!(pre_commit_content.contains("samoid-hook"));
 
     // Verify gitignore
     let gitignore_path = std::path::Path::new(".samoid/_/.gitignore");
@@ -119,10 +119,10 @@ fn test_hook_content_validation() {
             "Hook {hook} should start with proper shebang"
         );
 
-        // Verify it references the runner
+        // Verify it references the samoid-hook runner
         assert!(
-            hook_content.contains(". \"$(dirname -- \"$0\")/h\""),
-            "Hook {hook} should source the runner script"
+            hook_content.contains("exec samoid-hook"),
+            "Hook {hook} should exec the samoid-hook binary"
         );
     }
 }
@@ -153,22 +153,22 @@ fn test_comprehensive_hook_coverage() {
     let result = install_hooks(&env, &runner, &fs, None);
     assert!(result.is_ok());
 
-    // Complete list of standard Git hooks
+    // Complete list of standard Git hooks (matches STANDARD_HOOKS constant)
     let all_git_hooks = [
         "pre-commit",
+        "pre-merge-commit",
         "prepare-commit-msg",
         "commit-msg",
         "post-commit",
-        "pre-push",
+        "applypatch-msg",
+        "pre-applypatch",
+        "post-applypatch",
         "pre-rebase",
         "post-rewrite",
         "post-checkout",
         "post-merge",
+        "pre-push",
         "pre-auto-gc",
-        "post-update",
-        "push-to-checkout",
-        "pre-applypatch",
-        "applypatch-msg",
     ];
 
     for hook in &all_git_hooks {
