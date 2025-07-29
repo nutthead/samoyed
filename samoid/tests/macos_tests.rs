@@ -96,9 +96,9 @@ mod macos_tests {
                 stderr: vec![],
             };
             let runner = MockCommandRunner::new()
-                .with_response(git_path, &["--version"], Ok(version_output))
+                .with_response("git", &["--version"], Ok(version_output))
                 .with_response(
-                    git_path,
+                    "git",
                     &["config", "core.hooksPath", ".samoid/_"],
                     Ok(output),
                 );
