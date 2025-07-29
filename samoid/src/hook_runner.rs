@@ -796,16 +796,16 @@ mod tests {
         let env = MockEnvironment::new();
         #[cfg(target_os = "windows")]
         let _env = MockEnvironment::new();
-        
+
         #[cfg(not(target_os = "windows"))]
         let script_path = std::path::Path::new("/path/to/script.sh");
         #[cfg(target_os = "windows")]
         let _script_path = std::path::Path::new("/path/to/script.sh");
-        
+
         #[cfg(not(target_os = "windows"))]
-        let args = vec!["arg1", "arg2"];
+        let args = ["arg1", "arg2"];
         #[cfg(target_os = "windows")]
-        let _args = vec!["arg1", "arg2"];
+        let _args = ["arg1", "arg2"];
 
         // On Unix systems (when not compiled for Windows), should always use sh
         #[cfg(not(target_os = "windows"))]
@@ -822,12 +822,12 @@ mod tests {
         let env = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
         #[cfg(not(target_os = "windows"))]
         let _env = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
-        
+
         #[cfg(target_os = "windows")]
         let script_path = std::path::Path::new("C:\\path\\to\\script.sh");
         #[cfg(not(target_os = "windows"))]
         let _script_path = std::path::Path::new("C:\\path\\to\\script.sh");
-        
+
         #[cfg(target_os = "windows")]
         let args = ["arg1", "arg2"];
         #[cfg(not(target_os = "windows"))]
@@ -851,12 +851,12 @@ mod tests {
         let env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
         #[cfg(not(target_os = "windows"))]
         let _env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
-        
+
         #[cfg(target_os = "windows")]
         let script_path = std::path::Path::new("C:\\path\\to\\script.bat");
         #[cfg(not(target_os = "windows"))]
         let _script_path = std::path::Path::new("C:\\path\\to\\script.bat");
-        
+
         #[cfg(target_os = "windows")]
         let args = ["arg1", "arg2"];
         #[cfg(not(target_os = "windows"))]
@@ -880,12 +880,12 @@ mod tests {
         let env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
         #[cfg(not(target_os = "windows"))]
         let _env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
-        
+
         #[cfg(target_os = "windows")]
         let script_path = std::path::Path::new("C:\\path\\to\\script.ps1");
         #[cfg(not(target_os = "windows"))]
         let _script_path = std::path::Path::new("C:\\path\\to\\script.ps1");
-        
+
         #[cfg(target_os = "windows")]
         let args = ["arg1", "arg2"];
         #[cfg(not(target_os = "windows"))]
