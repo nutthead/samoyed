@@ -44,6 +44,9 @@ jobs:
           - os: windows-latest
             rust: stable
             shell: powershell
+          - os: windows-latest
+            rust: stable
+            shell: bash
 
     steps:
       - name: 📥 Checkout repository
@@ -72,19 +75,19 @@ jobs:
         run: |
           cd samoid
           pwd
-        shell: ${{ runner.os == 'Windows' && 'powershell' || 'bash' }}
+        shell: bash
 
       - name: 🌍 Set up cross-platform environment
         run: |
           cd samoid
           echo "=== Cross-Platform Environment Detection ==="
           echo "OS: ${{ runner.os }}"
-          echo "Shell: ${{ runner.os == 'Windows' && 'powershell' || 'bash' }}"
+          echo "Shell: ${{ matrix.shell || 'bash' }}"
           echo "Rust: ${{ matrix.rust }}"
 
           # Set environment variables for cross-platform testing
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            if [[ "${{ runner.os == 'Windows' && 'powershell' || 'bash' }}" == "bash" ]]; then
+            if [[ "${{ matrix.shell || 'bash' }}" == "bash" ]]; then
               echo "MSYSTEM=MINGW64" >> $GITHUB_ENV
               echo "Testing Windows with Git Bash (MSYSTEM=MINGW64)"
             else
@@ -96,7 +99,7 @@ jobs:
           echo "PATH: $PATH"
           echo "HOME: ${HOME:-$USERPROFILE}"
           echo "Current directory: $(pwd)"
-        shell: ${{ runner.os == 'Windows' && 'powershell' || 'bash' }}
+        shell: bash
 
       - name: 🔍 Check code formatting
         run: |
@@ -165,7 +168,7 @@ jobs:
           echo "Running cross-platform shell execution tests..."
           cargo test --test cross_platform_shell_execution --verbose
           echo "Cross-platform tests completed successfully"
-        shell: ${{ runner.os == 'Windows' && 'powershell' || 'bash' }}
+        shell: bash
 
       - name: 🚀 Run all tests
         run: |
