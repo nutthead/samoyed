@@ -473,7 +473,10 @@ mod tests {
     fn test_normalize_line_endings_mixed() {
         let mixed_content = "#!/bin/sh\r\necho 'hello'\recho 'world'\necho 'end'";
         let normalized = normalize_line_endings(mixed_content);
-        assert_eq!(normalized, "#!/bin/sh\necho 'hello'\necho 'world'\necho 'end'");
+        assert_eq!(
+            normalized,
+            "#!/bin/sh\necho 'hello'\necho 'world'\necho 'end'"
+        );
     }
 
     #[test]

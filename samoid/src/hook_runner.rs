@@ -187,7 +187,8 @@ fn load_init_script(
         .context("Could not determine home directory")?;
 
     // Determine configuration directory based on platform and environment
-    let config_dir = if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode) {
+    let config_dir = if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode)
+    {
         // Native Windows: use %APPDATA%/samoid or fall back to %USERPROFILE%/.config/samoid
         env.get_var("APPDATA")
             .map(|appdata| format!("{appdata}/samoid"))
@@ -200,11 +201,12 @@ fn load_init_script(
     };
 
     // Choose script name based on environment
-    let script_name = if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode) {
-        "init.cmd" // Use batch file on native Windows
-    } else {
-        "init.sh" // Use shell script on Unix-like systems
-    };
+    let script_name =
+        if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode) {
+            "init.cmd" // Use batch file on native Windows
+        } else {
+            "init.sh" // Use shell script on Unix-like systems
+        };
 
     let init_script_path = PathBuf::from(config_dir).join(script_name);
 
@@ -369,7 +371,7 @@ fn is_windows_unix_environment(env: &dyn Environment, debug_mode: bool) -> bool 
     // Check for Git Bash / MSYS2
     if let Some(msystem) = env.get_var("MSYSTEM") {
         if debug_mode {
-            eprintln!("samoid: Detected MSYSTEM={}", msystem);
+            eprintln!("samoid: Detected MSYSTEM={msystem}");
         }
         return matches!(msystem.as_str(), "MINGW32" | "MINGW64" | "MSYS");
     }
@@ -412,14 +414,18 @@ fn execute_hook_script(
     let str_args: Vec<&str> = hook_args.iter().map(|s| s.as_str()).collect();
 
     // Determine appropriate shell and arguments based on platform and environment
-    let (shell_command, shell_args) = determine_shell_execution(env, script_path, &str_args, debug_mode);
+    let (shell_command, shell_args) =
+        determine_shell_execution(env, script_path, &str_args, debug_mode);
 
     if debug_mode {
         log_command_execution(debug_mode, &shell_command, &shell_args);
     }
 
     let output = runner
-        .run_command(&shell_command, &shell_args.iter().map(|s| s.as_str()).collect::<Vec<_>>())
+        .run_command(
+            &shell_command,
+            &shell_args.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+        )
         .with_context(|| {
             format!(
                 "Failed to execute hook script: {}",
@@ -470,7 +476,11 @@ fn execute_hook_script(
                 // Only show PATH in debug mode, and sanitize it
                 if let Ok(path) = std::env::var("PATH") {
                     // Use platform-specific PATH separator for counting
-                    let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
+                    let separator = if cfg!(target_os = "windows") {
+                        ";"
+                    } else {
+                        ":"
+                    };
                     let dir_count = path.split(separator).count();
                     eprintln!("samoid - PATH contains {dir_count} directories");
                 }
@@ -797,46 +807,61 @@ mod tests {
 
     #[test]
     fn test_determine_shell_execution_windows_git_bash() {
-        let env = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
-        let script_path = std::path::Path::new("C:\\path\\to\\script.sh");
-        let args = vec!["arg1", "arg2"];
+        let _env = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
+        let _script_path = std::path::Path::new("C:\\path\\to\\script.sh");
+        let _args = ["arg1", "arg2"];
 
         // When MSYSTEM is set, should use sh even on Windows
         #[cfg(target_os = "windows")]
         {
             let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
             assert_eq!(shell, "sh");
-            assert_eq!(shell_args, vec!["-e", "C:\\path\\to\\script.sh", "arg1 arg2"]);
+            assert_eq!(
+                shell_args,
+                vec!["-e", "C:\\path\\to\\script.sh", "arg1 arg2"]
+            );
         }
     }
 
     #[test]
     fn test_determine_shell_execution_windows_cmd() {
-        let env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
-        let script_path = std::path::Path::new("C:\\path\\to\\script.bat");
-        let args = vec!["arg1", "arg2"];
+        let _env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
+        let _script_path = std::path::Path::new("C:\\path\\to\\script.bat");
+        let _args = ["arg1", "arg2"];
 
         // Windows batch files should use cmd
         #[cfg(target_os = "windows")]
         {
             let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
             assert_eq!(shell, "cmd");
-            assert_eq!(shell_args, vec!["/C", "C:\\path\\to\\script.bat", "arg1 arg2"]);
+            assert_eq!(
+                shell_args,
+                vec!["/C", "C:\\path\\to\\script.bat", "arg1 arg2"]
+            );
         }
     }
 
     #[test]
     fn test_determine_shell_execution_windows_powershell() {
-        let env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
-        let script_path = std::path::Path::new("C:\\path\\to\\script.ps1");
-        let args = vec!["arg1", "arg2"];
+        let _env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
+        let _script_path = std::path::Path::new("C:\\path\\to\\script.ps1");
+        let _args = ["arg1", "arg2"];
 
         // PowerShell scripts should use powershell
         #[cfg(target_os = "windows")]
         {
             let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
             assert_eq!(shell, "powershell");
-            assert_eq!(shell_args, vec!["-ExecutionPolicy", "Bypass", "-File", "C:\\path\\to\\script.ps1", "arg1 arg2"]);
+            assert_eq!(
+                shell_args,
+                vec![
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    "C:\\path\\to\\script.ps1",
+                    "arg1 arg2"
+                ]
+            );
         }
     }
 
