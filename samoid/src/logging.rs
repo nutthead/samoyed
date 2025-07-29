@@ -32,8 +32,8 @@ pub fn sanitize_path_with_env<P: AsRef<Path>>(env: &dyn Environment, path: P) ->
     let path = path.as_ref();
     let path_str = path.to_string_lossy();
 
-    // Handle absolute paths
-    if path.is_absolute() {
+    // Handle absolute paths (including Unix-style paths on Windows)
+    if path.is_absolute() || path_str.starts_with('/') {
         // Check for home directory patterns
         if let Some(home) = env.get_var("HOME").or_else(|| env.get_var("USERPROFILE")) {
             // Normalize paths for cross-platform comparison
