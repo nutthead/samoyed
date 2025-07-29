@@ -401,7 +401,12 @@ fn validate_hooks_directory_path(path: &str) -> Result<(), InstallError> {
     }
 
     // Check for absolute paths (security and portability)
-    if std::path::Path::new(path).is_absolute() {
+    // Handle both Unix-style (/path) and Windows-style (C:\path, \\server\share) absolute paths
+    let is_absolute = std::path::Path::new(path).is_absolute()
+        || path.starts_with('/')  // Unix-style absolute path
+        || path.starts_with("\\\\"); // Windows UNC path
+    
+    if is_absolute {
         return Err(InstallError::InvalidPath {
             path: path.to_string(),
             reason: PathValidationError::AbsolutePath,
