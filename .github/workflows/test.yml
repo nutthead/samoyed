@@ -36,27 +36,20 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         rust: [stable, beta]
-        shell: [bash]
         include:
+          # Additional Ubuntu configurations
           - os: ubuntu-latest
             rust: nightly
-            shell: bash
           - os: ubuntu-latest
             rust: 1.85.0 # First Rust 2024 edition
-            shell: bash
           - os: ubuntu-24.04
             rust: 1.88.0 # Latest stable version
-            shell: bash
           - os: ubuntu-24.04 # Latest LTS version
             rust: stable
-            shell: bash
           # Additional Windows configurations for cross-platform testing
           - os: windows-latest
             rust: stable
             shell: powershell # Test native Windows PowerShell
-          - os: windows-latest
-            rust: stable
-            shell: bash # Test Git Bash on Windows
 
     steps:
       - name: 📥 Checkout repository
@@ -85,19 +78,19 @@ jobs:
         run: |
           cd samoid
           pwd
-        shell: ${{ matrix.shell }}
+        shell: ${{ matrix.shell || 'bash' }}
 
       - name: 🌍 Set up cross-platform environment
         run: |
           cd samoid
           echo "=== Cross-Platform Environment Detection ==="
           echo "OS: ${{ runner.os }}"
-          echo "Shell: ${{ matrix.shell }}"
+          echo "Shell: ${{ matrix.shell || 'bash' }}"
           echo "Rust: ${{ matrix.rust }}"
           
           # Set environment variables for cross-platform testing
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            if [[ "${{ matrix.shell }}" == "bash" ]]; then
+            if [[ "${{ matrix.shell || 'bash' }}" == "bash" ]]; then
               echo "MSYSTEM=MINGW64" >> $GITHUB_ENV
               echo "Testing Windows with Git Bash (MSYSTEM=MINGW64)"
             else
@@ -109,7 +102,7 @@ jobs:
           echo "PATH: $PATH"
           echo "HOME: ${HOME:-$USERPROFILE}"
           echo "Current directory: $(pwd)"
-        shell: ${{ matrix.shell }}
+        shell: ${{ matrix.shell || 'bash' }}
 
       - name: 🔍 Check code formatting
         run: |
@@ -178,7 +171,7 @@ jobs:
           echo "Running cross-platform shell execution tests..."
           cargo test --test cross_platform_shell_execution --verbose
           echo "Cross-platform tests completed successfully"
-        shell: ${{ matrix.shell }}
+        shell: ${{ matrix.shell || 'bash' }}
 
       - name: 🚀 Run all tests
         run: |
