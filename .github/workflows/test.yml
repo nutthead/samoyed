@@ -97,20 +97,38 @@ jobs:
           cd samoid
           cargo test --lib --verbose
 
-      - name: 🔗 Run integration tests
+      - name: 🔗 Run installation tests
         run: |
           cd samoid
-          cargo test --test comprehensive_integration_tests --verbose
+          cargo test --test installation_tests --verbose
 
-      - name: 🌐 Run cross-platform tests
+      - name: 🛠️ Run error handling tests
         run: |
           cd samoid
-          cargo test --test cross_platform_tests --verbose
+          cargo test --test error_handling_tests --verbose
 
-      - name: 📊 Run comprehensive integration tests
+      - name: ✅ Run validation tests
         run: |
           cd samoid
-          cargo test --test comprehensive_integration_tests --verbose
+          cargo test --test validation_tests --verbose
+
+      - name: 🐧 Run Linux-specific tests
+        run: |
+          cd samoid
+          cargo test --test linux_tests --verbose
+        if: runner.os == 'Linux'
+
+      - name: 🍎 Run macOS-specific tests
+        run: |
+          cd samoid
+          cargo test --test macos_tests --verbose
+        if: runner.os == 'macOS'
+
+      - name: 🪟 Run Windows-specific tests
+        run: |
+          cd samoid
+          cargo test --test windows_tests --verbose
+        if: runner.os == 'Windows'
 
       - name: 🚀 Run all tests
         run: |
