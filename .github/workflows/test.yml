@@ -56,7 +56,7 @@ jobs:
             shell: powershell # Test native Windows PowerShell
           - os: windows-latest
             rust: stable
-            shell: ${{ matrix.shell }} # Test Git Bash on Windows
+            shell: bash # Test Git Bash on Windows
 
     steps:
       - name: 📥 Checkout repository
