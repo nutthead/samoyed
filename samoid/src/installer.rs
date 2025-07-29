@@ -1,17 +1,95 @@
 //! Core installation logic for Samoid Git hooks
 //!
-//! This module contains the main installation function that orchestrates
-//! the entire process of setting up Git hooks. It handles environment
-//! checks, repository validation, and hook file creation.
+//! # Purpose and Overview
 //!
-//! # Installation Process
+//! This module serves as the central orchestrator for the Samoid Git hooks installation process.
+//! It provides a comprehensive, robust, and secure way to set up Git hooks that delegate to
+//! the `samoid-hook` binary runner, following modern Git hooks management patterns.
 //!
-//! 1. Check if installation should be skipped (SAMOID=0)
-//! 2. Validate the hooks directory path
-//! 3. Verify we're in a Git repository
-//! 4. Configure Git to use our hooks directory
-//! 5. Create the hooks directory structure
-//! 6. Install the hook runner and individual hook files
+//! ## Raison d'être
+//!
+//! The primary purpose of this installer module is to:
+//!
+//! - **Centralize Installation Logic**: Provide a single, well-tested entry point for hook installation
+//! - **Ensure Security**: Validate all paths and prevent directory traversal attacks
+//! - **Handle Edge Cases**: Gracefully manage various error conditions and environment scenarios
+//! - **Support Flexibility**: Allow custom hook directories while maintaining sensible defaults
+//! - **Enable Testing**: Use dependency injection patterns for complete test isolation
+//!
+//! ## Architecture and Design
+//!
+//! The module follows a layered architecture:
+//!
+//! ```text
+//! ┌─────────────────────────────────────────────────────────────┐
+//! │  Public API (install_hooks)                                 │
+//! ├─────────────────────────────────────────────────────────────┤
+//! │  Path Validation & Security Checks                          │
+//! ├─────────────────────────────────────────────────────────────┤
+//! │  Environment Integration (Git, FileSystem)                  │
+//! ├─────────────────────────────────────────────────────────────┤
+//! │  Hook Management (Creation, Configuration)                   │
+//! └─────────────────────────────────────────────────────────────┘
+//! ```
+//!
+//! ## Installation Process Flow
+//!
+//! The installation follows a carefully orchestrated sequence:
+//!
+//! 1. **Environment Check**: Verify SAMOID environment variable (skip if SAMOID=0)
+//! 2. **Path Validation**: Ensure the hooks directory path is safe and valid
+//! 3. **Repository Validation**: Confirm we're operating within a Git repository
+//! 4. **Git Configuration**: Set core.hooksPath to point to our hooks directory
+//! 5. **Directory Creation**: Establish the hooks directory structure with proper permissions
+//! 6. **Hook Installation**: Create individual hook files that delegate to samoid-hook binary
+//! 7. **Verification**: Ensure all components are properly installed and accessible
+//!
+//! ## Error Handling Strategy
+//!
+//! The module employs comprehensive error handling with specific error types:
+//!
+//! - **`InstallError`**: Top-level errors with detailed context and recovery suggestions
+//! - **`PathValidationError`**: Security-focused path validation failures
+//! - **`GitError`**: Git-related operation failures with OS-specific hints
+//! - **`HookError`**: Hook file creation and management errors
+//!
+//! Each error type provides actionable information to help users resolve issues.
+//!
+//! ## Security Considerations
+//!
+//! Security is paramount in this module:
+//!
+//! - **Path Traversal Prevention**: All paths are validated to prevent "../" attacks
+//! - **Absolute Path Rejection**: Only relative paths are accepted for custom directories
+//! - **Length Validation**: Paths are limited to reasonable lengths to prevent buffer issues
+//! - **Character Validation**: Invalid characters are rejected to prevent injection attacks
+//!
+//! ## Testing and Reliability
+//!
+//! The module uses dependency injection to achieve 100% test coverage:
+//!
+//! - **Mock Environment**: Test environment variable scenarios
+//! - **Mock CommandRunner**: Test Git command interactions without actual Git
+//! - **Mock FileSystem**: Test file operations without touching the real filesystem
+//!
+//! This enables comprehensive testing of error conditions, edge cases, and platform-specific behavior.
+//!
+//! ## Usage Examples
+//!
+//! ```rust,ignore
+//! use samoid::installer::install_hooks;
+//! use samoid::environment::{SystemEnvironment, SystemCommandRunner, SystemFileSystem};
+//!
+//! // Basic installation with default directory
+//! let env = SystemEnvironment;
+//! let runner = SystemCommandRunner;
+//! let fs = SystemFileSystem;
+//! 
+//! install_hooks(&env, &runner, &fs, None)?;
+//!
+//! // Installation with custom directory
+//! install_hooks(&env, &runner, &fs, Some("custom-hooks"))?;
+//! ```
 
 use crate::environment::{CommandRunner, Environment, FileSystem};
 use crate::git::{self, GitError};

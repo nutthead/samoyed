@@ -7,28 +7,76 @@
 ///
 /// Complete set of exit codes for future use
 #[allow(dead_code)]
-pub const EX_OK: i32 = 0; // Successful termination
-pub const EX_USAGE: i32 = 64; // Command line usage error
-pub const EX_DATAERR: i32 = 65; // Data format error
-pub const EX_NOINPUT: i32 = 66; // Cannot open input
+/// Successful termination.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_OK: i32 = 0;
+/// Command line usage error.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_USAGE: i32 = 64;
+/// Data format error.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_DATAERR: i32 = 65;
+/// Exit code indicating that an input file cannot be opened.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_NOINPUT: i32 = 66;
 #[allow(dead_code)]
-pub const EX_NOUSER: i32 = 67; // Addressee unknown
+/// Addressee unknown.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_NOUSER: i32 = 67;
 #[allow(dead_code)]
-pub const EX_NOHOST: i32 = 68; // Host name unknown
-pub const EX_UNAVAILABLE: i32 = 69; // Service unavailable
-pub const EX_SOFTWARE: i32 = 70; // Internal software error
+/// Host name unknown.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_NOHOST: i32 = 68;
+/// Service unavailable.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_UNAVAILABLE: i32 = 69;
+/// Internal software error.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_SOFTWARE: i32 = 70;
 #[allow(dead_code)]
-pub const EX_OSERR: i32 = 71; // System error (e.g., can't fork)
+/// System error (e.g., can't fork).
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_OSERR: i32 = 71;
 #[allow(dead_code)]
-pub const EX_OSFILE: i32 = 72; // Critical OS file missing
+/// Critical OS file missing.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_OSFILE: i32 = 72;
 #[allow(dead_code)]
-pub const EX_CANTCREATE: i32 = 73; // Can't create (user) output file
-pub const EX_IOERR: i32 = 74; // Input/output error
-pub const EX_TEMPFAIL: i32 = 75; // Temp failure; user is invited to retry
+/// Can't create (user) output file.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_CANTCREATE: i32 = 73;
+/// Input/output error.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_IOERR: i32 = 74;
+/// Temporary failure; user is invited to retry.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_TEMPFAIL: i32 = 75;
 #[allow(dead_code)]
-pub const EX_PROTOCOL: i32 = 76; // Remote error in protocol
-pub const EX_NOPERM: i32 = 77; // Permission denied
-pub const EX_CONFIG: i32 = 78; // Configuration error
+/// Remote error in protocol.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_PROTOCOL: i32 = 76;
+/// Permission denied.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_NOPERM: i32 = 77;
+/// Configuration error.
+///
+/// This follows the BSD sysexits.h convention.
+pub const EX_CONFIG: i32 = 78;
 
 /// Determines the appropriate exit code based on the error type
 ///
