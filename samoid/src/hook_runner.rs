@@ -222,6 +222,159 @@ fn load_init_script(
     Ok(())
 }
 
+/// Determines the appropriate shell command and arguments for executing a hook script
+/// based on the current platform and environment.
+///
+/// # Platform-Specific Behavior
+///
+/// - **Unix-like systems (Linux, macOS)**: Uses `/bin/sh` with `-e` flag for error handling
+/// - **Windows without Git Bash**: Uses `cmd.exe /C` for batch files or `powershell -File` for PowerShell scripts
+/// - **Windows with Git Bash**: Detects Git Bash via environment variables and prefers `sh.exe`
+///
+/// # Environment Detection
+///
+/// The function detects Windows Unix-like environments by checking:
+/// - `MSYSTEM` environment variable (Git Bash: MINGW32, MINGW64, MSYS)
+/// - `CYGWIN` environment variable (Cygwin environments)
+/// - File system checks for `/proc/version` containing "Microsoft" or "WSL" (WSL detection)
+///
+/// # Arguments
+///
+/// * `env` - Environment provider for reading environment variables
+/// * `script_path` - Path to the hook script to execute
+/// * `args` - Arguments to pass to the hook script
+/// * `debug_mode` - Whether to output debug information
+///
+/// # Returns
+///
+/// A tuple containing:
+/// - Shell command to execute (e.g., "sh", "cmd", "powershell")
+/// - Vector of arguments to pass to the shell
+fn determine_shell_execution(
+    env: &dyn Environment,
+    script_path: &Path,
+    args: &[&str],
+    debug_mode: bool,
+) -> (String, Vec<String>) {
+    // Check if we're on Windows
+    if cfg!(target_os = "windows") {
+        // Check for Unix-like environments on Windows
+        if is_windows_unix_environment(env, debug_mode) {
+            if debug_mode {
+                eprintln!("samoid: Detected Unix-like environment on Windows, using sh");
+            }
+            return (
+                "sh".to_string(),
+                vec![
+                    "-e".to_string(),
+                    script_path.to_string_lossy().to_string(),
+                    args.join(" "),
+                ],
+            );
+        }
+
+        // Native Windows execution
+        if debug_mode {
+            eprintln!("samoid: Native Windows detected, determining shell by file extension");
+        }
+
+        // Determine shell based on file extension
+        if let Some(ext) = script_path.extension().and_then(|e| e.to_str()) {
+            match ext.to_lowercase().as_str() {
+                "bat" | "cmd" => {
+                    return (
+                        "cmd".to_string(),
+                        vec![
+                            "/C".to_string(),
+                            script_path.to_string_lossy().to_string(),
+                            args.join(" "),
+                        ],
+                    );
+                }
+                "ps1" => {
+                    return (
+                        "powershell".to_string(),
+                        vec![
+                            "-ExecutionPolicy".to_string(),
+                            "Bypass".to_string(),
+                            "-File".to_string(),
+                            script_path.to_string_lossy().to_string(),
+                            args.join(" "),
+                        ],
+                    );
+                }
+                _ => {}
+            }
+        }
+
+        // Default to cmd.exe for extensionless files on Windows
+        return (
+            "cmd".to_string(),
+            vec![
+                "/C".to_string(),
+                script_path.to_string_lossy().to_string(),
+                args.join(" "),
+            ],
+        );
+    }
+
+    // Unix-like systems (Linux, macOS, etc.)
+    if debug_mode {
+        eprintln!("samoid: Unix-like system detected, using sh");
+    }
+    (
+        "sh".to_string(),
+        vec![
+            "-e".to_string(),
+            script_path.to_string_lossy().to_string(),
+            args.join(" "),
+        ],
+    )
+}
+
+/// Detects Unix-like environments running on Windows
+///
+/// This function checks for various indicators that suggest we're running in a
+/// Unix-like environment on Windows, such as Git Bash, MSYS2, Cygwin, or WSL.
+///
+/// # Detection Methods
+///
+/// 1. **Git Bash/MSYS2**: Checks for `MSYSTEM` environment variable
+/// 2. **Cygwin**: Checks for `CYGWIN` environment variable  
+/// 3. **WSL**: Currently not implemented (would require file system checks)
+///
+/// # Arguments
+///
+/// * `env` - Environment provider for reading environment variables
+/// * `debug_mode` - Whether to output debug information
+///
+/// # Returns
+///
+/// `true` if a Unix-like environment is detected, `false` otherwise
+fn is_windows_unix_environment(env: &dyn Environment, debug_mode: bool) -> bool {
+    // Check for Git Bash / MSYS2
+    if let Some(msystem) = env.get_var("MSYSTEM") {
+        if debug_mode {
+            eprintln!("samoid: Detected MSYSTEM={}", msystem);
+        }
+        return matches!(msystem.as_str(), "MINGW32" | "MINGW64" | "MSYS");
+    }
+
+    // Check for Cygwin
+    if env.get_var("CYGWIN").is_some() {
+        if debug_mode {
+            eprintln!("samoid: Detected Cygwin environment");
+        }
+        return true;
+    }
+
+    // WSL detection would require file system access to check /proc/version
+    // This is not implemented yet as it would require the FileSystem trait
+    // and could be added in a future iteration
+
+    false
+}
+
 /// Execute the actual hook script and handle exit codes
 fn execute_hook_script(
     env: &dyn Environment,
@@ -240,22 +393,15 @@ fn execute_hook_script(
     // Convert String args to &str for the runner interface
     let str_args: Vec<&str> = hook_args.iter().map(|s| s.as_str()).collect();
 
-    // Execute the hook script using shell
-    let shell_args = vec![
-        "-e".to_string(),
-        script_path.to_string_lossy().to_string(),
-        str_args.join(" "),
-    ];
+    // Determine appropriate shell and arguments based on platform and environment
+    let (shell_command, shell_args) = determine_shell_execution(env, script_path, &str_args, debug_mode);
 
     if debug_mode {
-        log_command_execution(debug_mode, "sh", &shell_args);
+        log_command_execution(debug_mode, &shell_command, &shell_args);
     }
 
     let output = runner
-        .run_command(
-            "sh",
-            &["-e", &script_path.to_string_lossy(), &str_args.join(" ")],
-        )
+        .run_command(&shell_command, &shell_args.iter().map(|s| s.as_str()).collect::<Vec<_>>())
         .with_context(|| {
             format!(
                 "Failed to execute hook script: {}",
@@ -305,8 +451,9 @@ fn execute_hook_script(
             if debug_mode {
                 // Only show PATH in debug mode, and sanitize it
                 if let Ok(path) = std::env::var("PATH") {
-                    // Sanitize PATH by showing only directory count to avoid exposing system structure
-                    let dir_count = path.split(':').count();
+                    // Use platform-specific PATH separator for counting
+                    let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
+                    let dir_count = path.split(separator).count();
                     eprintln!("samoid - PATH contains {dir_count} directories");
                 }
             } else {
@@ -613,6 +760,90 @@ mod tests {
 
         let result = load_init_script(&env, &runner, &fs, false);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_determine_shell_execution_unix() {
+        let env = MockEnvironment::new();
+        let script_path = std::path::Path::new("/path/to/script.sh");
+        let args = vec!["arg1", "arg2"];
+
+        // On Unix systems (when not compiled for Windows), should always use sh
+        #[cfg(not(target_os = "windows"))]
+        {
+            let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+            assert_eq!(shell, "sh");
+            assert_eq!(shell_args, vec!["-e", "/path/to/script.sh", "arg1 arg2"]);
+        }
+    }
+
+    #[test]
+    fn test_determine_shell_execution_windows_git_bash() {
+        let env = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
+        let script_path = std::path::Path::new("C:\\path\\to\\script.sh");
+        let args = vec!["arg1", "arg2"];
+
+        // When MSYSTEM is set, should use sh even on Windows
+        #[cfg(target_os = "windows")]
+        {
+            let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+            assert_eq!(shell, "sh");
+            assert_eq!(shell_args, vec!["-e", "C:\\path\\to\\script.sh", "arg1 arg2"]);
+        }
+    }
+
+    #[test]
+    fn test_determine_shell_execution_windows_cmd() {
+        let env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
+        let script_path = std::path::Path::new("C:\\path\\to\\script.bat");
+        let args = vec!["arg1", "arg2"];
+
+        // Windows batch files should use cmd
+        #[cfg(target_os = "windows")]
+        {
+            let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+            assert_eq!(shell, "cmd");
+            assert_eq!(shell_args, vec!["/C", "C:\\path\\to\\script.bat", "arg1 arg2"]);
+        }
+    }
+
+    #[test]
+    fn test_determine_shell_execution_windows_powershell() {
+        let env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
+        let script_path = std::path::Path::new("C:\\path\\to\\script.ps1");
+        let args = vec!["arg1", "arg2"];
+
+        // PowerShell scripts should use powershell
+        #[cfg(target_os = "windows")]
+        {
+            let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+            assert_eq!(shell, "powershell");
+            assert_eq!(shell_args, vec!["-ExecutionPolicy", "Bypass", "-File", "C:\\path\\to\\script.ps1", "arg1 arg2"]);
+        }
+    }
+
+    #[test]
+    fn test_is_windows_unix_environment_git_bash() {
+        let env = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
+        assert!(is_windows_unix_environment(&env, false));
+
+        let env = MockEnvironment::new().with_var("MSYSTEM", "MINGW32");
+        assert!(is_windows_unix_environment(&env, false));
+
+        let env = MockEnvironment::new().with_var("MSYSTEM", "MSYS");
+        assert!(is_windows_unix_environment(&env, false));
+    }
+
+    #[test]
+    fn test_is_windows_unix_environment_cygwin() {
+        let env = MockEnvironment::new().with_var("CYGWIN", "nodosfilewarning");
+        assert!(is_windows_unix_environment(&env, false));
+    }
+
+    #[test]
+    fn test_is_windows_unix_environment_native_windows() {
+        let env = MockEnvironment::new(); // No special environment variables
+        assert!(!is_windows_unix_environment(&env, false));
     }
 
     #[test]
