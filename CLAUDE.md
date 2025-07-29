@@ -102,11 +102,53 @@ output-dir = "target/tarpaulin/coverage"
 out = ["Html", "Json"]
 ```
 
+### The `file:/tmp/samoid/dummy/` dir
+
+- Create and use file:/tmp/samoid/dummy/ for ad-hoc and integration testing of Samoid.
+- Freely use git operations inside file:/tmp/samoid/dummy/
+- Freely init new repos inside file:/tmp/samoid/dummy/
+- Freely delete and recreate file:/tmp/samoid/dummy/ when needed for testing
+
 ## Directory Context Management
 **ALWAYS:** verify working directory before Samoid/Husky-specific commands**
 **REMEMBER:** the project's root directory is <file:~/Projects/github.com/typicode/husky-to-samoid/>
 **REMEMBER:** you can always use `pwd` to verify current location
 **REMEMBER:** some commands accept absolute paths via flags, and when possible, that can help you avoid changing directory with `cd`
 
-- For Samoid, check for `Cargo.toml` before `cargo` commands
-- For Husky, check for `package.json` before reading files.
+- For Samoid, CONFIRM the current dir contains `Cargo.toml` before you run `cargo` commands
+- For Husky, CONFIRM the current dir contains `package.json` before reading files.
+
+### Prefer absolute paths to relative paths
+
+```bash
+# BAD
+cd samoid && rm tests/comprehensive_integration_tests.rs
+
+# GOOD
+rm ~/Projects/github.com/typicode/husky-to-samoid/samoid/tests/comprehensive_integration_tests.rs
+
+
+# BAD
+rm samoid/tests/comprehensive_integration_tests.rs
+# GOOD
+rm ~/Projects/github.com/typicode/husky-to-samoid/samoid/tests/comprehensive_integration_tests.rs
+
+# BAD
+cd samoid && cargo check --all-targets
+
+# GOOD
+cd ~/Projects/github.com/typicode/husky-to-samoid/samoid && cargo check --all-targets
+```
+
+## GitHub CLI
+This project is under the `nutthead` organization, so ensure you use the `gh` CLI correctly:
+
+```bash
+# BAD---causes "Error: gh: Not Found (HTTP 404)"
+$ gh api repos/nutthead/samoid/actions/runs/16605659171/jobs/46976672370/logs
+
+     {"message":"Not Found","documentation_url":"https://docs.github.com/rest","status":"404"}
+
+# GOOD---works!
+$ gh run view 16605659171 --repo nutthead/samoid --log-failed
+```

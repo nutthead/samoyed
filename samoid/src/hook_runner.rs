@@ -1,8 +1,17 @@
-//! Hook Execution Runtime for Samoid
+//! Hook Execution Runtime for Samoid (`samoid-hook` binary)
 //!
-//! This binary implements the hook runner that executes actual hook scripts with proper
-//! environment setup, error handling, and debugging support. It's designed to be installed
-//! as the actual Git hook and execute the user-defined hook scripts.
+//! This module defines a separate binary (`samoid-hook`) that serves as the Git hook executor.
+//! It is NOT part of the main `samoid` CLI binary, but rather a companion binary that gets
+//! installed into `.samoid/_/h` and is referenced by all Git hook files.
+//!
+//! # Binary Architecture
+//!
+//! Samoid consists of two binaries:
+//! - `samoid`: The main CLI tool for installation and configuration (defined in `main.rs`)
+//! - `samoid-hook`: This hook runner binary that executes during Git operations
+//!
+//! When Git triggers a hook (e.g., pre-commit), it executes the hook file in `.samoid/_/`,
+//! which in turn executes this `samoid-hook` binary with the hook name as an argument.
 //!
 //! # Environment Variables
 //!
@@ -10,7 +19,9 @@
 //! - **SAMOID=1**: Normal execution mode (default)
 //! - **SAMOID=2**: Enable debug mode with detailed script tracing
 //!
-//! # Architecture
+//! # Execution Flow
+//!
+//! 1. Git triggers hook → 2. Hook file runs `samoid-hook` → 3. This binary executes user's script
 //!
 //! The hook runner follows these steps:
 //! 1. Parse environment variables (SAMOID=0/1/2)
@@ -26,10 +37,13 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 mod environment;
+mod logging;
+
 use environment::{
     CommandRunner, Environment, FileSystem, SystemCommandRunner, SystemEnvironment,
     SystemFileSystem,
 };
+use logging::{log_command_execution, log_file_operation_with_env, sanitize_args, sanitize_path};
 
 #[cfg(not(tarpaulin_include))]
 fn main() -> Result<()> {
@@ -61,7 +75,8 @@ fn run_hook(
 
     if debug_mode {
         eprintln!("samoid: Debug mode enabled (SAMOID=2)");
-        eprintln!("samoid: Hook runner args: {args:?}");
+        let sanitized_args = sanitize_args(args);
+        eprintln!("samoid: Hook runner args: {sanitized_args:?}");
     }
 
     // Determine hook name from the first argument (e.g., pre-commit, post-commit)
@@ -82,9 +97,11 @@ fn run_hook(
     let hook_script_path = PathBuf::from(".samoid").join("scripts").join(hook_name);
 
     if debug_mode {
-        eprintln!(
-            "samoid: Looking for hook script at: {}",
-            hook_script_path.display()
+        log_file_operation_with_env(
+            env,
+            debug_mode,
+            "Looking for hook script at",
+            &hook_script_path,
         );
     }
 
@@ -103,7 +120,60 @@ fn run_hook(
     execute_hook_script(env, runner, fs, &hook_script_path, &args[2..], debug_mode)
 }
 
-/// Load and execute the initialization script if it exists
+/// Loads and prepares the user's initialization script for hook execution.
+///
+/// This function locates and validates the optional Samoid initialization script that users
+/// can create to set up their hook environment. The script is expected to be located at
+/// `~/.config/samoid/init.sh` (following XDG Base Directory specification) or
+/// `$XDG_CONFIG_HOME/samoid/init.sh` if the environment variable is set.
+///
+/// # Purpose
+///
+/// The initialization script allows users to:
+/// - Set environment variables needed by all hooks
+/// - Define shell functions used across multiple hooks
+/// - Configure PATH or other shell settings
+/// - Load project-specific configurations
+///
+/// # Current Implementation Status
+///
+/// **Note**: Currently, this function only detects the presence of the init script but does
+/// not execute it. Full shell sourcing integration is planned for a future release. This
+/// limitation exists because properly sourcing a shell script into the current process
+/// environment requires complex shell integration that varies by platform.
+///
+/// # Parameters
+///
+/// * `env` - Environment abstraction for reading environment variables
+/// * `_runner` - Command runner (unused in current implementation, reserved for future use)
+/// * `fs` - Filesystem abstraction for checking file existence
+/// * `debug_mode` - When true, outputs detailed diagnostic information
+///
+/// # Returns
+///
+/// Always returns `Ok(())` as this is an optional enhancement. Missing init scripts are not
+/// considered errors.
+///
+/// # Example Init Script
+///
+/// ```bash
+/// # ~/.config/samoid/init.sh
+/// export NODE_OPTIONS="--max-old-space-size=4096"
+/// export PATH="$HOME/.local/bin:$PATH"
+///
+/// # Define a helper function for all hooks
+/// notify_slack() {
+///     curl -X POST -H 'Content-type: application/json' \
+///         --data "{\"text\":\"$1\"}" \
+///         "$SLACK_WEBHOOK_URL"
+/// }
+/// ```
+///
+/// # Platform Considerations
+///
+/// - **Linux/macOS**: Uses `$HOME/.config/samoid/init.sh` by default
+/// - **Windows**: Falls back to `$USERPROFILE/.config/samoid/init.sh`
+/// - Respects `$XDG_CONFIG_HOME` if set (XDG Base Directory specification)
 fn load_init_script(
     env: &dyn Environment,
     _runner: &dyn CommandRunner,
@@ -125,19 +195,18 @@ fn load_init_script(
         .join("init.sh");
 
     if debug_mode {
-        eprintln!(
-            "samoid: Checking for init script at: {}",
-            init_script_path.display()
+        log_file_operation_with_env(
+            env,
+            debug_mode,
+            "Checking for init script at",
+            &init_script_path,
         );
     }
 
     // If the init script exists, source it using shell
     if fs.exists(&init_script_path) {
         if debug_mode {
-            eprintln!(
-                "samoid: Loading init script: {}",
-                init_script_path.display()
-            );
+            log_file_operation_with_env(env, debug_mode, "Loading init script", &init_script_path);
         }
 
         // Note: We can't actually source the script into our environment easily
@@ -155,7 +224,7 @@ fn load_init_script(
 
 /// Execute the actual hook script and handle exit codes
 fn execute_hook_script(
-    _env: &dyn Environment,
+    env: &dyn Environment,
     runner: &dyn CommandRunner,
     _fs: &dyn FileSystem,
     script_path: &Path,
@@ -163,20 +232,36 @@ fn execute_hook_script(
     debug_mode: bool,
 ) -> Result<()> {
     if debug_mode {
-        eprintln!("samoid: Executing hook script: {}", script_path.display());
-        eprintln!("samoid: Hook arguments: {hook_args:?}");
+        log_file_operation_with_env(env, debug_mode, "Executing hook script", script_path);
+        let sanitized_hook_args = sanitize_args(hook_args);
+        eprintln!("samoid: Hook arguments: {sanitized_hook_args:?}");
     }
 
     // Convert String args to &str for the runner interface
     let str_args: Vec<&str> = hook_args.iter().map(|s| s.as_str()).collect();
 
     // Execute the hook script using shell
+    let shell_args = vec![
+        "-e".to_string(),
+        script_path.to_string_lossy().to_string(),
+        str_args.join(" "),
+    ];
+
+    if debug_mode {
+        log_command_execution(debug_mode, "sh", &shell_args);
+    }
+
     let output = runner
         .run_command(
             "sh",
             &["-e", &script_path.to_string_lossy(), &str_args.join(" ")],
         )
-        .with_context(|| format!("Failed to execute hook script: {}", script_path.display()))?;
+        .with_context(|| {
+            format!(
+                "Failed to execute hook script: {}",
+                sanitize_path(script_path)
+            )
+        })?;
 
     // Check exit code and provide appropriate error messages
     let exit_code = output.status.code().unwrap_or(1);
@@ -217,8 +302,15 @@ fn execute_hook_script(
         // Check for command not found (exit code 127)
         if exit_code == 127 {
             eprintln!("samoid - command not found in PATH");
-            if let Ok(path) = std::env::var("PATH") {
-                eprintln!("samoid - PATH={path}");
+            if debug_mode {
+                // Only show PATH in debug mode, and sanitize it
+                if let Ok(path) = std::env::var("PATH") {
+                    // Sanitize PATH by showing only directory count to avoid exposing system structure
+                    let dir_count = path.split(':').count();
+                    eprintln!("samoid - PATH contains {dir_count} directories");
+                }
+            } else {
+                eprintln!("samoid - run with SAMOID=2 for more details");
             }
         }
     }
@@ -521,5 +613,69 @@ mod tests {
 
         let result = load_init_script(&env, &runner, &fs, false);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_load_init_script() {
+        // Test 1: Init script exists with HOME directory
+        let env = MockEnvironment::new().with_var("HOME", "/home/user");
+        let runner = MockCommandRunner::new();
+        let fs = MockFileSystem::new().with_file(
+            "/home/user/.config/samoid/init.sh",
+            "#!/bin/bash\nexport FOO=bar",
+        );
+
+        let result = load_init_script(&env, &runner, &fs, true);
+        assert!(result.is_ok(), "Should succeed when init script exists");
+
+        // Test 2: Init script with XDG_CONFIG_HOME
+        let env_xdg = MockEnvironment::new()
+            .with_var("HOME", "/home/user")
+            .with_var("XDG_CONFIG_HOME", "/custom/config");
+        let fs_xdg = MockFileSystem::new().with_file(
+            "/custom/config/samoid/init.sh",
+            "#!/bin/bash\nexport BAR=baz",
+        );
+
+        let result_xdg = load_init_script(&env_xdg, &runner, &fs_xdg, true);
+        assert!(result_xdg.is_ok(), "Should respect XDG_CONFIG_HOME");
+
+        // Test 3: No init script (should still succeed)
+        let env_no_script = MockEnvironment::new().with_var("HOME", "/home/user");
+        let fs_no_script = MockFileSystem::new();
+
+        let result_no_script = load_init_script(&env_no_script, &runner, &fs_no_script, false);
+        assert!(
+            result_no_script.is_ok(),
+            "Should succeed even without init script"
+        );
+
+        // Test 4: Windows USERPROFILE fallback
+        let env_windows = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\user");
+        let fs_windows = MockFileSystem::new().with_file(
+            "C:\\Users\\user\\.config\\samoid\\init.sh",
+            "REM Windows init",
+        );
+
+        let result_windows = load_init_script(&env_windows, &runner, &fs_windows, false);
+        assert!(
+            result_windows.is_ok(),
+            "Should work with Windows USERPROFILE"
+        );
+
+        // Test 5: No home directory at all
+        let env_no_home = MockEnvironment::new();
+        let result_no_home = load_init_script(&env_no_home, &runner, &fs, false);
+        assert!(
+            result_no_home.is_err(),
+            "Should fail without HOME or USERPROFILE"
+        );
+        assert!(
+            result_no_home
+                .unwrap_err()
+                .to_string()
+                .contains("home directory"),
+            "Error should mention home directory"
+        );
     }
 }
