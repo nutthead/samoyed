@@ -84,7 +84,7 @@
 //! let env = SystemEnvironment;
 //! let runner = SystemCommandRunner;
 //! let fs = SystemFileSystem;
-//! 
+//!
 //! install_hooks(&env, &runner, &fs, None)?;
 //!
 //! // Installation with custom directory
