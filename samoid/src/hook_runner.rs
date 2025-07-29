@@ -1,8 +1,17 @@
-//! Hook Execution Runtime for Samoid
+//! Hook Execution Runtime for Samoid (`samoid-hook` binary)
 //!
-//! This binary implements the hook runner that executes actual hook scripts with proper
-//! environment setup, error handling, and debugging support. It's designed to be installed
-//! as the actual Git hook and execute the user-defined hook scripts.
+//! This module defines a separate binary (`samoid-hook`) that serves as the Git hook executor.
+//! It is NOT part of the main `samoid` CLI binary, but rather a companion binary that gets
+//! installed into `.samoid/_/h` and is referenced by all Git hook files.
+//!
+//! # Binary Architecture
+//!
+//! Samoid consists of two binaries:
+//! - `samoid`: The main CLI tool for installation and configuration (defined in `main.rs`)
+//! - `samoid-hook`: This hook runner binary that executes during Git operations
+//!
+//! When Git triggers a hook (e.g., pre-commit), it executes the hook file in `.samoid/_/`,
+//! which in turn executes this `samoid-hook` binary with the hook name as an argument.
 //!
 //! # Environment Variables
 //!
@@ -10,7 +19,9 @@
 //! - **SAMOID=1**: Normal execution mode (default)
 //! - **SAMOID=2**: Enable debug mode with detailed script tracing
 //!
-//! # Architecture
+//! # Execution Flow
+//!
+//! 1. Git triggers hook → 2. Hook file runs `samoid-hook` → 3. This binary executes user's script
 //!
 //! The hook runner follows these steps:
 //! 1. Parse environment variables (SAMOID=0/1/2)
@@ -109,7 +120,60 @@ fn run_hook(
     execute_hook_script(env, runner, fs, &hook_script_path, &args[2..], debug_mode)
 }
 
-/// Load and execute the initialization script if it exists
+/// Loads and prepares the user's initialization script for hook execution.
+///
+/// This function locates and validates the optional Samoid initialization script that users
+/// can create to set up their hook environment. The script is expected to be located at
+/// `~/.config/samoid/init.sh` (following XDG Base Directory specification) or
+/// `$XDG_CONFIG_HOME/samoid/init.sh` if the environment variable is set.
+///
+/// # Purpose
+///
+/// The initialization script allows users to:
+/// - Set environment variables needed by all hooks
+/// - Define shell functions used across multiple hooks
+/// - Configure PATH or other shell settings
+/// - Load project-specific configurations
+///
+/// # Current Implementation Status
+///
+/// **Note**: Currently, this function only detects the presence of the init script but does
+/// not execute it. Full shell sourcing integration is planned for a future release. This
+/// limitation exists because properly sourcing a shell script into the current process
+/// environment requires complex shell integration that varies by platform.
+///
+/// # Parameters
+///
+/// * `env` - Environment abstraction for reading environment variables
+/// * `_runner` - Command runner (unused in current implementation, reserved for future use)
+/// * `fs` - Filesystem abstraction for checking file existence
+/// * `debug_mode` - When true, outputs detailed diagnostic information
+///
+/// # Returns
+///
+/// Always returns `Ok(())` as this is an optional enhancement. Missing init scripts are not
+/// considered errors.
+///
+/// # Example Init Script
+///
+/// ```bash
+/// # ~/.config/samoid/init.sh
+/// export NODE_OPTIONS="--max-old-space-size=4096"
+/// export PATH="$HOME/.local/bin:$PATH"
+/// 
+/// # Define a helper function for all hooks
+/// notify_slack() {
+///     curl -X POST -H 'Content-type: application/json' \
+///         --data "{\"text\":\"$1\"}" \
+///         "$SLACK_WEBHOOK_URL"
+/// }
+/// ```
+///
+/// # Platform Considerations
+///
+/// - **Linux/macOS**: Uses `$HOME/.config/samoid/init.sh` by default
+/// - **Windows**: Falls back to `$USERPROFILE/.config/samoid/init.sh`
+/// - Respects `$XDG_CONFIG_HOME` if set (XDG Base Directory specification)
 fn load_init_script(
     env: &dyn Environment,
     _runner: &dyn CommandRunner,
@@ -549,5 +613,54 @@ mod tests {
 
         let result = load_init_script(&env, &runner, &fs, false);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_load_init_script() {
+        // Test 1: Init script exists with HOME directory
+        let env = MockEnvironment::new()
+            .with_var("HOME", "/home/user");
+        let runner = MockCommandRunner::new();
+        let fs = MockFileSystem::new()
+            .with_file("/home/user/.config/samoid/init.sh", "#!/bin/bash\nexport FOO=bar");
+
+        let result = load_init_script(&env, &runner, &fs, true);
+        assert!(result.is_ok(), "Should succeed when init script exists");
+
+        // Test 2: Init script with XDG_CONFIG_HOME
+        let env_xdg = MockEnvironment::new()
+            .with_var("HOME", "/home/user")
+            .with_var("XDG_CONFIG_HOME", "/custom/config");
+        let fs_xdg = MockFileSystem::new()
+            .with_file("/custom/config/samoid/init.sh", "#!/bin/bash\nexport BAR=baz");
+
+        let result_xdg = load_init_script(&env_xdg, &runner, &fs_xdg, true);
+        assert!(result_xdg.is_ok(), "Should respect XDG_CONFIG_HOME");
+
+        // Test 3: No init script (should still succeed)
+        let env_no_script = MockEnvironment::new()
+            .with_var("HOME", "/home/user");
+        let fs_no_script = MockFileSystem::new();
+
+        let result_no_script = load_init_script(&env_no_script, &runner, &fs_no_script, false);
+        assert!(result_no_script.is_ok(), "Should succeed even without init script");
+
+        // Test 4: Windows USERPROFILE fallback
+        let env_windows = MockEnvironment::new()
+            .with_var("USERPROFILE", "C:\\Users\\user");
+        let fs_windows = MockFileSystem::new()
+            .with_file("C:\\Users\\user\\.config\\samoid\\init.sh", "REM Windows init");
+
+        let result_windows = load_init_script(&env_windows, &runner, &fs_windows, false);
+        assert!(result_windows.is_ok(), "Should work with Windows USERPROFILE");
+
+        // Test 5: No home directory at all
+        let env_no_home = MockEnvironment::new();
+        let result_no_home = load_init_script(&env_no_home, &runner, &fs, false);
+        assert!(result_no_home.is_err(), "Should fail without HOME or USERPROFILE");
+        assert!(
+            result_no_home.unwrap_err().to_string().contains("home directory"),
+            "Error should mention home directory"
+        );
     }
 }

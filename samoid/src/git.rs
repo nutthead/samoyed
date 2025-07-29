@@ -232,7 +232,30 @@ pub fn set_hooks_path(runner: &dyn CommandRunner, hooks_path: &str) -> Result<()
     }
 }
 
-/// Detects the current operating system for installation suggestions
+/// Detects the current operating system at compile time for platform-specific installation suggestions.
+///
+/// This function uses Rust's compile-time configuration attributes (`cfg!`) to determine
+/// the target operating system. The detection happens at compile time, not runtime, which means
+/// the binary will always return the OS it was compiled for, not necessarily the OS it's running on
+/// (though in practice these are usually the same).
+///
+/// # Returns
+///
+/// * `Some("linux")` - When compiled for Linux targets
+/// * `Some("macos")` - When compiled for macOS targets  
+/// * `Some("windows")` - When compiled for Windows targets
+/// * `None` - When compiled for other platforms (e.g., BSD, Solaris)
+///
+/// # Example
+///
+/// ```rust,ignore
+/// match detect_os() {
+///     Some("linux") => println!("Install with: apt-get install git"),
+///     Some("macos") => println!("Install with: brew install git"),
+///     Some("windows") => println!("Download from: https://git-scm.com"),
+///     _ => println!("Please install Git for your platform"),
+/// }
+/// ```
 fn detect_os() -> Option<String> {
     if cfg!(target_os = "linux") {
         Some("linux".to_string())

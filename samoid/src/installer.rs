@@ -52,6 +52,31 @@ pub enum PathValidationError {
     TooLong(usize),
 }
 
+/// Implementation of the Display trait for PathValidationError.
+///
+/// Provides human-readable error messages for path validation failures. These messages
+/// are designed to be clear and actionable, helping users understand exactly what went
+/// wrong with their path configuration.
+///
+/// # Message Format
+///
+/// Each error variant produces a specific message pattern:
+/// - **DirectoryTraversal**: Alerts about security risks from `..` segments
+/// - **AbsolutePath**: Clarifies that only relative paths are accepted
+/// - **InvalidCharacters**: Lists the specific problematic characters found
+/// - **EmptyPath**: Simple notification that a path was expected
+/// - **TooLong**: Shows actual vs maximum allowed length
+///
+/// # Usage Example
+///
+/// ```rust,ignore
+/// match validate_path(user_input) {
+///     Err(PathValidationError::InvalidCharacters(chars)) => {
+///         eprintln!("Error: {}", err); // "Invalid characters in path: <>"
+///     }
+///     _ => {}
+/// }
+/// ```
 impl std::fmt::Display for PathValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -74,6 +99,38 @@ impl std::fmt::Display for PathValidationError {
     }
 }
 
+/// Implementation of the Display trait for InstallError.
+///
+/// Provides comprehensive error messages for installation failures, designed to guide users
+/// through resolving issues. Each error message includes context about what went wrong and,
+/// where applicable, suggestions for resolution.
+///
+/// # Error Categories
+///
+/// The error messages are grouped by failure type:
+/// - **Git-related**: Repository validation, command execution failures
+/// - **Path-related**: Invalid paths, security concerns
+/// - **System-related**: File I/O, permissions, command execution
+///
+/// # Message Philosophy
+///
+/// Error messages follow these principles:
+/// 1. **Clarity**: State what operation failed
+/// 2. **Context**: Include relevant details (paths, error codes)
+/// 3. **Actionability**: Suggest fixes where possible
+/// 4. **Chaining**: Preserve underlying error details for debugging
+///
+/// # Example Output
+///
+/// ```text
+/// Failed to set Git hooks path
+/// Caused by: Permission denied (os error 13)
+/// ```
+///
+/// # Integration with Error Handling
+///
+/// These messages are designed to work with the `anyhow` error handling framework,
+/// preserving error chains while providing user-friendly top-level messages.
 impl std::fmt::Display for InstallError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
