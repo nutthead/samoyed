@@ -792,9 +792,20 @@ mod tests {
 
     #[test]
     fn test_determine_shell_execution_unix() {
+        #[cfg(not(target_os = "windows"))]
         let env = MockEnvironment::new();
+        #[cfg(target_os = "windows")]
+        let _env = MockEnvironment::new();
+        
+        #[cfg(not(target_os = "windows"))]
         let script_path = std::path::Path::new("/path/to/script.sh");
+        #[cfg(target_os = "windows")]
+        let _script_path = std::path::Path::new("/path/to/script.sh");
+        
+        #[cfg(not(target_os = "windows"))]
         let args = vec!["arg1", "arg2"];
+        #[cfg(target_os = "windows")]
+        let _args = vec!["arg1", "arg2"];
 
         // On Unix systems (when not compiled for Windows), should always use sh
         #[cfg(not(target_os = "windows"))]
@@ -807,14 +818,25 @@ mod tests {
 
     #[test]
     fn test_determine_shell_execution_windows_git_bash() {
+        #[cfg(target_os = "windows")]
+        let env = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
+        #[cfg(not(target_os = "windows"))]
         let _env = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
+        
+        #[cfg(target_os = "windows")]
+        let script_path = std::path::Path::new("C:\\path\\to\\script.sh");
+        #[cfg(not(target_os = "windows"))]
         let _script_path = std::path::Path::new("C:\\path\\to\\script.sh");
+        
+        #[cfg(target_os = "windows")]
+        let args = ["arg1", "arg2"];
+        #[cfg(not(target_os = "windows"))]
         let _args = ["arg1", "arg2"];
 
         // When MSYSTEM is set, should use sh even on Windows
         #[cfg(target_os = "windows")]
         {
-            let (shell, shell_args) = determine_shell_execution(&_env, _script_path, &_args, false);
+            let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
             assert_eq!(shell, "sh");
             assert_eq!(
                 shell_args,
@@ -825,14 +847,25 @@ mod tests {
 
     #[test]
     fn test_determine_shell_execution_windows_cmd() {
+        #[cfg(target_os = "windows")]
+        let env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
+        #[cfg(not(target_os = "windows"))]
         let _env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
+        
+        #[cfg(target_os = "windows")]
+        let script_path = std::path::Path::new("C:\\path\\to\\script.bat");
+        #[cfg(not(target_os = "windows"))]
         let _script_path = std::path::Path::new("C:\\path\\to\\script.bat");
+        
+        #[cfg(target_os = "windows")]
+        let args = ["arg1", "arg2"];
+        #[cfg(not(target_os = "windows"))]
         let _args = ["arg1", "arg2"];
 
         // Windows batch files should use cmd
         #[cfg(target_os = "windows")]
         {
-            let (shell, shell_args) = determine_shell_execution(&_env, _script_path, &_args, false);
+            let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
             assert_eq!(shell, "cmd");
             assert_eq!(
                 shell_args,
@@ -843,14 +876,25 @@ mod tests {
 
     #[test]
     fn test_determine_shell_execution_windows_powershell() {
+        #[cfg(target_os = "windows")]
+        let env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
+        #[cfg(not(target_os = "windows"))]
         let _env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
+        
+        #[cfg(target_os = "windows")]
+        let script_path = std::path::Path::new("C:\\path\\to\\script.ps1");
+        #[cfg(not(target_os = "windows"))]
         let _script_path = std::path::Path::new("C:\\path\\to\\script.ps1");
+        
+        #[cfg(target_os = "windows")]
+        let args = ["arg1", "arg2"];
+        #[cfg(not(target_os = "windows"))]
         let _args = ["arg1", "arg2"];
 
         // PowerShell scripts should use powershell
         #[cfg(target_os = "windows")]
         {
-            let (shell, shell_args) = determine_shell_execution(&_env, _script_path, &_args, false);
+            let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
             assert_eq!(shell, "powershell");
             assert_eq!(
                 shell_args,
