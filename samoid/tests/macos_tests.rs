@@ -47,18 +47,15 @@ mod macos_tests {
 
         // Test with macOS-style paths
         let paths_to_test = vec![
-            "~/Library/Hooks", // Tilde expansion
+            "~/Library/Hooks",     // Tilde expansion
             "/Applications/Hooks", // Absolute (should fail)
-            ".hooks", // Hidden directory
+            ".hooks",              // Hidden directory
         ];
 
         for path in paths_to_test {
             let result = install_hooks(&env, &runner, &fs, Some(path));
             if path.starts_with('/') {
-                assert!(
-                    result.is_err(),
-                    "Absolute path should fail: {path}"
-                );
+                assert!(result.is_err(), "Absolute path should fail: {path}");
             } else if path.starts_with('~') {
                 // Tilde paths need expansion, might fail
                 let _ = result;
@@ -129,7 +126,7 @@ mod macos_tests {
             let env = MockEnvironment::new()
                 .with_var("HOME", "/Users/user")
                 .with_var("SHELL", shell_path);
-            
+
             let output = Output {
                 status: exit_status(0),
                 stdout: vec![],
@@ -161,7 +158,7 @@ mod macos_tests {
     fn test_macos_case_sensitivity() {
         // macOS file systems can be case-insensitive
         let env = MockEnvironment::new().with_var("HOME", "/Users/user");
-        
+
         let output = Output {
             status: exit_status(0),
             stdout: vec![],
@@ -172,13 +169,9 @@ mod macos_tests {
             stdout: b"git version 2.34.1".to_vec(),
             stderr: vec![],
         };
-        
+
         // Test with different case variations
-        let case_variations = vec![
-            ".samoid",
-            ".Samoid",
-            ".SAMOID",
-        ];
+        let case_variations = vec![".samoid", ".Samoid", ".SAMOID"];
 
         for dir_name in case_variations {
             let runner = MockCommandRunner::new()
@@ -191,10 +184,7 @@ mod macos_tests {
             let fs = MockFileSystem::new().with_directory(".git");
 
             let result = install_hooks(&env, &runner, &fs, Some(dir_name));
-            assert!(
-                result.is_ok(),
-                "Should handle case variation: {dir_name}"
-            );
+            assert!(result.is_ok(), "Should handle case variation: {dir_name}");
         }
     }
 

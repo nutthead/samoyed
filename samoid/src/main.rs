@@ -17,7 +17,7 @@ mod installer;
 mod project;
 
 use environment::{SystemCommandRunner, SystemEnvironment, SystemFileSystem};
-use exit_codes::{determine_exit_code, EX_USAGE};
+use exit_codes::{EX_USAGE, determine_exit_code};
 
 #[derive(Parser)]
 #[command(name = "samoid")]

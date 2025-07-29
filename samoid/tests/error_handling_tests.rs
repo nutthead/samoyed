@@ -26,7 +26,7 @@ fn exit_status(code: i32) -> ExitStatus {
 fn test_git_command_failure_scenarios() {
     // Test various Git command failure scenarios
     let env = MockEnvironment::new();
-    
+
     // Scenario 1: Git not found
     let runner_not_found = MockCommandRunner::new();
     // Don't configure any responses, so git command will fail with "Command not found"
@@ -34,7 +34,12 @@ fn test_git_command_failure_scenarios() {
 
     let result = install_hooks(&env, &runner_not_found, &fs, None);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Git command not found"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Git command not found")
+    );
 
     // Scenario 2: Git config fails
     let version_output = Output {
@@ -54,7 +59,7 @@ fn test_git_command_failure_scenarios() {
             &["config", "core.hooksPath", ".samoid/_"],
             Ok(config_fail_output),
         );
-    
+
     let result = install_hooks(&env, &runner_config_fail, &fs, None);
     assert!(result.is_err());
 }
@@ -83,10 +88,10 @@ fn test_filesystem_error_scenarios() {
     // Test with directory creation failure
     // MockFileSystem doesn't support error injection, so we can't directly test this scenario
     // In a real implementation, we would test with filesystem permissions or mocking at a lower level
-    
+
     // Instead, test with missing .git directory which will cause a different error
     let fs_no_git = MockFileSystem::new(); // No .git directory
-    
+
     let result = install_hooks(&env, &runner, &fs_no_git, None);
     assert!(result.is_err());
     // This will fail at the Git repository check, not filesystem creation
@@ -102,7 +107,10 @@ fn test_edge_case_paths() {
         ("/absolute/path", "Absolute path"),
         ("", "empty"),
         ("path/with spaces/hooks", "spaces"),
-        ("very/deeply/nested/path/to/hooks/directory/structure", "deep nesting"),
+        (
+            "very/deeply/nested/path/to/hooks/directory/structure",
+            "deep nesting",
+        ),
     ];
 
     for (path, description) in edge_cases {
@@ -115,7 +123,10 @@ fn test_edge_case_paths() {
             "Directory traversal" => {
                 assert!(result.is_err(), "Should fail for path with ..: {path}");
                 assert!(
-                    result.unwrap_err().to_string().contains("Directory traversal"),
+                    result
+                        .unwrap_err()
+                        .to_string()
+                        .contains("Directory traversal"),
                     "Error should mention directory traversal"
                 );
             }
@@ -188,11 +199,13 @@ fn test_error_message_quality() {
             error_message.contains(expected_error),
             "Error should contain '{expected_error}', got: {error_message}"
         );
-        
+
         // Some errors should provide helpful hints
         if !expected_hint.is_empty() {
             assert!(
-                error_message.to_lowercase().contains(&expected_hint.to_lowercase()),
+                error_message
+                    .to_lowercase()
+                    .contains(&expected_hint.to_lowercase()),
                 "Error should contain hint '{expected_hint}', got: {error_message}"
             );
         }
@@ -208,7 +221,7 @@ fn test_concurrent_installation_simulation() {
         stdout: b"git version 2.34.1".to_vec(),
         stderr: vec![],
     };
-    
+
     // First installation succeeds
     let config_output1 = Output {
         status: exit_status(0),

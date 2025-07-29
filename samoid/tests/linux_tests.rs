@@ -58,11 +58,7 @@ mod linux_tests {
         };
         let runner2 = MockCommandRunner::new()
             .with_response("git", &["--version"], Ok(version_output2))
-            .with_response(
-                "git",
-                &["config", "core.hooksPath", "hooks/_"],
-                Ok(output),
-            );
+            .with_response("git", &["config", "core.hooksPath", "hooks/_"], Ok(output));
         let result = install_hooks(&env, &runner2, &fs, Some("hooks"));
         assert!(result.is_ok());
     }
@@ -74,8 +70,7 @@ mod linux_tests {
             .with_var("HOME", "/home/user")
             .with_var("XDG_CONFIG_HOME", "/home/user/.config");
 
-        let env_without_xdg = MockEnvironment::new()
-            .with_var("HOME", "/home/user");
+        let env_without_xdg = MockEnvironment::new().with_var("HOME", "/home/user");
 
         let output = Output {
             status: exit_status(0),
@@ -155,7 +150,7 @@ mod linux_tests {
             let env = MockEnvironment::new()
                 .with_var("HOME", "/home/user")
                 .with_var(var, shell_path);
-            
+
             let output = Output {
                 status: exit_status(0),
                 stdout: vec![],
@@ -176,10 +171,7 @@ mod linux_tests {
             let fs = MockFileSystem::new().with_directory(".git");
 
             let result = install_hooks(&env, &runner, &fs, None);
-            assert!(
-                result.is_ok(),
-                "Should work with shell: {shell_path}"
-            );
+            assert!(result.is_ok(), "Should work with shell: {shell_path}");
         }
     }
 
@@ -215,10 +207,7 @@ mod linux_tests {
             let fs = MockFileSystem::new().with_directory(".git");
 
             let result = install_hooks(&env, &runner, &fs, None);
-            assert!(
-                result.is_ok(),
-                "Should work with git at: {git_path}"
-            );
+            assert!(result.is_ok(), "Should work with git at: {git_path}");
         }
     }
 }

@@ -126,7 +126,10 @@ fn test_installation_with_multiple_custom_directories() {
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, Some(custom_dir));
-        assert!(result.is_ok(), "Should succeed for custom dir: {custom_dir}");
+        assert!(
+            result.is_ok(),
+            "Should succeed for custom dir: {custom_dir}"
+        );
 
         // Verify hooks were created in custom directory
         assert!(fs.exists(&std::path::Path::new(custom_dir).join("_")));

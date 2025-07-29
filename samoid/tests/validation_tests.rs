@@ -112,13 +112,13 @@ fn test_hook_content_validation() {
         let hook_content = fs
             .read_to_string(&hook_path)
             .expect("Hook should exist and be readable");
-        
+
         // Verify shebang
         assert!(
             hook_content.starts_with("#!/usr/bin/env sh"),
             "Hook {hook} should start with proper shebang"
         );
-        
+
         // Verify it references the runner
         assert!(
             hook_content.contains(". \"$(dirname -- \"$0\")/h\""),
@@ -173,11 +173,8 @@ fn test_comprehensive_hook_coverage() {
 
     for hook in &all_git_hooks {
         let hook_path = std::path::Path::new(".samoid/_").join(hook);
-        assert!(
-            fs.exists(&hook_path),
-            "Git hook '{hook}' should be created"
-        );
-        
+        assert!(fs.exists(&hook_path), "Git hook '{hook}' should be created");
+
         // Verify each hook is executable (has content)
         let content = fs
             .read_to_string(&hook_path)
@@ -210,7 +207,7 @@ fn test_large_number_of_files_simulation() {
 
     // Create filesystem with many existing files
     let mut fs = MockFileSystem::new().with_directory(".git");
-    
+
     // Add 100 dummy files to simulate a large project
     for i in 0..100 {
         fs = fs.with_file(&format!("src/file{i}.rs"), "// dummy content");

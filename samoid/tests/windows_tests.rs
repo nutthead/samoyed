@@ -47,19 +47,16 @@ mod windows_tests {
 
         // Test Windows-style paths
         let windows_paths = vec![
-            "hooks",                    // Forward slash
-            "hooks\\subdir",            // Backslash
-            "C:\\hooks",                // Absolute (should fail)
-            "..\\hooks",                // Parent directory (should fail)
+            "hooks",         // Forward slash
+            "hooks\\subdir", // Backslash
+            "C:\\hooks",     // Absolute (should fail)
+            "..\\hooks",     // Parent directory (should fail)
         ];
 
         for path in windows_paths {
             let result = install_hooks(&env, &runner, &fs, Some(path));
             if path.contains(':') || path.contains("..") {
-                assert!(
-                    result.is_err(),
-                    "Invalid path should fail: {path}"
-                );
+                assert!(result.is_err(), "Invalid path should fail: {path}");
             } else {
                 // Relative paths should work
                 let runner2 = MockCommandRunner::new()
@@ -80,16 +77,21 @@ mod windows_tests {
     fn test_windows_git_installations() {
         // Test common Git for Windows installation paths
         let git_installations = vec![
-            ("C:\\Program Files\\Git\\bin\\git.exe", "Standard Git for Windows"),
-            ("C:\\Program Files (x86)\\Git\\bin\\git.exe", "32-bit Git for Windows"),
+            (
+                "C:\\Program Files\\Git\\bin\\git.exe",
+                "Standard Git for Windows",
+            ),
+            (
+                "C:\\Program Files (x86)\\Git\\bin\\git.exe",
+                "32-bit Git for Windows",
+            ),
             ("C:\\tools\\git\\bin\\git.exe", "Chocolatey Git"),
             ("git.exe", "Git in PATH"),
         ];
 
         for (git_path, description) in git_installations {
-            let env = MockEnvironment::new()
-                .with_var("USERPROFILE", "C:\\Users\\user");
-            
+            let env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\user");
+
             let output = Output {
                 status: exit_status(0),
                 stdout: vec![],
@@ -147,14 +149,16 @@ mod windows_tests {
         let fs = MockFileSystem::new().with_directory(".git");
 
         let result = install_hooks(&env, &runner, &fs, None);
-        assert!(result.is_ok(), "Should handle Windows environment variables");
+        assert!(
+            result.is_ok(),
+            "Should handle Windows environment variables"
+        );
     }
 
     #[test]
     fn test_windows_line_endings() {
         // Test handling of Windows CRLF line endings
-        let env = MockEnvironment::new()
-            .with_var("USERPROFILE", "C:\\Users\\user");
+        let env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\user");
 
         let output = Output {
             status: exit_status(0),
@@ -173,7 +177,7 @@ mod windows_tests {
                 &["config", "core.hooksPath", ".samoid/_"],
                 Ok(output),
             );
-        
+
         // Filesystem with CRLF line endings in existing files
         let fs = MockFileSystem::new()
             .with_directory(".git")
@@ -218,18 +222,14 @@ mod windows_tests {
             let fs = MockFileSystem::new().with_directory(".git");
 
             let result = install_hooks(&env, &runner, &fs, None);
-            assert!(
-                result.is_ok(),
-                "Should work with {description}: {shell}"
-            );
+            assert!(result.is_ok(), "Should work with {description}: {shell}");
         }
     }
 
     #[test]
     fn test_windows_path_separators() {
         // Test mixed path separators
-        let env = MockEnvironment::new()
-            .with_var("USERPROFILE", "C:\\Users\\user");
+        let env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\user");
 
         let output = Output {
             status: exit_status(0),
@@ -244,10 +244,10 @@ mod windows_tests {
 
         // Test paths with mixed separators
         let mixed_paths = vec![
-            "hooks/sub\\dir",           // Mixed separators
-            "hooks\\sub/dir",           // Mixed separators reversed
-            "hooks\\\\double",          // Double backslash
-            "hooks//double",            // Double forward slash
+            "hooks/sub\\dir",  // Mixed separators
+            "hooks\\sub/dir",  // Mixed separators reversed
+            "hooks\\\\double", // Double backslash
+            "hooks//double",   // Double forward slash
         ];
 
         for path in mixed_paths {

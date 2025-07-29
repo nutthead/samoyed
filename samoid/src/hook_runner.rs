@@ -160,7 +160,7 @@ fn run_hook(
 /// # ~/.config/samoid/init.sh
 /// export NODE_OPTIONS="--max-old-space-size=4096"
 /// export PATH="$HOME/.local/bin:$PATH"
-/// 
+///
 /// # Define a helper function for all hooks
 /// notify_slack() {
 ///     curl -X POST -H 'Content-type: application/json' \
@@ -618,11 +618,12 @@ mod tests {
     #[test]
     fn test_load_init_script() {
         // Test 1: Init script exists with HOME directory
-        let env = MockEnvironment::new()
-            .with_var("HOME", "/home/user");
+        let env = MockEnvironment::new().with_var("HOME", "/home/user");
         let runner = MockCommandRunner::new();
-        let fs = MockFileSystem::new()
-            .with_file("/home/user/.config/samoid/init.sh", "#!/bin/bash\nexport FOO=bar");
+        let fs = MockFileSystem::new().with_file(
+            "/home/user/.config/samoid/init.sh",
+            "#!/bin/bash\nexport FOO=bar",
+        );
 
         let result = load_init_script(&env, &runner, &fs, true);
         assert!(result.is_ok(), "Should succeed when init script exists");
@@ -631,35 +632,49 @@ mod tests {
         let env_xdg = MockEnvironment::new()
             .with_var("HOME", "/home/user")
             .with_var("XDG_CONFIG_HOME", "/custom/config");
-        let fs_xdg = MockFileSystem::new()
-            .with_file("/custom/config/samoid/init.sh", "#!/bin/bash\nexport BAR=baz");
+        let fs_xdg = MockFileSystem::new().with_file(
+            "/custom/config/samoid/init.sh",
+            "#!/bin/bash\nexport BAR=baz",
+        );
 
         let result_xdg = load_init_script(&env_xdg, &runner, &fs_xdg, true);
         assert!(result_xdg.is_ok(), "Should respect XDG_CONFIG_HOME");
 
         // Test 3: No init script (should still succeed)
-        let env_no_script = MockEnvironment::new()
-            .with_var("HOME", "/home/user");
+        let env_no_script = MockEnvironment::new().with_var("HOME", "/home/user");
         let fs_no_script = MockFileSystem::new();
 
         let result_no_script = load_init_script(&env_no_script, &runner, &fs_no_script, false);
-        assert!(result_no_script.is_ok(), "Should succeed even without init script");
+        assert!(
+            result_no_script.is_ok(),
+            "Should succeed even without init script"
+        );
 
         // Test 4: Windows USERPROFILE fallback
-        let env_windows = MockEnvironment::new()
-            .with_var("USERPROFILE", "C:\\Users\\user");
-        let fs_windows = MockFileSystem::new()
-            .with_file("C:\\Users\\user\\.config\\samoid\\init.sh", "REM Windows init");
+        let env_windows = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\user");
+        let fs_windows = MockFileSystem::new().with_file(
+            "C:\\Users\\user\\.config\\samoid\\init.sh",
+            "REM Windows init",
+        );
 
         let result_windows = load_init_script(&env_windows, &runner, &fs_windows, false);
-        assert!(result_windows.is_ok(), "Should work with Windows USERPROFILE");
+        assert!(
+            result_windows.is_ok(),
+            "Should work with Windows USERPROFILE"
+        );
 
         // Test 5: No home directory at all
         let env_no_home = MockEnvironment::new();
         let result_no_home = load_init_script(&env_no_home, &runner, &fs, false);
-        assert!(result_no_home.is_err(), "Should fail without HOME or USERPROFILE");
         assert!(
-            result_no_home.unwrap_err().to_string().contains("home directory"),
+            result_no_home.is_err(),
+            "Should fail without HOME or USERPROFILE"
+        );
+        assert!(
+            result_no_home
+                .unwrap_err()
+                .to_string()
+                .contains("home directory"),
             "Error should mention home directory"
         );
     }
