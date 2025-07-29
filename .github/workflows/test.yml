@@ -40,16 +40,16 @@ jobs:
         include:
           - os: ubuntu-latest
             rust: nightly
-            shell: ${{ matrix.shell }}
+            shell: bash
           - os: ubuntu-latest
             rust: 1.85.0 # First Rust 2024 edition
-            shell: ${{ matrix.shell }}
+            shell: bash
           - os: ubuntu-24.04
             rust: 1.88.0 # Latest stable version
-            shell: ${{ matrix.shell }}
+            shell: bash
           - os: ubuntu-24.04 # Latest LTS version
             rust: stable
-            shell: ${{ matrix.shell }}
+            shell: bash
           # Additional Windows configurations for cross-platform testing
           - os: windows-latest
             rust: stable
