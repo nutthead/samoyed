@@ -402,9 +402,15 @@ fn validate_hooks_directory_path(path: &str) -> Result<(), InstallError> {
 
     // Check for absolute paths (security and portability)
     // Handle both Unix-style (/path) and Windows-style (C:\path, \\server\share) absolute paths
-    let is_absolute = std::path::Path::new(path).is_absolute()
-        || path.starts_with('/')  // Unix-style absolute path
-        || path.starts_with("\\\\"); // Windows UNC path
+    let is_absolute = if cfg!(target_os = "windows") {
+        // Windows absolute paths: C:\, D:\, \\server\share, etc.
+        path.len() >= 3 && path.chars().nth(1) == Some(':') && path.chars().nth(2) == Some('\\')
+            || path.starts_with("\\\\") // UNC path
+            || path.starts_with('/') // Git Bash style
+    } else {
+        // Unix absolute paths start with /
+        path.starts_with('/')
+    };
 
     if is_absolute {
         return Err(InstallError::InvalidPath {
@@ -417,8 +423,12 @@ fn validate_hooks_directory_path(path: &str) -> Result<(), InstallError> {
     let invalid_chars: Vec<char> = path
         .chars()
         .filter(|&c| {
-            // Allow alphanumeric, hyphens, underscores, dots, and forward slashes
-            !c.is_alphanumeric() && !matches!(c, '-' | '_' | '.' | '/')
+            // Allow alphanumeric, hyphens, underscores, dots, and path separators
+            let allowed = c.is_alphanumeric() || matches!(c, '-' | '_' | '.' | '/');
+            // On Windows, also allow backslashes as path separators
+            #[cfg(target_os = "windows")]
+            let allowed = allowed || c == '\\';
+            !allowed
         })
         .collect();
 

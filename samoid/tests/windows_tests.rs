@@ -34,9 +34,9 @@ mod windows_tests {
             stderr: vec![],
         };
         let runner = MockCommandRunner::new()
-            .with_response("git.exe", &["--version"], Ok(version_output.clone()))
+            .with_response("git", &["--version"], Ok(version_output.clone()))
             .with_response(
-                "git.exe",
+                "git",
                 &["config", "core.hooksPath", ".samoid/_"],
                 Ok(output.clone()),
             );
@@ -60,9 +60,9 @@ mod windows_tests {
             } else {
                 // Relative paths should work
                 let runner2 = MockCommandRunner::new()
-                    .with_response("git.exe", &["--version"], Ok(version_output.clone()))
+                    .with_response("git", &["--version"], Ok(version_output.clone()))
                     .with_response(
-                        "git.exe",
+                        "git",
                         &["config", "core.hooksPath", &format!("{path}\\_")],
                         Ok(output.clone()),
                     );
@@ -75,21 +75,16 @@ mod windows_tests {
 
     #[test]
     fn test_windows_git_installations() {
-        // Test common Git for Windows installation paths
+        // Test that samoid works with various Git for Windows installations
+        // Note: samoid always uses "git" command regardless of where Git is installed
         let git_installations = vec![
-            (
-                "C:\\Program Files\\Git\\bin\\git.exe",
-                "Standard Git for Windows",
-            ),
-            (
-                "C:\\Program Files (x86)\\Git\\bin\\git.exe",
-                "32-bit Git for Windows",
-            ),
-            ("C:\\tools\\git\\bin\\git.exe", "Chocolatey Git"),
-            ("git.exe", "Git in PATH"),
+            "Standard Git for Windows (C:\\Program Files\\Git\\bin\\git.exe)",
+            "32-bit Git for Windows (C:\\Program Files (x86)\\Git\\bin\\git.exe)",
+            "Chocolatey Git (C:\\tools\\git\\bin\\git.exe)",
+            "Git in PATH",
         ];
 
-        for (git_path, description) in git_installations {
+        for description in git_installations {
             let env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\user");
 
             let output = Output {
@@ -103,19 +98,16 @@ mod windows_tests {
                 stderr: vec![],
             };
             let runner = MockCommandRunner::new()
-                .with_response(git_path, &["--version"], Ok(version_output))
+                .with_response("git", &["--version"], Ok(version_output))
                 .with_response(
-                    git_path,
+                    "git",
                     &["config", "core.hooksPath", ".samoid/_"],
                     Ok(output),
                 );
             let fs = MockFileSystem::new().with_directory(".git");
 
             let result = install_hooks(&env, &runner, &fs, None);
-            assert!(
-                result.is_ok(),
-                "Should work with {description} at: {git_path}"
-            );
+            assert!(result.is_ok(), "Should work with {description}");
         }
     }
 
@@ -140,9 +132,9 @@ mod windows_tests {
             stderr: vec![],
         };
         let runner = MockCommandRunner::new()
-            .with_response("git.exe", &["--version"], Ok(version_output))
+            .with_response("git", &["--version"], Ok(version_output))
             .with_response(
-                "git.exe",
+                "git",
                 &["config", "core.hooksPath", ".samoid/_"],
                 Ok(output),
             );
@@ -171,9 +163,9 @@ mod windows_tests {
             stderr: vec![],
         };
         let runner = MockCommandRunner::new()
-            .with_response("git.exe", &["--version"], Ok(version_output))
+            .with_response("git", &["--version"], Ok(version_output))
             .with_response(
-                "git.exe",
+                "git",
                 &["config", "core.hooksPath", ".samoid/_"],
                 Ok(output),
             );
@@ -213,9 +205,9 @@ mod windows_tests {
                 stderr: vec![],
             };
             let runner = MockCommandRunner::new()
-                .with_response("git.exe", &["--version"], Ok(version_output))
+                .with_response("git", &["--version"], Ok(version_output))
                 .with_response(
-                    "git.exe",
+                    "git",
                     &["config", "core.hooksPath", ".samoid/_"],
                     Ok(output),
                 );
@@ -252,9 +244,9 @@ mod windows_tests {
 
         for path in mixed_paths {
             let runner = MockCommandRunner::new()
-                .with_response("git.exe", &["--version"], Ok(version_output.clone()))
+                .with_response("git", &["--version"], Ok(version_output.clone()))
                 .with_response(
-                    "git.exe",
+                    "git",
                     &["config", "core.hooksPath", &format!("{path}\\_")],
                     Ok(output.clone()),
                 );

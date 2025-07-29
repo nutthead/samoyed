@@ -185,8 +185,11 @@ pub fn check_git_repository(fs: &dyn FileSystem) -> Result<(), GitError> {
 /// }
 /// ```
 pub fn set_hooks_path(runner: &dyn CommandRunner, hooks_path: &str) -> Result<(), GitError> {
+    // Determine the git command name based on platform
+    let git_cmd = get_git_command();
+
     // First, validate that Git is available by running git --version
-    match runner.run_command("git", &["--version"]) {
+    match runner.run_command(&git_cmd, &["--version"]) {
         Ok(version_output) => {
             if !version_output.status.success() {
                 return Err(GitError::CommandNotFound {
@@ -202,7 +205,7 @@ pub fn set_hooks_path(runner: &dyn CommandRunner, hooks_path: &str) -> Result<()
     }
 
     // Attempt to set the hooks path configuration
-    let output = runner.run_command("git", &["config", "core.hooksPath", hooks_path]);
+    let output = runner.run_command(&git_cmd, &["config", "core.hooksPath", hooks_path]);
 
     match output {
         Ok(output) => {
@@ -266,6 +269,14 @@ fn detect_os() -> Option<String> {
     } else {
         None
     }
+}
+
+/// Get the appropriate git command name for the current platform
+fn get_git_command() -> String {
+    // On Windows, both "git" and "git.exe" should work, but we'll use "git"
+    // consistently across all platforms. The CommandRunner implementations
+    // should handle platform-specific command resolution.
+    "git".to_string()
 }
 
 /// Analyzes Git configuration errors and provides specific suggestions  
