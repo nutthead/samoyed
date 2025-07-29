@@ -94,7 +94,9 @@ fn test_hook_content_validation() {
 
     // Verify that hook files were created
     let pre_commit_path = std::path::Path::new(".samoid/_/pre-commit");
-    let pre_commit_content = fs.read_to_string(pre_commit_path).expect("pre-commit hook should exist");
+    let pre_commit_content = fs
+        .read_to_string(pre_commit_path)
+        .expect("pre-commit hook should exist");
     assert!(pre_commit_content.starts_with("#!/usr/bin/env sh"));
     assert!(pre_commit_content.contains("samoid-hook"));
 
@@ -178,7 +180,7 @@ fn test_comprehensive_hook_coverage() {
         // Verify each hook is executable (has content)
         let content = fs
             .read_to_string(&hook_path)
-            .expect(&format!("Hook {hook} should be readable"));
+            .unwrap_or_else(|_| panic!("Hook {hook} should be readable"));
         assert!(!content.is_empty(), "Hook {hook} should have content");
     }
 }
@@ -210,7 +212,7 @@ fn test_large_number_of_files_simulation() {
 
     // Add 100 dummy files to simulate a large project
     for i in 0..100 {
-        fs = fs.with_file(&format!("src/file{i}.rs"), "// dummy content");
+        fs = fs.with_file(format!("src/file{i}.rs"), "// dummy content");
     }
 
     // Installation should still work efficiently

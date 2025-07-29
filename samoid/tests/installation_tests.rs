@@ -179,8 +179,7 @@ fn test_reinstallation_idempotency() {
         let result = install_hooks(&env, &runner, &fs, None);
         assert!(
             result.is_ok(),
-            "Installation {i} should succeed: {:?}",
-            result
+            "Installation {i} should succeed: {result:?}"
         );
 
         // Verify hooks still exist and are valid
@@ -226,7 +225,7 @@ fn test_directory_structure_validation() {
             "Required file {file} should exist in .samoid/_"
         );
     }
-    
+
     // Also verify that a sample hook file exists
     assert!(
         fs.exists(std::path::Path::new(".samoid/_/pre-commit")),
