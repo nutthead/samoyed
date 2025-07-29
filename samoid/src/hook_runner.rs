@@ -186,13 +186,27 @@ fn load_init_script(
         .or_else(|| env.get_var("USERPROFILE")) // Windows fallback
         .context("Could not determine home directory")?;
 
-    let xdg_config_home = env
-        .get_var("XDG_CONFIG_HOME")
-        .unwrap_or_else(|| format!("{home_dir}/.config"));
+    // Determine configuration directory based on platform and environment
+    let config_dir = if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode) {
+        // Native Windows: use %APPDATA%/samoid or fall back to %USERPROFILE%/.config/samoid
+        env.get_var("APPDATA")
+            .map(|appdata| format!("{appdata}/samoid"))
+            .unwrap_or_else(|| format!("{home_dir}/.config/samoid"))
+    } else {
+        // Unix-like systems (including WSL, Git Bash): use XDG Base Directory
+        env.get_var("XDG_CONFIG_HOME")
+            .map(|xdg| format!("{xdg}/samoid"))
+            .unwrap_or_else(|| format!("{home_dir}/.config/samoid"))
+    };
 
-    let init_script_path = PathBuf::from(xdg_config_home)
-        .join("samoid")
-        .join("init.sh");
+    // Choose script name based on environment
+    let script_name = if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode) {
+        "init.cmd" // Use batch file on native Windows
+    } else {
+        "init.sh" // Use shell script on Unix-like systems
+    };
+
+    let init_script_path = PathBuf::from(config_dir).join(script_name);
 
     if debug_mode {
         log_file_operation_with_env(
@@ -341,7 +355,7 @@ fn determine_shell_execution(
 ///
 /// 1. **Git Bash/MSYS2**: Checks for `MSYSTEM` environment variable
 /// 2. **Cygwin**: Checks for `CYGWIN` environment variable  
-/// 3. **WSL**: Currently not implemented (would require file system checks)
+/// 3. **WSL**: Checks for `WSL_DISTRO_NAME` and `WSL_INTEROP` environment variables
 ///
 /// # Arguments
 ///
@@ -368,9 +382,13 @@ fn is_windows_unix_environment(env: &dyn Environment, debug_mode: bool) -> bool 
         return true;
     }
 
-    // WSL detection would require file system access to check /proc/version
-    // This is not implemented yet as it would require the FileSystem trait
-    // and could be added in a future iteration
+    // Check for WSL (Windows Subsystem for Linux)
+    if env.get_var("WSL_DISTRO_NAME").is_some() || env.get_var("WSL_INTEROP").is_some() {
+        if debug_mode {
+            eprintln!("samoid: Detected WSL environment");
+        }
+        return true;
+    }
 
     false
 }
@@ -837,6 +855,15 @@ mod tests {
     #[test]
     fn test_is_windows_unix_environment_cygwin() {
         let env = MockEnvironment::new().with_var("CYGWIN", "nodosfilewarning");
+        assert!(is_windows_unix_environment(&env, false));
+    }
+
+    #[test]
+    fn test_is_windows_unix_environment_wsl() {
+        let env = MockEnvironment::new().with_var("WSL_DISTRO_NAME", "Ubuntu");
+        assert!(is_windows_unix_environment(&env, false));
+
+        let env = MockEnvironment::new().with_var("WSL_INTEROP", "/run/WSL/123_interop");
         assert!(is_windows_unix_environment(&env, false));
     }
 
