@@ -139,3 +139,16 @@ cd samoid && cargo check --all-targets
 # GOOD
 cd ~/Projects/github.com/typicode/husky-to-samoid/samoid && cargo check --all-targets
 ```
+
+## GitHub CLI
+This project is under the `nutthead` organization, so ensure you use the `gh` CLI correctly:
+
+```bash
+# BAD---causes "Error: gh: Not Found (HTTP 404)"
+$ gh api repos/nutthead/samoid/actions/runs/16605659171/jobs/46976672370/logs
+
+     {"message":"Not Found","documentation_url":"https://docs.github.com/rest","status":"404"}
+
+# GOOD---works!
+$ gh run view 16605659171 --repo nutthead/samoid --log-failed
+```
