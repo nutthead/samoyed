@@ -1,6 +1,2 @@
-samoid/.husky/scripts/pre-commit
-samoid/.husky/scripts/pre-push
-samoid/.samoid/scripts/pre-commit
-samoid/.samoid/scripts/pre-push
-
-/tmp/
+target/
+tarpaulin-report.html
