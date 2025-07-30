@@ -10,12 +10,20 @@ on:
   push:
     branches: [master, develop]
     paths:
-      - "samoid/**"
+      - "src/**"
+      - "tests/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".tarpaulin.toml"
       - ".github/workflows/test.yml"
   pull_request:
     branches: [master, develop]
     paths:
-      - "samoid/**"
+      - "src/**"
+      - "tests/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".tarpaulin.toml"
       - ".github/workflows/test.yml"
   workflow_dispatch:
 
@@ -67,21 +75,20 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            samoid/target/
-          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('samoid/Cargo.lock') }}
+            target/
+          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-${{ matrix.rust }}-
             ${{ runner.os }}-cargo-
 
       - name: 🔧 Configure working directory
         run: |
-          cd samoid
           pwd
+          echo "Working directory: $(pwd)"
         shell: bash
 
       - name: 🌍 Set up cross-platform environment
         run: |
-          cd samoid
           echo "=== Cross-Platform Environment Detection ==="
           echo "OS: ${{ runner.os }}"
           echo "Shell: ${{ matrix.shell || 'bash' }}"
@@ -105,68 +112,56 @@ jobs:
 
       - name: 🔍 Check code formatting
         run: |
-          cd samoid
           cargo fmt --all -- --check
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
 
       - name: 📋 Run Clippy lints
         run: |
-          cd samoid
           cargo clippy --all-targets --all-features -- -D warnings
         if: matrix.rust == 'stable'
 
       - name: 🏗️ Build project
         run: |
-          cd samoid
           cargo build --verbose
 
       - name: 🏗️ Build release
         run: |
-          cd samoid
           cargo build --release --verbose
         if: matrix.rust == 'stable'
 
       - name: 🧪 Run unit tests
         run: |
-          cd samoid
           cargo test --lib --verbose
 
       - name: 🔗 Run installation tests
         run: |
-          cd samoid
           cargo test --test installation_tests --verbose
 
       - name: 🛠️ Run error handling tests
         run: |
-          cd samoid
           cargo test --test error_handling_tests --verbose
 
       - name: ✅ Run validation tests
         run: |
-          cd samoid
           cargo test --test validation_tests --verbose
 
       - name: 🐧 Run Linux-specific tests
         run: |
-          cd samoid
           cargo test --test linux_tests --verbose
         if: runner.os == 'Linux'
 
       - name: 🍎 Run macOS-specific tests
         run: |
-          cd samoid
           cargo test --test macos_tests --verbose
         if: runner.os == 'macOS'
 
       - name: 🪟 Run Windows-specific tests
         run: |
-          cd samoid
           cargo test --test windows_tests --verbose
         if: runner.os == 'Windows'
 
       - name: 🌐  Run cross-platform compatibility tests
         run: |
-          cd samoid
           echo "Running cross-platform shell execution tests..."
           cargo test --test cross_platform_shell_execution --verbose
           echo "Cross-platform tests completed successfully"
@@ -174,18 +169,15 @@ jobs:
 
       - name: 🚀 Run all tests
         run: |
-          cd samoid
           cargo test --verbose
 
       - name: 📚 Generate documentation
         run: |
-          cd samoid
           cargo doc --no-deps --verbose
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
 
       - name: ⚡ Run benchmarks
         run: |
-          cd samoid
           cargo bench --verbose
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
 
@@ -208,8 +200,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            samoid/target/
-          key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('samoid/Cargo.lock') }}
+            target/
+          key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-coverage-
             ${{ runner.os }}-cargo-
@@ -219,56 +211,37 @@ jobs:
 
       - name: 📊 Generate code coverage
         run: |
-          cd samoid
-          cargo tarpaulin \
-            --verbose \
-            --all-features \
-            --workspace \
-            --engine llvm \
-            --timeout 120 \
-            --out xml \
-            --out html \
-            --out json \
-            --output-dir target/tarpaulin
-
-          # Extract coverage percentage for use in other steps
-          if [ -f target/tarpaulin/tarpaulin-report.json ]; then
-            COVERAGE=$(jq -r '.coverage // 0' target/tarpaulin/tarpaulin-report.json 2>/dev/null || echo "0")
+          # Run tarpaulin with configuration from .tarpaulin.toml
+          cargo tarpaulin --verbose --all-features --workspace --timeout 120
+          
+          # The .tarpaulin.toml now generates all formats: Html, Xml, Json, Lcov
+          # Files are automatically placed in target/tarpaulin/coverage/
+          
+          # Extract coverage percentage from JSON for GitHub environment
+          if [ -f target/tarpaulin/coverage/tarpaulin-report.json ]; then
+            COVERAGE=$(jq -r '.files | to_entries | map(.value) | 
+              {covered: map(.covered) | add, coverable: map(.coverable) | add} | 
+              (.covered / .coverable * 100)' target/tarpaulin/coverage/tarpaulin-report.json 2>/dev/null || echo "0")
             echo "COVERAGE_PERCENTAGE=$COVERAGE" >> $GITHUB_ENV
-            echo "📊 Code Coverage: $COVERAGE%"
+            echo "📊 Code Coverage: ${COVERAGE}%"
           else
             echo "COVERAGE_PERCENTAGE=0" >> $GITHUB_ENV
-            echo "📊 Code Coverage: Report not found"
+            echo "⚠️ Coverage report not found"
           fi
 
-      - name: 📋 Display coverage summary
-        run: |
-          cd samoid
-          if [ -f target/tarpaulin/cobertura.xml ]; then
-            echo "📊 Coverage Report Generated Successfully"
-            echo "HTML Report: target/tarpaulin/tarpaulin-report.html"
-            echo "XML Report: target/tarpaulin/cobertura.xml"
-            echo "JSON Report: target/tarpaulin/tarpaulin-report.json"
-          else
-            echo "❌ Coverage report generation failed"
-            exit 1
-          fi
 
       - name: 📤 Upload coverage reports
         uses: actions/upload-artifact@v4
         with:
           name: coverage-reports
-          path: |
-            samoid/target/tarpaulin/tarpaulin-report.html
-            samoid/target/tarpaulin/cobertura.xml
-            samoid/target/tarpaulin/tarpaulin-report.json
+          path: target/tarpaulin/coverage/
           retention-days: 30
 
       - name: 📈 Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          file: samoid/target/tarpaulin/cobertura.xml
-          directory: samoid/target/tarpaulin/
+          file: target/tarpaulin/coverage/lcov.info
+          directory: target/tarpaulin/coverage/
           flags: unittests
           name: samoid-coverage
           fail_ci_if_error: false
@@ -283,13 +256,23 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const path = './samoid/target/tarpaulin/tarpaulin-report.json';
-
+            const path = './target/tarpaulin/coverage/tarpaulin-report.json';
+            
             if (fs.existsSync(path)) {
-              const coverage = JSON.parse(fs.readFileSync(path, 'utf8'));
-              const coveragePercent = coverage.files ?
-                Object.values(coverage.files).reduce((acc, file) => acc + file.covered, 0) /
-                Object.values(coverage.files).reduce((acc, file) => acc + file.coverable, 0) * 100 : 0;
+              const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+              
+              // Calculate total coverage from all files
+              const totals = Object.values(report.files || {}).reduce(
+                (acc, file) => ({
+                  covered: acc.covered + file.covered,
+                  coverable: acc.coverable + file.coverable
+                }),
+                { covered: 0, coverable: 0 }
+              );
+              
+              const coveragePercent = totals.coverable > 0 
+                ? (totals.covered / totals.coverable * 100).toFixed(2)
+                : '0.00';
 
               const comment = `## 📊 Code Coverage Report
 
@@ -297,8 +280,8 @@ jobs:
 
               | Metric | Value |
               |--------|-------|
-              | Lines Covered | ${Object.values(coverage.files || {}).reduce((acc, file) => acc + file.covered, 0)} |
-              | Total Lines | ${Object.values(coverage.files || {}).reduce((acc, file) => acc + file.coverable, 0)} |
+              | Lines Covered | ${totals.covered} |
+              | Total Lines | ${totals.coverable} |
               | Coverage % | ${coveragePercent.toFixed(2)}% |
 
               📁 **Coverage by File:**
@@ -344,7 +327,7 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-audit-${{ hashFiles('samoid/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-audit-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-audit-
 
@@ -353,7 +336,6 @@ jobs:
 
       - name: 🔍 Run security audit
         run: |
-          cd samoid
           echo "🔒 Running security audit..."
           cargo audit --format json > audit-report.json || echo "Security issues found"
           cargo audit || AUDIT_EXIT_CODE=$?
@@ -383,7 +365,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const path = './samoid/audit-report.json';
+            const path = './audit-report.json';
 
             let comment = `## 🔒 Security Audit Report\n\n`;
 
