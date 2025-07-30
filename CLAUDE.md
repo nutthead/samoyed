@@ -27,6 +27,9 @@ Samoid is a fully functional Rust implementation with comprehensive features:
 - **`src/logging.rs`**: Logging utilities and output formatting
 - **`src/exit_codes.rs`**: Standardized exit codes for error conditions
 
+**YOU MUST PROACTIVELY READ** [rust-2024-reference.md](file:knol/references/rust-2024-reference.md) to ensure the code you write is compatible with Rust 2024.
+**YOU MUST PROACTIVELY READ** [rust-2024-reference.md](file:knol/references/rust-2024-reference.md) to ensure you use Rust 2024's new features when applicable.
+
 #### Testing & Quality
 - **Unit tests**: Inline tests in each module using Rust's built-in test framework
 - **Integration tests**: Comprehensive test suite in `tests/` directory
@@ -77,13 +80,13 @@ cargo tarpaulin              # Generate test coverage report
 ### Samoid Testing Architecture
 Uses dependency injection pattern for complete test isolation and exceptional quality metrics:
 
-**Architecture Pattern:**
+#### *Architecture Pattern
 - **Abstractions**: `Environment`, `CommandRunner`, `FileSystem` traits define interfaces
 - **Production**: `SystemEnvironment`, `SystemCommandRunner`, `SystemFileSystem` for real operations
 - **Testing**: `MockEnvironment`, `MockCommandRunner`, `MockFileSystem` with `Arc<Mutex<T>>` for thread safety
 
-**Testing Reference Guide:**
-Before writing new tests---or maintaining existing tests and fixing borken tests---proactively read [Rust Testing Catalog: Comprehensive Reference Guide](knol/references/002-rust-testing-reference.md) as a reference guide.
+#### Testing Reference Guide
+**YOU MUST PROACTIVELY READ** [Rust Testing Catalog: Comprehensive Reference Guide](file:knol/references/rust-testing-reference.md) as a reference guide for testing.
 
 **Coverage Tools:** Use `cargo tarpaulin` with `.tarpaulin.toml`:
 ```toml
