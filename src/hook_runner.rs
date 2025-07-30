@@ -32,6 +32,8 @@
 //! Implements efficient hook execution with comprehensive platform support.
 
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process;
@@ -39,6 +41,29 @@ use std::process;
 mod environment;
 mod logging;
 
+/// Simplified configuration structure for hook runner
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct SamoidConfig {
+    /// Hook definitions (required)
+    pub hooks: HashMap<String, String>,
+
+    /// Optional settings (with defaults)
+    #[serde(default)]
+    pub settings: SamoidSettings,
+}
+
+/// Settings structure with defaults
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+struct SamoidSettings {
+    #[serde(default)]
+    pub hook_directory: Option<String>,
+    #[serde(default)]
+    pub debug: bool,
+    #[serde(default)]
+    pub fail_fast: Option<bool>,
+    #[serde(default)]
+    pub skip_hooks: bool,
+}
 use environment::{
     CommandRunner, Environment, FileSystem, SystemCommandRunner, SystemEnvironment,
     SystemFileSystem,
@@ -93,7 +118,27 @@ fn run_hook(
         eprintln!("samoid: Detected hook name: {hook_name}");
     }
 
-    // Build the expected hook script path: .samoid/scripts/{hook_name}
+    // First, try to load and execute command from samoid.toml
+    match load_hook_command_from_config(fs, hook_name, debug_mode) {
+        Ok(command) => {
+            if debug_mode {
+                eprintln!("samoid: Found command in samoid.toml: {command}");
+            }
+
+            // Load initialization script from ~/.config/samoid/init.sh
+            load_init_script(env, runner, fs, debug_mode)?;
+
+            // Execute the command from configuration
+            return execute_hook_command(env, runner, &command, &args[2..], debug_mode);
+        }
+        Err(e) => {
+            if debug_mode {
+                eprintln!("samoid: Failed to load command from samoid.toml: {e}");
+            }
+        }
+    }
+
+    // Fallback: Build the expected hook script path: .samoid/scripts/{hook_name}
     let hook_script_path = PathBuf::from(".samoid").join("scripts").join(hook_name);
 
     if debug_mode {
@@ -118,6 +163,131 @@ fn run_hook(
 
     // Execute the hook script with proper environment
     execute_hook_script(env, runner, fs, &hook_script_path, &args[2..], debug_mode)
+}
+
+/// Load hook command from samoid.toml configuration
+fn load_hook_command_from_config(
+    fs: &dyn FileSystem,
+    hook_name: &str,
+    debug_mode: bool,
+) -> Result<String> {
+    let config_path = Path::new("samoid.toml");
+
+    if debug_mode {
+        eprintln!("samoid: Checking for samoid.toml...");
+    }
+
+    if !fs.exists(config_path) {
+        if debug_mode {
+            eprintln!("samoid: No samoid.toml found");
+        }
+        anyhow::bail!("No samoid.toml configuration file found");
+    }
+
+    if debug_mode {
+        eprintln!("samoid: Reading samoid.toml...");
+    }
+
+    let config_content = fs
+        .read_to_string(config_path)
+        .context("Failed to read samoid.toml")?;
+
+    if debug_mode {
+        eprintln!("samoid: Parsing samoid.toml...");
+    }
+
+    let config: SamoidConfig =
+        toml::from_str(&config_content).context("Failed to parse samoid.toml")?;
+
+    if debug_mode {
+        eprintln!("samoid: Successfully parsed config, looking for hook '{hook_name}'");
+        eprintln!(
+            "samoid: Available hooks: {:?}",
+            config.hooks.keys().collect::<Vec<_>>()
+        );
+    }
+
+    if let Some(command) = config.hooks.get(hook_name) {
+        Ok(command.clone())
+    } else {
+        if debug_mode {
+            eprintln!("samoid: No command configured for hook '{hook_name}' in samoid.toml");
+        }
+        anyhow::bail!("No command configured for hook '{hook_name}'");
+    }
+}
+
+/// Execute a hook command from configuration
+fn execute_hook_command(
+    env: &dyn Environment,
+    runner: &dyn CommandRunner,
+    command: &str,
+    hook_args: &[String],
+    debug_mode: bool,
+) -> Result<()> {
+    if debug_mode {
+        eprintln!("samoid: Executing command: {command}");
+        let sanitized_hook_args = sanitize_args(hook_args);
+        eprintln!("samoid: Hook arguments: {sanitized_hook_args:?}");
+    }
+
+    // Use shell to execute the command
+    let shell_command =
+        if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode) {
+            "cmd"
+        } else {
+            "sh"
+        };
+
+    let shell_args = if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode)
+    {
+        vec!["/C", command]
+    } else {
+        vec!["-c", command]
+    };
+
+    if debug_mode {
+        log_command_execution(
+            debug_mode,
+            shell_command,
+            &shell_args.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+        );
+    }
+
+    let output = runner
+        .run_command(shell_command, &shell_args)
+        .with_context(|| format!("Failed to execute hook command: {command}"))?;
+
+    // Check exit code and provide appropriate error messages
+    let exit_code = output.status.code().unwrap_or(1);
+
+    if debug_mode {
+        eprintln!("samoid: Hook command exit code: {exit_code}");
+    }
+
+    // Print stdout and stderr from the hook
+    if !output.stdout.is_empty() {
+        print!("{}", String::from_utf8_lossy(&output.stdout));
+    }
+    if !output.stderr.is_empty() {
+        eprint!("{}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    // Handle specific error cases
+    if exit_code != 0 {
+        eprintln!("samoid - hook command failed (code {exit_code}): {command}");
+
+        // Check for command not found (exit code 127)
+        if exit_code == 127 {
+            eprintln!("samoid - command not found in PATH");
+            if !debug_mode {
+                eprintln!("samoid - run with SAMOID=2 for more details");
+            }
+        }
+    }
+
+    // Exit with the same code as the hook command
+    process::exit(exit_code);
 }
 
 /// Loads and prepares the user's initialization script for hook execution.
