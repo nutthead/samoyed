@@ -55,12 +55,16 @@ on:
   push:
     branches: [master, develop]  # Only test main branches to avoid noise
     paths:
-      - "samoid/**"                    # Rust source code changes
+      - "src/**"                       # Rust source code changes
+      - "tests/**"                     # Test and benchmark changes
+      - "Cargo.toml"                   # Dependencies changes
       - ".github/workflows/perf.yml"   # Pipeline changes themselves
   pull_request:
     branches: [master, develop]  # Performance impact analysis for PRs
     paths:
-      - "samoid/**"                    # Only run if code actually changed
+      - "src/**"                       # Only run if code actually changed
+      - "tests/**"                     # Test and benchmark changes
+      - "Cargo.toml"                   # Dependencies changes
       - ".github/workflows/perf.yml"   # Test pipeline changes
   schedule:
     # Nightly performance monitoring at 2 AM UTC (low GitHub Actions usage time)
@@ -102,26 +106,24 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            samoid/target/
-          key: ${{ runner.os }}-cargo-perf-${{ hashFiles('samoid/Cargo.lock') }}
+            target/
+          key: ${{ runner.os }}-cargo-perf-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-perf-
             ${{ runner.os }}-cargo-
 
       - name: 🔧 Configure working directory
         run: |
-          cd samoid
           pwd
+          echo "Working directory is now root (samoid moved to root)"
 
       - name: 🏗️ Build release binaries
         run: |
-          cd samoid
           cargo build --release --verbose
 
       - name: 📏 Measure binary sizes
         id: binary_sizes
         run: |
-          cd samoid
           echo "=== Binary Size Analysis ==="
           
           SAMOID_SIZE=$(stat -c%s target/release/samoid)
@@ -149,7 +151,6 @@ jobs:
       - name: 🧠 Measure memory usage
         id: memory_usage
         run: |
-          cd samoid
           echo "=== Memory Usage Analysis ==="
           
           # Create test environment
@@ -159,12 +160,12 @@ jobs:
           
           # Test samoid init memory usage
           echo "Testing samoid init memory usage..."
-          /usr/bin/time -v ../../target/release/samoid init 2>&1 | tee samoid-init-memory.log
+          /usr/bin/time -v ../target/release/samoid init 2>&1 | tee samoid-init-memory.log
           SAMOID_MEMORY=$(grep "Maximum resident set size" samoid-init-memory.log | awk '{print $6}')
           
           # Test samoid-hook memory usage  
           echo "Testing samoid-hook memory usage..."
-          /usr/bin/time -v ../../target/release/samoid-hook --help 2>&1 | tee samoid-hook-memory.log
+          /usr/bin/time -v ../target/release/samoid-hook --help 2>&1 | tee samoid-hook-memory.log
           HOOK_MEMORY=$(grep "Maximum resident set size" samoid-hook-memory.log | awk '{print $6}')
           
           echo "samoid init memory: ${SAMOID_MEMORY} KB ($(echo "scale=2; ${SAMOID_MEMORY}/1024" | bc) MB)"
@@ -186,7 +187,6 @@ jobs:
       - name: ⚡ Run performance benchmarks
         id: benchmarks
         run: |
-          cd samoid
           echo "=== Performance Benchmarks ==="
           
           # Run benchmarks with JSON output
@@ -219,7 +219,6 @@ jobs:
       - name: 📊 Generate performance report
         id: perf_report
         run: |
-          cd samoid
           
           # Create performance report
           cat > performance-report.md << 'EOF'
@@ -272,9 +271,9 @@ jobs:
         with:
           name: performance-results-${{ github.run_number }}
           path: |
-            samoid/benchmark-results.log
-            samoid/performance-report.md
-            samoid/tmp/perf-test/*.log
+            benchmark-results.log
+            performance-report.md
+            tmp/perf-test/*.log
           retention-days: 30
 
       - name: 💬 Comment performance results on PR
@@ -284,8 +283,8 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const reportPath = './samoid/performance-report.md';
-            const comparisonPath = './samoid/performance-comparison.md';
+            const reportPath = './performance-report.md';
+            const comparisonPath = './performance-comparison.md';
             
             let fullReport = '';
             
@@ -320,7 +319,6 @@ jobs:
       - name: 📊 Generate performance metrics JSON
         id: metrics_json
         run: |
-          cd samoid
           
           # Create structured performance data
           cat > performance-metrics.json << EOF
@@ -349,19 +347,18 @@ jobs:
         id: perf_comparison
         continue-on-error: true
         run: |
-          cd samoid
           
           # Make the comparison script executable
-          chmod +x ../.github/workflows/scripts/perf-compare.js
+          chmod +x .github/workflows/scripts/perf-compare.js
           
           # Create performance data directory
           mkdir -p .perf-data
           
           # Store current results
-          node ../.github/workflows/scripts/perf-compare.js store performance-metrics.json
+          node .github/workflows/scripts/perf-compare.js store performance-metrics.json
           
           # Compare against baseline (if available)
-          node ../.github/workflows/scripts/perf-compare.js compare performance-metrics.json || echo "⚠️ Performance comparison failed (may be expected for first run)"
+          node .github/workflows/scripts/perf-compare.js compare performance-metrics.json || echo "⚠️ Performance comparison failed (may be expected for first run)"
           
           # Check if comparison report was generated
           if [ -f performance-comparison.md ]; then
@@ -377,18 +374,16 @@ jobs:
         with:
           name: performance-data-${{ github.run_number }}
           path: |
-            samoid/.perf-data/
-            samoid/performance-metrics.json
-            samoid/performance-comparison.md
+            .perf-data/
+            performance-metrics.json
+            performance-comparison.md
           retention-days: 90
 
       - name: 📈 Update performance baseline (master branch only)
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
-          cd samoid
-          
           # Set current results as new baseline for master branch
-          node ../.github/workflows/scripts/perf-compare.js set-baseline performance-metrics.json
+          node .github/workflows/scripts/perf-compare.js set-baseline performance-metrics.json
           echo "✅ Performance baseline updated for master branch"
 
   summary:

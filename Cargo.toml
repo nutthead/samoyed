@@ -25,6 +25,7 @@ criterion = "0.5"
 [[bench]]
 name = "benchmark"
 harness = false
+path = "tests/benches/benchmark.rs"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
