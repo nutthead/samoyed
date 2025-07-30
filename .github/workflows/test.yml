@@ -154,7 +154,7 @@ jobs:
         if: matrix.rust == 'stable'
         uses: actions/upload-artifact@v4
         with:
-          name: samoid-${{ runner.os }}-${{ runner.arch }}-${{ matrix.shell || 'default' }}
+          name: samoid-${{ matrix.os }}-${{ matrix.rust }}-${{ matrix.shell || 'default' }}
           path: |
             artifacts/samoid-*.tar.gz
             artifacts/samoid-*.zip
@@ -589,7 +589,7 @@ jobs:
 
       - name: 🎯 Check overall success
         run: |
-          if [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.coverage.result }}" != "success" ]; then
+          if [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.coverage.result }}" != "success" ] || [ "${{ needs.security.result }}" != "success" ]; then
             echo "❌ Workflow failed - check individual job results"
             exit 1
           else
