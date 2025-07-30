@@ -10,19 +10,34 @@ This repository contains **Samoid**, a modern native Git hooks manager implement
 
 ### Samoid Architecture
 Samoid is a fully functional Rust implementation with comprehensive features:
-- **CLI binary** (`src/main.rs`): Command-line interface with `init` command using clap
-- **Hook runner binary** (`samoid-hook`): Separate binary for executing git hooks at runtime
-- **Core modules**:
-  - `src/lib.rs`: Public API exposing install_hooks function and modules
-  - `src/installer.rs`: Main installation logic with error handling
-  - `src/environment.rs`: Dependency injection traits (Environment, CommandRunner, FileSystem) and implementations
-  - `src/git.rs`: Git repository validation and configuration management
-  - `src/hooks.rs`: Hook file creation and management for all 14 standard git hooks
-  - `src/config.rs`: TOML-based configuration with SamoidConfig and SamoidSettings
-  - `src/project.rs`: Project type detection (Node.js, Rust, etc.)
-- **Testing infrastructure**: Mock implementations for complete test isolation in `tests/`
-- **Performance benchmarks**: Comprehensive benchmark suite with Criterion in `tests/benches/`
-- **Dependencies**: clap (CLI), toml/serde (config), anyhow (error handling)
+
+#### Binaries
+- **CLI binary** (`samoid`): Main command-line interface built from `src/main.rs` with `init` command using clap
+- **Hook runner binary** (`samoid-hook`): Separate binary built from `src/hook_runner.rs` for executing git hooks at runtime
+
+#### Core Modules
+- **`src/lib.rs`**: Public API exposing install_hooks function and module exports
+- **`src/installer.rs`**: Main installation logic with comprehensive error handling
+- **`src/environment.rs`**: Dependency injection traits (Environment, CommandRunner, FileSystem) and implementations
+- **`src/git.rs`**: Git repository validation and configuration management
+- **`src/hooks.rs`**: Hook file creation and management for all 14 standard git hooks
+- **`src/config.rs`**: TOML-based configuration with SamoidConfig and SamoidSettings
+- **`src/project.rs`**: Project type detection (Node.js, Rust, Python, etc.)
+- **`src/init.rs`**: Implementation of the `samoid init` command functionality
+- **`src/logging.rs`**: Logging utilities and output formatting
+- **`src/exit_codes.rs`**: Standardized exit codes for error conditions
+
+#### Testing & Quality
+- **Unit tests**: Inline tests in each module using Rust's built-in test framework
+- **Integration tests**: Comprehensive test suite in `tests/` directory
+- **Performance benchmarks**: Criterion-based benchmarks in `tests/benches/`
+- **Test utilities**: Mock implementations (MockEnvironment, MockCommandRunner, MockFileSystem) for complete test isolation
+
+#### Dependencies
+- **clap** (v4.5): Command-line argument parsing with derive macros
+- **toml** (v0.8): Configuration file parsing
+- **serde** (v1.0): Serialization/deserialization with derive support
+- **anyhow** (v1.0): Flexible error handling and propagation
 
 ## Temp directory
 
