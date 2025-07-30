@@ -124,12 +124,151 @@ fn benchmark_large_mock_filesystem(c: &mut Criterion) {
     });
 }
 
+fn benchmark_real_hook_execution_overhead(c: &mut Criterion) {
+    use std::process::Command;
+    use std::time::Duration;
+    
+    c.bench_function("real_hook_execution_overhead", |b| {
+        b.iter_custom(|iters| {
+            let mut total_duration = Duration::new(0, 0);
+            
+            for _ in 0..iters {
+                let start = std::time::Instant::now();
+                
+                // Test pure samoid-hook startup overhead with empty hook
+                let output = Command::new("./target/release/samoid-hook")
+                    .arg("pre-commit")
+                    .env("SAMOID", "1")
+                    .output();
+                
+                let elapsed = start.elapsed();
+                
+                // Only count successful executions in timing
+                if let Ok(result) = output {
+                    if result.status.success() || result.status.code() == Some(1) {
+                        // Status code 1 is expected for missing hook script - that's fine for overhead measurement
+                        total_duration += elapsed;
+                    }
+                }
+            }
+            
+            total_duration
+        })
+    });
+}
+
+fn benchmark_startup_time_samoid_cli(c: &mut Criterion) {
+    use std::process::Command;
+    use std::time::Duration;
+    
+    c.bench_function("startup_time_samoid_help", |b| {
+        b.iter_custom(|iters| {
+            let mut total_duration = Duration::new(0, 0);
+            
+            for _ in 0..iters {
+                let start = std::time::Instant::now();
+                
+                let output = Command::new("./target/release/samoid")
+                    .arg("--help")
+                    .output();
+                
+                let elapsed = start.elapsed();
+                
+                if let Ok(result) = output {
+                    if result.status.success() {
+                        total_duration += elapsed;
+                    }
+                }
+            }
+            
+            total_duration
+        })
+    });
+}
+
+fn benchmark_startup_time_samoid_hook_cli(c: &mut Criterion) {
+    use std::process::Command;
+    use std::time::Duration;
+    
+    c.bench_function("startup_time_samoid_hook_help", |b| {
+        b.iter_custom(|iters| {
+            let mut total_duration = Duration::new(0, 0);
+            
+            for _ in 0..iters {
+                let start = std::time::Instant::now();
+                
+                let output = Command::new("./target/release/samoid-hook")
+                    .arg("--help")
+                    .output();
+                
+                let elapsed = start.elapsed();
+                
+                if let Ok(result) = output {
+                    if result.status.success() {
+                        total_duration += elapsed;
+                    }
+                }
+            }
+            
+            total_duration
+        })
+    });
+}
+
+fn benchmark_filesystem_operations_real(c: &mut Criterion) {
+    use std::fs;
+    use std::path::Path;
+    use tempfile::TempDir;
+    
+    c.bench_function("filesystem_operations_real", |b| {
+        b.iter(|| {
+            let temp_dir = TempDir::new().unwrap();
+            let test_path = temp_dir.path();
+            
+            // Simulate real filesystem operations during hook installation
+            let git_dir = test_path.join(".git");
+            let samoid_dir = test_path.join(".samoid");
+            let hooks_dir = samoid_dir.join("_");
+            
+            // Create directories
+            black_box(fs::create_dir_all(&git_dir));
+            black_box(fs::create_dir_all(&hooks_dir));
+            
+            // Check existence (common operations)
+            black_box(git_dir.exists());
+            black_box(samoid_dir.exists());
+            black_box(hooks_dir.exists());
+            
+            // Write hook files
+            for hook in ["pre-commit", "pre-push", "commit-msg"].iter() {
+                let hook_file = hooks_dir.join(hook);
+                black_box(fs::write(&hook_file, "#!/bin/sh\n./samoid-hook $0 \"$@\"\n"));
+            }
+            
+            // Read operations
+            for hook in ["pre-commit", "pre-push", "commit-msg"].iter() {
+                let hook_file = hooks_dir.join(hook);
+                black_box(fs::read_to_string(&hook_file));
+            }
+        })
+    });
+}
+
 criterion_group!(
-    benches,
+    mock_benches,
     benchmark_mock_installation,
     benchmark_mock_installation_with_custom_dir,
     benchmark_mock_filesystem_operations,
     benchmark_skip_installation,
     benchmark_large_mock_filesystem
 );
-criterion_main!(benches);
+
+criterion_group!(
+    real_benches,
+    benchmark_real_hook_execution_overhead,
+    benchmark_startup_time_samoid_cli,
+    benchmark_startup_time_samoid_hook_cli,
+    benchmark_filesystem_operations_real
+);
+
+criterion_main!(mock_benches, real_benches);
