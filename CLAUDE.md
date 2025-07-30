@@ -51,7 +51,8 @@ A fully functional Rust reimplementation of Husky with comprehensive features:
 
 ## Temp directory
 
-Instead of `file:/tmp/`, use `file:tmp/`. `file:tmp/` is intentionally gi ignored.
+- **Instead of `file:/tmp/`, use `file:tmp/`**. `file:tmp/` is intentionally gi ignored.
+- If it doesn't exist, **YOU ARE PERMITTED** to create it.
 
 ## Development Commands
 
@@ -152,20 +153,38 @@ cd ~/Projects/github.com/typicode/husky-to-samoid/samoid && cargo check --all-ta
 This project is under the `nutthead` organization, so ensure you use the `gh` CLI correctly:
 
 ```bash
-# BAD---causes "Error: gh: Not Found (HTTP 404)"
+# BAD (causes "Error: gh: Not Found (HTTP 404)")
 $ gh api repos/nutthead/samoid/actions/runs/16605659171/jobs/46976672370/logs
 
-     {"message":"Not Found","documentation_url":"https://docs.github.com/rest","status":"404"}
-
-# GOOD---works!
+# GOOD
 $ gh run view 16605659171 --repo nutthead/samoid --log-failed
 
 ###############################################################################
 
-# BAD---could fail/err in case of special characters
-$ gh issue comment 7 --repo nutthead/samoid --body "...
+# BAD
+$ gh api repos/nutthead/samoid/pulls/comments/2242172228/replies --method POST --field body=@/tmp/concurrency-reply.md
 
-# GOOD---less likely to fail
+# GOOD
+$ gh pr comment 23 --repo nutthead/samoid --body-file /tmp/concurrency-reply.md
+
+###############################################################################
+```
+
+Prefer --body-file to --body:
+```bash
+# BAD (could fail/err in case of special characters)
+$ gh issue comment 7 --repo nutthead/samoid --body <stdin text>
+
+# GOOD
 # First write the body to a file, then use --body-file to read the body from the file
 $ gh issue comment 7 --repo nutthead/samoid --body-file /tmp/issue-7-completion-comment.md
+
+
+###############################################################################
+
+# BAD
+$ gh pr create --title "feat: implement comprehensive performance optimization (#8)" --body <stdin text>
+
+# GOOD
+$ gh pr create --title 'feat: implement comprehensive performance optimization (#8)' --body-file <path to file>
 ```
