@@ -2,14 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-This project's root directory is <file:~/Projects/github.com/typicode/husky-to-samoid/>.
+This project's root directory is <file:~/Projects/github.com/nutthead/samoid/>.
 
 ## Project Overview
 
 This repository contains **Samoid**, a modern native Git hooks manager implemented in Rust.
 
 ### Samoid Architecture
-Samoid is a fully functional Rust implementation with comprehensive features:
+Samoid aims to be a fully functional Rust implementation with comprehensive features:
 
 #### Binaries
 - **CLI binary** (`samoid`): Main command-line interface built from `src/main.rs` with `init` command using clap
@@ -88,15 +88,7 @@ Uses dependency injection pattern for complete test isolation and exceptional qu
 #### Testing Reference Guide
 **YOU MUST PROACTIVELY READ** [Rust Testing Catalog: Comprehensive Reference Guide](file:knol/references/rust-testing-reference.md) as a reference guide for testing.
 
-**Coverage Tools:** Use `cargo tarpaulin` with `.tarpaulin.toml`:
-```toml
-[default]
-run-types = ["Tests"]
-
-[report]
-output-dir = "target/tarpaulin/coverage"
-out = ["Html", "Json"]
-```
+**Coverage Tools:** Use `cargo tarpaulin`. Read [tarpaulin.toml](file:.tarpaulin.toml) for more information.
 
 ### The `file:tmp/samoid/dummy/` dir
 
@@ -117,18 +109,18 @@ out = ["Html", "Json"]
 ### Prefer absolute paths to relative paths
 
 ```bash
-# BAD
+# BAD - YOU MUST NEVER DO THIS
 cd src && rm tests/comprehensive_integration_tests.rs
 
-# GOOD
+# GOOD - YOU MUST INSTEAD DO THIS
 rm ~/Projects/github.com/typicode/husky-to-samoid/tests/comprehensive_integration_tests.rs
 
 ###############################################################################
 
-# BAD (outdated path)
+# BAD - YOU MUST NEVER DO THIS
 rm samoid/tests/comprehensive_integration_tests.rs
 
-# GOOD
+# GOOD - YOU MUST INSTEAD DO THIS
 rm ~/Projects/github.com/typicode/husky-to-samoid/tests/comprehensive_integration_tests.rs
 
 ###############################################################################
@@ -144,38 +136,37 @@ cd ~/Projects/github.com/typicode/husky-to-samoid && cargo check --all-targets
 This project is under the `nutthead` organization, so ensure you use the `gh` CLI correctly:
 
 ```bash
-# BAD (causes "Error: gh: Not Found (HTTP 404)")
+# BAD - YOU MUST NEVER DO THIS
 $ gh api repos/nutthead/samoid/actions/runs/16605659171/jobs/46976672370/logs
 
-# GOOD
+# GOOD - YOU MUST INSTEAD DO THIS
 $ gh run view 16605659171 --repo nutthead/samoid --log-failed
 
 ###############################################################################
 
-# BAD
+# BAD - YOU MUST NEVER DO THIS
 $ gh api repos/nutthead/samoid/pulls/comments/2242172228/replies --method POST --field body=@/tmp/concurrency-reply.md
 
-# GOOD
+# GOOD - YOU MUST INSTEAD DO THIS
 $ gh pr comment 23 --repo nutthead/samoid --body-file /tmp/concurrency-reply.md
 
 ###############################################################################
 ```
 
-Prefer --body-file to --body:
+**YOU MUST ALWAYS USE** `--body-file` instead of `--body`:
 ```bash
-# BAD (could fail/err in case of special characters)
+# BAD - YOU MUST NEVER DO THIS
 $ gh issue comment 7 --repo nutthead/samoid --body <stdin text>
 
-# GOOD
 # First write the body to a file, then use --body-file to read the body from the file
+# GOOD - YOU MUST INSTEAD DO THIS
 $ gh issue comment 7 --repo nutthead/samoid --body-file /tmp/issue-7-completion-comment.md
-
 
 ###############################################################################
 
-# BAD
+# BAD - YOU MUST NEVER DO THIS
 $ gh pr create --title "feat: implement comprehensive performance optimization (#8)" --body <stdin text>
 
-# GOOD
+# GOOD - YOU MUST INSTEAD DO THIS
 $ gh pr create --title 'feat: implement comprehensive performance optimization (#8)' --body-file <path to file>
 ```

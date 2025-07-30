@@ -1,0 +1,409 @@
+# 🚀 Release Workflow for Samoid
+#
+# This workflow automates the release process for Samoid, implementing:
+# - AC11.10: Automated binary builds and GitHub releases
+# - AC11.11: Changelog generation
+# - AC11.12: Publishing to crates.io
+#
+# Triggered by:
+# - Push of version tags (e.g., v0.1.0, v1.0.0-beta.1)
+# - Manual workflow dispatch for testing
+#
+# Release Process:
+# 1. Validate version tag format
+# 2. Build release binaries for all platforms
+# 3. Generate changelog from git history
+# 4. Create GitHub release with artifacts
+# 5. Publish to crates.io (if not a pre-release)
+
+name: 🚀 Release
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'  # Matches v0.1.0, v1.0.0-beta.1, etc.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.1.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run (skip publishing)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Validate version and prepare release
+  prepare:
+    name: 🔍 Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog generation
+
+      - name: 🏷️ Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            TAG="v${VERSION}"
+          else
+            TAG="${{ github.ref_name }}"
+            VERSION="${TAG#v}"
+          fi
+          
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          
+          # Check if pre-release (contains -, e.g., 1.0.0-beta.1)
+          if [[ "$VERSION" =~ "-" ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "📦 Pre-release version detected: ${VERSION}"
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "📦 Release version: ${VERSION}"
+          fi
+
+      - name: 🔍 Validate Cargo.toml version
+        run: |
+          CARGO_VERSION=$(grep -E "^version" Cargo.toml | head -1 | cut -d'"' -f2)
+          EXPECTED_VERSION="${{ steps.version.outputs.version }}"
+          
+          if [[ "$CARGO_VERSION" != "$EXPECTED_VERSION" ]]; then
+            echo "❌ Version mismatch!"
+            echo "Cargo.toml version: ${CARGO_VERSION}"
+            echo "Release version: ${EXPECTED_VERSION}"
+            echo ""
+            echo "Please update Cargo.toml version to match the release tag."
+            exit 1
+          fi
+          
+          echo "✅ Version validated: ${CARGO_VERSION}"
+
+  # Build release binaries for all platforms
+  build:
+    name: 🏗️ Build ${{ matrix.target }}
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+            cross: true
+          
+          # macOS builds
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          
+          # Windows builds
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+          - target: i686-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🦀 Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: 📦 Install cross-compilation tools
+        if: matrix.cross
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: 📦 Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-release-${{ matrix.target }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-${{ matrix.target }}-
+            ${{ runner.os }}-cargo-
+
+      - name: 🏗️ Build release binaries
+        run: |
+          if [[ "${{ matrix.cross }}" == "true" ]]; then
+            cross build --release --target ${{ matrix.target }} --verbose
+          else
+            cargo build --release --target ${{ matrix.target }} --verbose
+          fi
+        shell: bash
+
+      - name: 📦 Package release (Unix)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf ../../../samoid-${{ needs.prepare.outputs.version }}-${{ matrix.target }}.tar.gz \
+            samoid samoid-hook
+          cd ../../../
+          echo "ASSET=samoid-${{ needs.prepare.outputs.version }}-${{ matrix.target }}.tar.gz" >> $GITHUB_ENV
+
+      - name: 📦 Package release (Windows)
+        if: matrix.archive == 'zip'
+        shell: bash
+        run: |
+          cd target/${{ matrix.target }}/release
+          7z a ../../../samoid-${{ needs.prepare.outputs.version }}-${{ matrix.target }}.zip \
+            samoid.exe samoid-hook.exe
+          cd ../../../
+          echo "ASSET=samoid-${{ needs.prepare.outputs.version }}-${{ matrix.target }}.zip" >> $GITHUB_ENV
+
+      - name: 📤 Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: ${{ env.ASSET }}
+          retention-days: 7
+
+  # Generate changelog for the release
+  changelog:
+    name: 📝 Generate Changelog
+    needs: prepare
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📝 Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${{ needs.prepare.outputs.tag }}^ 2>/dev/null || echo "")
+          
+          if [[ -z "$PREVIOUS_TAG" ]]; then
+            echo "📝 Generating changelog for first release..."
+            RANGE=""
+          else
+            echo "📝 Generating changelog from ${PREVIOUS_TAG} to ${{ needs.prepare.outputs.tag }}..."
+            RANGE="${PREVIOUS_TAG}..${{ needs.prepare.outputs.tag }}"
+          fi
+          
+          # Generate changelog using git log with conventional commit parsing
+          {
+            echo "## What's Changed in ${{ needs.prepare.outputs.version }}"
+            echo ""
+            
+            # Features
+            FEATURES=$(git log ${RANGE} --pretty=format:"%s|%h" | grep -E "^feat(\(.*\))?:" || true)
+            if [[ -n "$FEATURES" ]]; then
+              echo "### ✨ Features"
+              echo "$FEATURES" | while IFS='|' read -r message hash; do
+                echo "- ${message} (${hash})"
+              done
+              echo ""
+            fi
+            
+            # Bug fixes
+            FIXES=$(git log ${RANGE} --pretty=format:"%s|%h" | grep -E "^fix(\(.*\))?:" || true)
+            if [[ -n "$FIXES" ]]; then
+              echo "### 🐛 Bug Fixes"
+              echo "$FIXES" | while IFS='|' read -r message hash; do
+                echo "- ${message} (${hash})"
+              done
+              echo ""
+            fi
+            
+            # Performance improvements
+            PERF=$(git log ${RANGE} --pretty=format:"%s|%h" | grep -E "^perf(\(.*\))?:" || true)
+            if [[ -n "$PERF" ]]; then
+              echo "### ⚡ Performance"
+              echo "$PERF" | while IFS='|' read -r message hash; do
+                echo "- ${message} (${hash})"
+              done
+              echo ""
+            fi
+            
+            # Other changes
+            OTHERS=$(git log ${RANGE} --pretty=format:"%s|%h" | grep -vE "^(feat|fix|perf|docs|test|chore|ci|build|style|refactor)(\(.*\))?:" || true)
+            if [[ -n "$OTHERS" ]]; then
+              echo "### 📦 Other Changes"
+              echo "$OTHERS" | while IFS='|' read -r message hash; do
+                echo "- ${message} (${hash})"
+              done
+              echo ""
+            fi
+            
+            # Contributors
+            echo "### 👥 Contributors"
+            git log ${RANGE} --pretty=format:"%an" | sort | uniq | while read -r author; do
+              echo "- @${author}"
+            done
+            echo ""
+            
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${{ needs.prepare.outputs.tag }}"
+          } > CHANGELOG.md
+          
+          # Save changelog for release body
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat CHANGELOG.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: 📤 Upload changelog
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: CHANGELOG.md
+          retention-days: 7
+
+  # Create GitHub release
+  release:
+    name: 🚀 Create Release
+    needs: [prepare, build, changelog]
+    runs-on: ubuntu-latest
+    if: github.event.inputs.dry_run != 'true'
+    
+    steps:
+      - name: 📥 Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: 📋 List artifacts
+        run: |
+          echo "📦 Release artifacts:"
+          find artifacts -type f -name "*.tar.gz" -o -name "*.zip" | sort
+
+      - name: 🚀 Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.prepare.outputs.version }}
+          name: Samoid v${{ needs.prepare.outputs.version }}
+          body_path: artifacts/changelog/CHANGELOG.md
+          prerelease: ${{ needs.prepare.outputs.is_prerelease }}
+          files: |
+            artifacts/release-*/*
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Publish to crates.io
+  publish:
+    name: 📦 Publish to crates.io
+    needs: [prepare, release]
+    runs-on: ubuntu-latest
+    if: |
+      github.event.inputs.dry_run != 'true' &&
+      needs.prepare.outputs.is_prerelease == 'false'
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🦀 Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 📦 Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-publish-${{ hashFiles('Cargo.lock') }}
+
+      - name: 🔍 Verify package
+        run: |
+          cargo package --verbose
+          cargo package --list
+
+      - name: 📤 Publish to crates.io
+        run: |
+          cargo publish --verbose
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  # Post-release tasks
+  post_release:
+    name: 📋 Post-Release Tasks
+    needs: [prepare, release]
+    runs-on: ubuntu-latest
+    if: github.event.inputs.dry_run != 'true'
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 💬 Comment on related issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ needs.prepare.outputs.version }}';
+            const releaseUrl = `https://github.com/${{ github.repository }}/releases/tag/v${version}`;
+            
+            // Find issues that mention this version
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'release'
+            });
+            
+            for (const issue of issues.data) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `🚀 Released in [v${version}](${releaseUrl})!`
+              });
+            }
+
+      - name: 📊 Generate release summary
+        run: |
+          echo "# 🚀 Release Summary: v${{ needs.prepare.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Release Details" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | v${{ needs.prepare.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Type** | ${{ needs.prepare.outputs.is_prerelease == 'true' && 'Pre-release' || 'Stable Release' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Release URL** | https://github.com/${{ github.repository }}/releases/tag/v${{ needs.prepare.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Crates.io** | ${{ needs.prepare.outputs.is_prerelease == 'false' && '✅ Published' || '⏭️ Skipped (pre-release)' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify the release artifacts work correctly" >> $GITHUB_STEP_SUMMARY
+          echo "2. Update documentation if needed" >> $GITHUB_STEP_SUMMARY
+          echo "3. Announce the release" >> $GITHUB_STEP_SUMMARY
