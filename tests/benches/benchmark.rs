@@ -78,10 +78,11 @@
 //! with results tracked over time for regression detection. The real-world benchmarks
 //! provide the metrics used for acceptance criteria validation.
 
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 use samoid::environment::FileSystem;
 use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
 use samoid::install_hooks;
+use std::hint::black_box;
 use std::process::{ExitStatus, Output};
 
 // Cross-platform exit status creation
