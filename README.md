@@ -1,11 +1,25 @@
 # Samoid
 
 [![Test Suite](https://github.com/nutthead/samoid/actions/workflows/test.yml/badge.svg)](https://github.com/nutthead/samoid/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/nutthead/samoid/graph/badge.svg?token=YOUR_CODECOV_TOKEN)](https://codecov.io/gh/nutthead/samoid)
+[![codecov](https://codecov.io/gh/nutthead/samoid/graph/badge.svg?token=8ROK706MYS)](https://codecov.io/gh/nutthead/samoid)
 [![Security Audit](https://img.shields.io/badge/security-audit_passing-green)](https://github.com/nutthead/samoid/actions/workflows/test.yml)
 [![Rust Version](https://img.shields.io/badge/rust-1.85%2B-blue)](https://www.rust-lang.org)
 
 A modern, fast, and secure Git hooks manager written in Rust. Samoid is a reimplementation of Husky with improved performance, better error handling, and enhanced security features.
+
+## Status
+
+### Sunburst
+
+![Sunburst](https://codecov.io/gh/nutthead/samoid/graphs/sunburst.svg?token=8ROK706MYS)
+
+### Grid
+
+![Grid](https://codecov.io/gh/nutthead/samoid/graphs/tree.svg?token=8ROK706MYS)
+
+### Icicle
+
+![Icicle](https://codecov.io/gh/nutthead/samoid/graphs/icicle.svg?token=8ROK706MYS)
 
 ## Features
 
@@ -113,11 +127,12 @@ cargo tarpaulin --out html --output-dir target/coverage
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
+1. Let's [discuss](https://github.com/nutthead/samoid/discussions)
+2. Fork the repository
+3. Create a feature branch
+4. Make your changes
+5. Add tests for new functionality
+6. Ensure all tests pass
 6. Submit a pull request
 
 ## License
@@ -126,5 +141,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- Inspired by [Husky](https://typicode.github.io/husky/) by typicode
-- Built with ❤️ in Rust
+- Inspired by [Husky](https://typicode.github.io/husky/)
+- Built with 🫩 🫀 🫡 in Rust
