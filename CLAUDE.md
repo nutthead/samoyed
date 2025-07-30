@@ -127,11 +127,15 @@ cd samoid && rm tests/comprehensive_integration_tests.rs
 # GOOD
 rm ~/Projects/github.com/typicode/husky-to-samoid/samoid/tests/comprehensive_integration_tests.rs
 
+###############################################################################
 
 # BAD
 rm samoid/tests/comprehensive_integration_tests.rs
+
 # GOOD
 rm ~/Projects/github.com/typicode/husky-to-samoid/samoid/tests/comprehensive_integration_tests.rs
+
+###############################################################################
 
 # BAD
 cd samoid && cargo check --all-targets
@@ -151,4 +155,13 @@ $ gh api repos/nutthead/samoid/actions/runs/16605659171/jobs/46976672370/logs
 
 # GOOD---works!
 $ gh run view 16605659171 --repo nutthead/samoid --log-failed
+
+###############################################################################
+
+# BAD---could fail/err in case of special characters
+$ gh issue comment 7 --repo nutthead/samoid --body "...
+
+# GOOD---less likely to fail
+# First write the body to a file, then use --body-file to read the body from the file
+$ gh issue comment 7 --repo nutthead/samoid --body-file /tmp/issue-7-completion-comment.md
 ```
