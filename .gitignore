@@ -1,2 +1,4 @@
 target/
-tarpaulin-report.html
+tmp/
+
+!tmp/.gitignore
