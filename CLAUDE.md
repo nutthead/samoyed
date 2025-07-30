@@ -6,47 +6,22 @@ This project's root directory is <file:~/Projects/github.com/typicode/husky-to-s
 
 ## Project Overview
 
-This repository contains two implementations of Husky, a modern native Git hooks manager:
+This repository contains **Samoid**, a modern native Git hooks manager implemented in Rust. Samoid is a complete reimplementation and replacement of the original Husky Node.js implementation, providing better performance, reduced dependencies, and enhanced reliability.
 
-### Current Implementation (`husky/`)
-The existing Node.js/JavaScript implementation consisting of:
-- **Core module** (`index.js`): Default export function that installs Git hooks by configuring `core.hooksPath` and creating hook files
-- **CLI binary** (`bin.js`): Command-line interface with `init` command and deprecated command warnings
-- **Hook runner** (`husky` binary): Shell script that executes actual hook commands with proper environment setup
-- **TypeScript definitions** (`index.d.ts`): Simple function signature for the default export
-
-### Future Implementation (`samoid/`)
-A Rust reimplementation of Husky that is currently in early development:
-- **Cargo project** with edition 2024
-- Currently contains only a basic "Hello, world!" main function
-- Intended to replace the Node.js implementation with better performance and reduced dependencies
-
-## Architecture
-
-### Current Husky (`husky/`)
-The system works in two phases:
-1. **Installation**: Sets Git's `core.hooksPath` to `.husky/_` and creates hook files that delegate to the `husky` binary
-2. **Execution**: The `husky` binary loads user configuration and runs the actual hook scripts
-
-Key files:
-- `husky/index.js:8-25` - Main installation logic with Git configuration and file creation
-- `husky/bin.js:10-20` - CLI `init` command that modifies `package.json` and creates sample hooks
-- `husky/husky:1-23` - Hook execution runtime with environment setup and error handling
-
-### Samoid (`samoid/`)
-A fully functional Rust reimplementation of Husky with comprehensive features:
-- **CLI binary** (`samoid/src/main.rs`): Command-line interface with `init` command using clap
+### Samoid Architecture
+Samoid is a fully functional Rust implementation with comprehensive features:
+- **CLI binary** (`src/main.rs`): Command-line interface with `init` command using clap
 - **Hook runner binary** (`samoid-hook`): Separate binary for executing git hooks at runtime
 - **Core modules**:
-  - `samoid/src/lib.rs`: Public API exposing install_hooks function and modules
-  - `samoid/src/installer.rs`: Main installation logic with error handling
-  - `samoid/src/environment.rs`: Dependency injection traits (Environment, CommandRunner, FileSystem) and implementations
-  - `samoid/src/git.rs`: Git repository validation and configuration management
-  - `samoid/src/hooks.rs`: Hook file creation and management for all 14 standard git hooks
-  - `samoid/src/config.rs`: TOML-based configuration with SamoidConfig and SamoidSettings
-  - `samoid/src/project.rs`: Project type detection (Node.js, Rust, etc.)
-- **Testing infrastructure**: Mock implementations for complete test isolation
-- **Benchmarks**: Performance testing suite with Criterion
+  - `src/lib.rs`: Public API exposing install_hooks function and modules
+  - `src/installer.rs`: Main installation logic with error handling
+  - `src/environment.rs`: Dependency injection traits (Environment, CommandRunner, FileSystem) and implementations
+  - `src/git.rs`: Git repository validation and configuration management
+  - `src/hooks.rs`: Hook file creation and management for all 14 standard git hooks
+  - `src/config.rs`: TOML-based configuration with SamoidConfig and SamoidSettings
+  - `src/project.rs`: Project type detection (Node.js, Rust, etc.)
+- **Testing infrastructure**: Mock implementations for complete test isolation in `tests/`
+- **Performance benchmarks**: Comprehensive benchmark suite with Criterion in `tests/benches/`
 - **Dependencies**: clap (CLI), toml/serde (config), anyhow (error handling)
 
 ## Temp directory
@@ -56,37 +31,35 @@ A fully functional Rust reimplementation of Husky with comprehensive features:
 
 ## Development Commands
 
-### Current Husky (`husky/`)
+### Samoid (Root Level)
 ```bash
-cd husky/
-./test.sh                    # Run all integration tests
-sh test/1_default.sh         # Run specific test case
-npm pack                     # Create distribution package (used by tests)
-shellcheck husky             # Lint shell script
-shellcheck test/*.sh         # Lint test scripts
-```
-
-### Samoid (`samoid/`)
-```bash
-cd samoid/
-cargo build                  # Build the Rust implementation
-cargo run                    # Run the current placeholder
-cargo test                   # Run tests (when implemented)
+# Build commands
+cargo build                  # Build debug version
+cargo build --release       # Build optimized release version
 cargo check                  # Fast syntax/type checking
+cargo check --all-targets   # Check all targets including tests and benchmarks
+
+# Testing commands
+cargo test                   # Run all tests (unit + integration)
+cargo test --lib            # Run unit tests only
+cargo test --test <name>     # Run specific integration test
+cargo bench                  # Run performance benchmarks
+
+# Code quality
+cargo fmt                    # Format code
+cargo fmt --check            # Check code formatting
+cargo clippy                 # Run clippy lints
+cargo clippy --all-targets --all-features -- -D warnings  # Strict linting
+
+# Documentation and analysis
+cargo doc                    # Generate documentation
+cargo doc --open             # Generate and open documentation
+cargo tarpaulin              # Generate test coverage report
 ```
 
 ## Testing Strategy
 
-### Current Husky
-Integration tests use shell scripts that:
-1. Create temporary Git repositories in `/tmp/husky-test-*`
-2. Install husky from packed tarball (`/tmp/husky.tgz`)
-3. Test various scenarios (sub-directories, missing git, environment variables)
-4. Verify Git configuration and hook execution behavior
-
-Test utilities in `test/functions.sh` provide `setup()`, `install()`, `expect()`, and `expect_hooksPath_to_be()` functions.
-
-### Samoid
+### Samoid Testing Architecture
 Uses dependency injection pattern for complete test isolation and exceptional quality metrics:
 
 **Architecture Pattern:**
@@ -107,46 +80,46 @@ output-dir = "target/tarpaulin/coverage"
 out = ["Html", "Json"]
 ```
 
-### The `file:/tmp/samoid/dummy/` dir
+### The `file:tmp/samoid/dummy/` dir
 
-- Create and use file:/tmp/samoid/dummy/ for ad-hoc and integration testing of Samoid.
-- Freely use git operations inside file:/tmp/samoid/dummy/
-- Freely init new repos inside file:/tmp/samoid/dummy/
-- Freely delete and recreate file:/tmp/samoid/dummy/ when needed for testing
+- Create and use file:tmp/samoid/dummy/ for ad-hoc and integration testing of Samoid.
+- Freely use git operations inside file:tmp/samoid/dummy/
+- Freely init new repos inside file:tmp/samoid/dummy/
+- Freely delete and recreate file:tmp/samoid/dummy/ when needed for testing
 
 ## Directory Context Management
-**ALWAYS:** verify working directory before Samoid/Husky-specific commands**
+**ALWAYS:** verify working directory before Samoid-specific commands**
 **REMEMBER:** the project's root directory is <file:~/Projects/github.com/typicode/husky-to-samoid/>
 **REMEMBER:** you can always use `pwd` to verify current location
 **REMEMBER:** some commands accept absolute paths via flags, and when possible, that can help you avoid changing directory with `cd`
 
 - For Samoid, CONFIRM the current dir contains `Cargo.toml` before you run `cargo` commands
-- For Husky, CONFIRM the current dir contains `package.json` before reading files.
+- The project root now contains the main `Cargo.toml`, `src/`, `tests/`, and other Rust project files
 
 ### Prefer absolute paths to relative paths
 
 ```bash
 # BAD
-cd samoid && rm tests/comprehensive_integration_tests.rs
+cd src && rm tests/comprehensive_integration_tests.rs
 
 # GOOD
-rm ~/Projects/github.com/typicode/husky-to-samoid/samoid/tests/comprehensive_integration_tests.rs
+rm ~/Projects/github.com/typicode/husky-to-samoid/tests/comprehensive_integration_tests.rs
 
 ###############################################################################
 
-# BAD
+# BAD (outdated path)
 rm samoid/tests/comprehensive_integration_tests.rs
 
 # GOOD
-rm ~/Projects/github.com/typicode/husky-to-samoid/samoid/tests/comprehensive_integration_tests.rs
+rm ~/Projects/github.com/typicode/husky-to-samoid/tests/comprehensive_integration_tests.rs
 
 ###############################################################################
 
 # BAD
-cd samoid && cargo check --all-targets
+cd src && cargo check --all-targets
 
 # GOOD
-cd ~/Projects/github.com/typicode/husky-to-samoid/samoid && cargo check --all-targets
+cd ~/Projects/github.com/typicode/husky-to-samoid && cargo check --all-targets
 ```
 
 ## GitHub CLI
