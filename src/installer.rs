@@ -305,8 +305,8 @@ impl From<HookError> for InstallError {
 /// }
 ///
 /// // Install with custom directory
-/// match install_hooks(&env, &runner, &fs, Some(".husky")) {
-///     Ok(_) => println!("Hooks installed in .husky/_"),
+/// match install_hooks(&env, &runner, &fs, Some(".samoid")) {
+///     Ok(_) => println!("Hooks installed in .samoid/_"),
 ///     Err(e) => eprintln!("Installation failed: {}", e),
 /// }
 /// ```

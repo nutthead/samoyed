@@ -1,7 +1,7 @@
 //! Samoid - A fast, native Git hooks manager written in Rust
 //!
-//! Samoid is a reimplementation of Husky, providing efficient Git hook management
-//! with minimal dependencies and improved performance.
+//! Samoid provides efficient Git hook management with minimal dependencies
+//! and high performance, featuring native speed and enhanced security.
 //!
 //! # Example
 //!

@@ -114,7 +114,7 @@ impl std::error::Error for GitError {}
 /// Verifies that the current directory is inside a Git repository
 ///
 /// This function checks for the presence of a `.git` directory or file,
-/// following the same approach as Husky but with enhanced error messages.
+/// with comprehensive error handling and detailed diagnostic messages.
 /// Git worktrees use a `.git` file pointing to the actual repository,
 /// so this function correctly handles both cases.
 ///
