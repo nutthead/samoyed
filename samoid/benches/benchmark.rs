@@ -91,14 +91,14 @@ use std::os::unix::process::ExitStatusExt;
 use std::os::windows::process::ExitStatusExt;
 
 /// Creates an ExitStatus in a cross-platform manner
-/// 
+///
 /// This helper function abstracts the platform-specific differences in creating
 /// ExitStatus objects for mock command execution. Unix systems use `from_raw(i32)`
 /// while Windows uses `from_raw(u32)`.
-/// 
+///
 /// # Arguments
 /// * `code` - The exit code to create an ExitStatus for
-/// 
+///
 /// # Returns
 /// A platform-appropriate ExitStatus object
 fn exit_status(code: i32) -> ExitStatus {
@@ -110,10 +110,10 @@ fn exit_status(code: i32) -> ExitStatus {
 }
 
 /// Benchmarks basic hook installation using mock dependencies
-/// 
+///
 /// This benchmark measures the performance of the core `install_hooks` function
 /// using mock implementations to isolate the logic performance from I/O overhead.
-/// 
+///
 /// **Test Scenario**: Default installation with `.samoid/_` as hooks directory
 /// **Mock Setup**: Git repository exists, git config command succeeds
 /// **Performance Target**: < 1μs (mock operations should be nearly instant)
@@ -122,7 +122,7 @@ fn benchmark_mock_installation(c: &mut Criterion) {
         b.iter(|| {
             // Create mock environment with no special variables
             let env = MockEnvironment::new();
-            
+
             // Mock successful git config command response
             let output = Output {
                 status: exit_status(0),
@@ -134,7 +134,7 @@ fn benchmark_mock_installation(c: &mut Criterion) {
                 &["config", "core.hooksPath", ".samoid/_"],
                 Ok(output),
             );
-            
+
             // Mock filesystem with existing .git directory
             let fs = MockFileSystem::new().with_directory(".git");
 
@@ -224,43 +224,43 @@ fn benchmark_large_mock_filesystem(c: &mut Criterion) {
 }
 
 /// Benchmarks real-world hook execution overhead by running actual samoid-hook binary
-/// 
+///
 /// **Critical Performance Test**: This measures the pure overhead that Samoid adds to
 /// Git hook execution, which is the most important performance metric for user experience.
-/// 
-/// **Test Method**: 
+///
+/// **Test Method**:
 /// - Executes the actual `samoid-hook` binary with a hook name argument
 /// - Measures total time from process start to completion
 /// - Uses missing hook scenario (exit code 1) to measure pure Samoid overhead
 /// - Excludes actual hook script execution time to isolate Samoid's overhead
-/// 
+///
 /// **Performance Target**: < 50ms for GitHub Actions runners (AC8.1)
 /// **Expected Result**: ~1-2ms (based on previous measurements)
-/// 
-/// **Why This Matters**: 
+///
+/// **Why This Matters**:
 /// Git hooks run on every commit, push, etc. Even small overhead adds up and
 /// affects developer productivity. This test ensures Samoid remains fast enough
 /// to be invisible to developers.
 fn benchmark_real_hook_execution_overhead(c: &mut Criterion) {
     use std::process::Command;
     use std::time::Duration;
-    
+
     c.bench_function("real_hook_execution_overhead", |b| {
         b.iter_custom(|iters| {
             let mut total_duration = Duration::new(0, 0);
-            
+
             for _ in 0..iters {
                 let start = std::time::Instant::now();
-                
+
                 // Execute samoid-hook with pre-commit hook (most common scenario)
                 // SAMOID=1 ensures the hook attempts to run (not skipped)
                 let output = Command::new("./target/release/samoid-hook")
                     .arg("pre-commit")
                     .env("SAMOID", "1")
                     .output();
-                
+
                 let elapsed = start.elapsed();
-                
+
                 // Only count valid executions in timing measurement
                 if let Ok(result) = output {
                     // Status code 0 = hook exists and succeeded
@@ -271,7 +271,7 @@ fn benchmark_real_hook_execution_overhead(c: &mut Criterion) {
                     }
                 }
             }
-            
+
             total_duration
         })
     });
@@ -280,27 +280,27 @@ fn benchmark_real_hook_execution_overhead(c: &mut Criterion) {
 fn benchmark_startup_time_samoid_cli(c: &mut Criterion) {
     use std::process::Command;
     use std::time::Duration;
-    
+
     c.bench_function("startup_time_samoid_help", |b| {
         b.iter_custom(|iters| {
             let mut total_duration = Duration::new(0, 0);
-            
+
             for _ in 0..iters {
                 let start = std::time::Instant::now();
-                
+
                 let output = Command::new("./target/release/samoid")
                     .arg("--help")
                     .output();
-                
+
                 let elapsed = start.elapsed();
-                
+
                 if let Ok(result) = output {
                     if result.status.success() {
                         total_duration += elapsed;
                     }
                 }
             }
-            
+
             total_duration
         })
     });
@@ -309,78 +309,81 @@ fn benchmark_startup_time_samoid_cli(c: &mut Criterion) {
 fn benchmark_startup_time_samoid_hook_cli(c: &mut Criterion) {
     use std::process::Command;
     use std::time::Duration;
-    
+
     c.bench_function("startup_time_samoid_hook_help", |b| {
         b.iter_custom(|iters| {
             let mut total_duration = Duration::new(0, 0);
-            
+
             for _ in 0..iters {
                 let start = std::time::Instant::now();
-                
+
                 let output = Command::new("./target/release/samoid-hook")
                     .arg("--help")
                     .output();
-                
+
                 let elapsed = start.elapsed();
-                
+
                 if let Ok(result) = output {
                     if result.status.success() {
                         total_duration += elapsed;
                     }
                 }
             }
-            
+
             total_duration
         })
     });
 }
 
 /// Benchmarks real filesystem operations during hook installation workflow
-/// 
+///
 /// **Performance Test**: Measures actual filesystem I/O performance for operations
 /// that occur during `samoid init` to validate AC8.5 (Efficient filesystem operations).
-/// 
-/// **Test Scenario**: 
+///
+/// **Test Scenario**:
 /// - Creates temporary directory structure (.git, .samoid, hooks directory)
 /// - Writes hook files with realistic content
 /// - Performs existence checks and read operations
 /// - Measures complete workflow timing including all I/O operations
-/// 
+///
 /// **Performance Target**: Complete workflow should be efficient (target: <1ms)
 /// **Expected Result**: ~200-300μs for complete filesystem workflow
-/// 
-/// **Why This Matters**: 
+///
+/// **Why This Matters**:
 /// Installation performance affects developer onboarding experience. Slow filesystem
 /// operations make `samoid init` feel sluggish and impact first impressions.
 fn benchmark_filesystem_operations_real(c: &mut Criterion) {
     use std::fs;
     use tempfile::TempDir;
-    
+
     c.bench_function("filesystem_operations_real", |b| {
         b.iter(|| {
             let temp_dir = TempDir::new().unwrap();
             let test_path = temp_dir.path();
-            
+
             // Simulate real filesystem operations during hook installation
             let git_dir = test_path.join(".git");
             let samoid_dir = test_path.join(".samoid");
             let hooks_dir = samoid_dir.join("_");
-            
+
             // Create directories - ignore Results since we're benchmarking, not testing correctness
             let _ = black_box(fs::create_dir_all(&git_dir));
             let _ = black_box(fs::create_dir_all(&hooks_dir));
-            
+
             // Check existence (common operations during validation)
             black_box(git_dir.exists());
             black_box(samoid_dir.exists());
             black_box(hooks_dir.exists());
-            
+
             // Write hook files with realistic hook runner content
             for hook in ["pre-commit", "pre-push", "commit-msg"].iter() {
                 let hook_file = hooks_dir.join(hook);
-                let _ = black_box(fs::write(&hook_file, "#!/bin/sh\n./samoid-hook $0 \"$@\"\n"));
+                let _ = black_box(fs::write(
+                    &hook_file,
+                    "#!/bin/sh\n./samoid-hook $0 \"$@\"\n",
+                ));
             }
-            
+
             // Read operations (common during hook execution)
             for hook in ["pre-commit", "pre-push", "commit-msg"].iter() {
                 let hook_file = hooks_dir.join(hook);
