@@ -335,9 +335,25 @@ fn benchmark_startup_time_samoid_hook_cli(c: &mut Criterion) {
     });
 }
 
+/// Benchmarks real filesystem operations during hook installation workflow
+/// 
+/// **Performance Test**: Measures actual filesystem I/O performance for operations
+/// that occur during `samoid init` to validate AC8.5 (Efficient filesystem operations).
+/// 
+/// **Test Scenario**: 
+/// - Creates temporary directory structure (.git, .samoid, hooks directory)
+/// - Writes hook files with realistic content
+/// - Performs existence checks and read operations
+/// - Measures complete workflow timing including all I/O operations
+/// 
+/// **Performance Target**: Complete workflow should be efficient (target: <1ms)
+/// **Expected Result**: ~200-300μs for complete filesystem workflow
+/// 
+/// **Why This Matters**: 
+/// Installation performance affects developer onboarding experience. Slow filesystem
+/// operations make `samoid init` feel sluggish and impact first impressions.
 fn benchmark_filesystem_operations_real(c: &mut Criterion) {
     use std::fs;
-    use std::path::Path;
     use tempfile::TempDir;
     
     c.bench_function("filesystem_operations_real", |b| {
@@ -350,25 +366,25 @@ fn benchmark_filesystem_operations_real(c: &mut Criterion) {
             let samoid_dir = test_path.join(".samoid");
             let hooks_dir = samoid_dir.join("_");
             
-            // Create directories
-            black_box(fs::create_dir_all(&git_dir));
-            black_box(fs::create_dir_all(&hooks_dir));
+            // Create directories - ignore Results since we're benchmarking, not testing correctness
+            let _ = black_box(fs::create_dir_all(&git_dir));
+            let _ = black_box(fs::create_dir_all(&hooks_dir));
             
-            // Check existence (common operations)
+            // Check existence (common operations during validation)
             black_box(git_dir.exists());
             black_box(samoid_dir.exists());
             black_box(hooks_dir.exists());
             
-            // Write hook files
+            // Write hook files with realistic hook runner content
             for hook in ["pre-commit", "pre-push", "commit-msg"].iter() {
                 let hook_file = hooks_dir.join(hook);
-                black_box(fs::write(&hook_file, "#!/bin/sh\n./samoid-hook $0 \"$@\"\n"));
+                let _ = black_box(fs::write(&hook_file, "#!/bin/sh\n./samoid-hook $0 \"$@\"\n"));
             }
             
-            // Read operations
+            // Read operations (common during hook execution)
             for hook in ["pre-commit", "pre-push", "commit-msg"].iter() {
                 let hook_file = hooks_dir.join(hook);
-                black_box(fs::read_to_string(&hook_file));
+                let _ = black_box(fs::read_to_string(&hook_file));
             }
         })
     });
