@@ -3,4 +3,4 @@ run-types = ["Tests"]
 
 [report]
 output-dir = "target/tarpaulin/coverage"
-out = ["Html", "Json"]
+out = ["Html", "Xml", "Json", "Lcov"]

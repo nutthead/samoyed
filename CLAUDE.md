@@ -6,7 +6,7 @@ This project's root directory is <file:~/Projects/github.com/typicode/husky-to-s
 
 ## Project Overview
 
-This repository contains **Samoid**, a modern native Git hooks manager implemented in Rust. Samoid is a complete reimplementation and replacement of the original Husky Node.js implementation, providing better performance, reduced dependencies, and enhanced reliability.
+This repository contains **Samoid**, a modern native Git hooks manager implemented in Rust.
 
 ### Samoid Architecture
 Samoid is a fully functional Rust implementation with comprehensive features:
