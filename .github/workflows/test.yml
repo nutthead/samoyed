@@ -224,9 +224,22 @@ jobs:
               (.covered / .coverable * 100)' target/tarpaulin/coverage/tarpaulin-report.json 2>/dev/null || echo "0")
             echo "COVERAGE_PERCENTAGE=$COVERAGE" >> $GITHUB_ENV
             echo "📊 Code Coverage: ${COVERAGE}%"
+            
+            # Enforce 90% coverage threshold (AC11.4)
+            THRESHOLD=90
+            if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+              echo "❌ FAIL: Code coverage ${COVERAGE}% is below the required ${THRESHOLD}% threshold"
+              echo "COVERAGE_CHECK_PASSED=false" >> $GITHUB_ENV
+              exit 1
+            else
+              echo "✅ PASS: Code coverage ${COVERAGE}% meets the ${THRESHOLD}% threshold requirement"
+              echo "COVERAGE_CHECK_PASSED=true" >> $GITHUB_ENV
+            fi
           else
             echo "COVERAGE_PERCENTAGE=0" >> $GITHUB_ENV
+            echo "COVERAGE_CHECK_PASSED=false" >> $GITHUB_ENV
             echo "⚠️ Coverage report not found"
+            exit 1
           fi
 
 
@@ -274,15 +287,24 @@ jobs:
                 ? (totals.covered / totals.coverable * 100).toFixed(2)
                 : '0.00';
 
+              const threshold = 90;
+              const meetsThreshold = parseFloat(coveragePercent) >= threshold;
+              const statusEmoji = meetsThreshold ? '✅' : '❌';
+              const statusText = meetsThreshold 
+                ? `Meets the ${threshold}% threshold requirement` 
+                : `Below the required ${threshold}% threshold`;
+
               const comment = `## 📊 Code Coverage Report
 
-              **Coverage: ${coveragePercent.toFixed(2)}%**
+              **Coverage: ${coveragePercent}%** ${statusEmoji} ${statusText}
 
               | Metric | Value |
               |--------|-------|
               | Lines Covered | ${totals.covered} |
               | Total Lines | ${totals.coverable} |
-              | Coverage % | ${coveragePercent.toFixed(2)}% |
+              | Coverage % | ${coveragePercent}% |
+              | Required Threshold | ${threshold}% |
+              | Status | ${meetsThreshold ? 'PASS ✅' : 'FAIL ❌'} |
 
               📁 **Coverage by File:**
               ${Object.entries(coverage.files || {}).map(([file, data]) =>
