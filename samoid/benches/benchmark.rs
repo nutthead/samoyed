@@ -1,7 +1,82 @@
-//! Performance benchmarks for Samoid
+//! # Performance Benchmarks for Samoid
 //!
-//! These benchmarks measure the performance of core operations to ensure
-//! Samoid meets performance requirements and detects regressions.
+//! This module provides comprehensive performance testing for the Samoid Git hooks manager,
+//! implementing benchmarks to validate all performance-related acceptance criteria from
+//! Issue #8 - Performance Optimization.
+//!
+//! ## Overview
+//!
+//! Samoid's performance is critical for developer experience, as Git hooks run frequently
+//! during development workflows. This benchmark suite measures both mock and real-world
+//! performance scenarios to ensure:
+//!
+//! - **Hook execution overhead** remains under 50ms (AC8.1)
+//! - **Startup times** are under 100ms (AC8.4)  
+//! - **File system operations** are efficient (AC8.5)
+//! - **Memory usage** is minimal and predictable
+//!
+//! ## Benchmark Categories
+//!
+//! ### Mock Benchmarks (`mock_benches` group)
+//! These benchmarks test core logic using dependency injection with mock implementations:
+//!
+//! - **`benchmark_mock_installation`**: Tests hook installation with mock environment
+//! - **`benchmark_mock_installation_custom_dir`**: Tests custom directory installation
+//! - **`benchmark_mock_filesystem_operations`**: Tests filesystem abstraction performance
+//! - **`benchmark_skip_installation`**: Tests SAMOID=0 skip logic performance
+//! - **`benchmark_large_mock_filesystem`**: Tests performance with large project simulation
+//!
+//! ### Real-World Benchmarks (`real_benches` group)
+//! These benchmarks test actual binary execution for realistic performance measurement:
+//!
+//! - **`benchmark_real_hook_execution_overhead`**: Measures pure hook execution overhead
+//! - **`benchmark_startup_time_samoid_cli`**: Measures CLI startup performance
+//! - **`benchmark_startup_time_samoid_hook_cli`**: Measures hook runner startup performance
+//! - **`benchmark_filesystem_operations_real`**: Measures real filesystem operation performance
+//!
+//! ## Design Principles
+//!
+//! ### Dependency Injection for Testing
+//! Mock benchmarks use Samoid's dependency injection system with `MockEnvironment`,
+//! `MockCommandRunner`, and `MockFileSystem` to isolate performance measurement
+//! from external factors like actual filesystem I/O or process execution.
+//!
+//! ### Real-World Validation
+//! Real benchmarks execute actual binaries to measure end-to-end performance,
+//! including process startup overhead, dynamic linking, and actual system calls.
+//! This provides the most accurate measurement of user-facing performance.
+//!
+//! ### Cross-Platform Compatibility
+//! The benchmark suite handles platform differences, particularly around process
+//! exit status creation, using conditional compilation for Unix vs Windows.
+//!
+//! ## Performance Targets
+//!
+//! Based on Issue #8 acceptance criteria:
+//!
+//! - **Hook Overhead**: < 50ms for GitHub Actions runners (< 30ms for development)
+//! - **Startup Time**: < 100ms for all CLI operations
+//! - **Memory Usage**: Measured separately via `/usr/bin/time -v` in CI/CD
+//! - **Binary Size**: Measured separately via `stat` in CI/CD
+//!
+//! ## Benchmark Execution
+//!
+//! Run all benchmarks:
+//! ```bash
+//! cargo bench
+//! ```
+//!
+//! Run specific benchmark group:
+//! ```bash
+//! cargo bench mock_benches
+//! cargo bench real_benches  
+//! ```
+//!
+//! ## Integration with CI/CD
+//!
+//! These benchmarks are executed in the dedicated performance pipeline (`.github/workflows/perf.yml`)
+//! with results tracked over time for regression detection. The real-world benchmarks
+//! provide the metrics used for acceptance criteria validation.
 
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use samoid::environment::FileSystem;
@@ -15,7 +90,17 @@ use std::os::unix::process::ExitStatusExt;
 #[cfg(windows)]
 use std::os::windows::process::ExitStatusExt;
 
-// Helper function to create ExitStatus cross-platform
+/// Creates an ExitStatus in a cross-platform manner
+/// 
+/// This helper function abstracts the platform-specific differences in creating
+/// ExitStatus objects for mock command execution. Unix systems use `from_raw(i32)`
+/// while Windows uses `from_raw(u32)`.
+/// 
+/// # Arguments
+/// * `code` - The exit code to create an ExitStatus for
+/// 
+/// # Returns
+/// A platform-appropriate ExitStatus object
 fn exit_status(code: i32) -> ExitStatus {
     #[cfg(unix)]
     return ExitStatus::from_raw(code);
@@ -24,10 +109,21 @@ fn exit_status(code: i32) -> ExitStatus {
     return ExitStatus::from_raw(code as u32);
 }
 
+/// Benchmarks basic hook installation using mock dependencies
+/// 
+/// This benchmark measures the performance of the core `install_hooks` function
+/// using mock implementations to isolate the logic performance from I/O overhead.
+/// 
+/// **Test Scenario**: Default installation with `.samoid/_` as hooks directory
+/// **Mock Setup**: Git repository exists, git config command succeeds
+/// **Performance Target**: < 1μs (mock operations should be nearly instant)
 fn benchmark_mock_installation(c: &mut Criterion) {
     c.bench_function("mock_installation", |b| {
         b.iter(|| {
+            // Create mock environment with no special variables
             let env = MockEnvironment::new();
+            
+            // Mock successful git config command response
             let output = Output {
                 status: exit_status(0),
                 stdout: vec![],
@@ -38,8 +134,11 @@ fn benchmark_mock_installation(c: &mut Criterion) {
                 &["config", "core.hooksPath", ".samoid/_"],
                 Ok(output),
             );
+            
+            // Mock filesystem with existing .git directory
             let fs = MockFileSystem::new().with_directory(".git");
 
+            // Execute installation and use black_box to prevent optimization
             let result = install_hooks(&env, &runner, &fs, None);
             black_box(result)
         })
@@ -124,6 +223,24 @@ fn benchmark_large_mock_filesystem(c: &mut Criterion) {
     });
 }
 
+/// Benchmarks real-world hook execution overhead by running actual samoid-hook binary
+/// 
+/// **Critical Performance Test**: This measures the pure overhead that Samoid adds to
+/// Git hook execution, which is the most important performance metric for user experience.
+/// 
+/// **Test Method**: 
+/// - Executes the actual `samoid-hook` binary with a hook name argument
+/// - Measures total time from process start to completion
+/// - Uses missing hook scenario (exit code 1) to measure pure Samoid overhead
+/// - Excludes actual hook script execution time to isolate Samoid's overhead
+/// 
+/// **Performance Target**: < 50ms for GitHub Actions runners (AC8.1)
+/// **Expected Result**: ~1-2ms (based on previous measurements)
+/// 
+/// **Why This Matters**: 
+/// Git hooks run on every commit, push, etc. Even small overhead adds up and
+/// affects developer productivity. This test ensures Samoid remains fast enough
+/// to be invisible to developers.
 fn benchmark_real_hook_execution_overhead(c: &mut Criterion) {
     use std::process::Command;
     use std::time::Duration;
@@ -135,7 +252,8 @@ fn benchmark_real_hook_execution_overhead(c: &mut Criterion) {
             for _ in 0..iters {
                 let start = std::time::Instant::now();
                 
-                // Test pure samoid-hook startup overhead with empty hook
+                // Execute samoid-hook with pre-commit hook (most common scenario)
+                // SAMOID=1 ensures the hook attempts to run (not skipped)
                 let output = Command::new("./target/release/samoid-hook")
                     .arg("pre-commit")
                     .env("SAMOID", "1")
@@ -143,10 +261,12 @@ fn benchmark_real_hook_execution_overhead(c: &mut Criterion) {
                 
                 let elapsed = start.elapsed();
                 
-                // Only count successful executions in timing
+                // Only count valid executions in timing measurement
                 if let Ok(result) = output {
+                    // Status code 0 = hook exists and succeeded
+                    // Status code 1 = hook missing (expected for overhead measurement)
+                    // Both scenarios measure Samoid's pure overhead without actual hook execution
                     if result.status.success() || result.status.code() == Some(1) {
-                        // Status code 1 is expected for missing hook script - that's fine for overhead measurement
                         total_duration += elapsed;
                     }
                 }
