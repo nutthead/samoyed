@@ -129,6 +129,37 @@ jobs:
           cargo build --release --verbose
         if: matrix.rust == 'stable'
 
+      - name: 📦 Package release artifacts (Unix)
+        if: matrix.rust == 'stable' && runner.os != 'Windows'
+        run: |
+          mkdir -p artifacts
+          cp target/release/samoid artifacts/
+          cp target/release/samoid-hook artifacts/
+          cd artifacts
+          tar czf samoid-${{ runner.os }}-${{ runner.arch }}.tar.gz samoid samoid-hook
+          echo "📦 Created artifact: samoid-${{ runner.os }}-${{ runner.arch }}.tar.gz"
+
+      - name: 📦 Package release artifacts (Windows)
+        if: matrix.rust == 'stable' && runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cp target/release/samoid.exe artifacts/
+          cp target/release/samoid-hook.exe artifacts/
+          cd artifacts
+          7z a -tzip samoid-${{ runner.os }}-${{ runner.arch }}.zip samoid.exe samoid-hook.exe
+          echo "📦 Created artifact: samoid-${{ runner.os }}-${{ runner.arch }}.zip"
+
+      - name: 📤 Upload release artifacts
+        if: matrix.rust == 'stable'
+        uses: actions/upload-artifact@v4
+        with:
+          name: samoid-${{ runner.os }}-${{ runner.arch }}-${{ matrix.shell || 'default' }}
+          path: |
+            artifacts/samoid-*.tar.gz
+            artifacts/samoid-*.zip
+          retention-days: 30
+
       - name: 🧪 Run unit tests
         run: |
           cargo test --lib --verbose
@@ -564,3 +595,55 @@ jobs:
           else
             echo "✅ All checks passed successfully!"
           fi
+
+  artifacts:
+    name: 📦 Collect Build Artifacts
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: always() && needs.test.result == 'success'
+
+    steps:
+      - name: 📥 Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: samoid-*
+          path: collected-artifacts/
+
+      - name: 📋 List collected artifacts
+        run: |
+          echo "📦 Collected Build Artifacts:"
+          echo ""
+          find collected-artifacts -type f -name "*.tar.gz" -o -name "*.zip" | while read -r file; do
+            echo "- $(basename "$file") ($(du -h "$file" | cut -f1))"
+          done
+
+      - name: 📤 Upload combined artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: samoid-binaries-all-platforms
+          path: collected-artifacts/**/*.{tar.gz,zip}
+          retention-days: 30
+
+      - name: 📊 Generate artifact summary
+        run: |
+          echo "# 📦 Build Artifacts Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Available Downloads" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Architecture | File | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------------|------|------|" >> $GITHUB_STEP_SUMMARY
+          
+          find collected-artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) | sort | while read -r file; do
+            filename=$(basename "$file")
+            size=$(du -h "$file" | cut -f1)
+            
+            # Extract platform and arch from filename
+            if [[ $filename =~ samoid-(.+)-(.+)\.(tar\.gz|zip) ]]; then
+              platform="${BASH_REMATCH[1]}"
+              arch="${BASH_REMATCH[2]}"
+              echo "| $platform | $arch | \`$filename\` | $size |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All platform binaries successfully built and packaged!" >> $GITHUB_STEP_SUMMARY
