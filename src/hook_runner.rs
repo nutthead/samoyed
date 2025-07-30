@@ -29,7 +29,7 @@
 //! 3. Locate and execute the actual hook script from project root
 //! 4. Handle errors and propagate exit codes to Git
 //!
-//! Based on the original husky hook runner implementation.
+//! Implements efficient hook execution with comprehensive platform support.
 
 use anyhow::{Context, Result};
 use std::env;
