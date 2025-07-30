@@ -1,6 +1,6 @@
 [package]
 name = "samoid"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 
 [[bin]]
@@ -29,4 +29,3 @@ path = "tests/benches/benchmark.rs"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
-
