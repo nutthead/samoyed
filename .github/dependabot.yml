@@ -1,0 +1,64 @@
+# Dependabot configuration for Samoid
+# Automatically creates PRs to update dependencies when new versions are available
+# Implements AC11.9 from issue #11
+
+version: 2
+updates:
+  # Enable version updates for Rust/Cargo dependencies
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "UTC"
+    # Configure how updates are grouped
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Separate group for major updates (breaking changes)
+    allow:
+      - dependency-type: "all"
+    # Labels to add to PRs
+    labels:
+      - "dependencies"
+      - "rust"
+    # Prefix for commit messages
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    # Limit the number of open PRs
+    open-pull-requests-limit: 5
+    # Assignees and reviewers for dependency PRs
+    assignees:
+      - "nutthead"
+    milestone: 1
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "UTC"
+    # Group all Actions updates together
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    open-pull-requests-limit: 5
+    assignees:
+      - "nutthead"
+    milestone: 1
