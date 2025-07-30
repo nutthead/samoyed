@@ -80,6 +80,36 @@ impl From<std::io::Error> for HookError {
     }
 }
 
+/// Normalizes line endings to Unix-style (LF) for cross-platform compatibility
+///
+/// This function ensures that all generated files use consistent LF line endings,
+/// regardless of the platform they're created on. This is important because:
+///
+/// - Git Bash and Unix shells expect LF endings
+/// - Git's `core.autocrlf` settings can cause issues with mixed line endings
+/// - Hook scripts should be executable on all platforms
+///
+/// # Arguments
+///
+/// * `content` - The string content to normalize
+///
+/// # Returns
+///
+/// A string with all line endings converted to LF (`\n`)
+///
+/// # Example
+///
+/// ```
+/// # use samoid::hooks::normalize_line_endings;
+/// let windows_content = "#!/bin/sh\r\necho 'hello'\r\n";
+/// let normalized = normalize_line_endings(windows_content);
+/// assert_eq!(normalized, "#!/bin/sh\necho 'hello'\n");
+/// ```
+pub fn normalize_line_endings(content: &str) -> String {
+    // Replace CRLF (\r\n) and standalone CR (\r) with LF (\n)
+    content.replace("\r\n", "\n").replace('\r', "\n")
+}
+
 /// Creates the hooks directory and its `.gitignore` file
 ///
 /// This function creates the directory where all hook files will be stored
@@ -111,7 +141,8 @@ pub fn create_hook_directory(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<()
     fs.create_dir_all(hooks_dir)?;
 
     let gitignore_path = hooks_dir.join(".gitignore");
-    fs.write(&gitignore_path, "*")?;
+    let gitignore_content = normalize_line_endings("*");
+    fs.write(&gitignore_path, &gitignore_content)?;
 
     Ok(())
 }
@@ -145,9 +176,12 @@ pub fn create_hook_files(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<(), Ho
     let hook_content = r#"#!/usr/bin/env sh
 exec samoid-hook "$(basename "$0")" "$@""#;
 
+    // Normalize line endings to LF for cross-platform compatibility
+    let normalized_content = normalize_line_endings(hook_content);
+
     for &hook_name in STANDARD_HOOKS {
         let hook_path = hooks_dir.join(hook_name);
-        fs.write(&hook_path, hook_content)?;
+        fs.write(&hook_path, &normalized_content)?;
         fs.set_permissions(&hook_path, 0o755)?;
     }
 
@@ -223,7 +257,8 @@ echo "Pre-push validations passed!"
         let script_path = scripts_dir.join(hook_name);
         // Only create if it doesn't already exist (don't overwrite user customizations)
         if !fs.exists(&script_path) {
-            fs.write(&script_path, content)?;
+            let normalized_content = normalize_line_endings(content);
+            fs.write(&script_path, &normalized_content)?;
             fs.set_permissions(&script_path, 0o755)?;
         }
     }
@@ -418,5 +453,43 @@ mod tests {
         // Test that it implements std::error::Error
         let error_trait: &dyn std::error::Error = &hook_error;
         assert!(!error_trait.to_string().is_empty());
+    }
+
+    #[test]
+    fn test_normalize_line_endings_crlf() {
+        let windows_content = "#!/bin/sh\r\necho 'hello'\r\necho 'world'\r\n";
+        let normalized = normalize_line_endings(windows_content);
+        assert_eq!(normalized, "#!/bin/sh\necho 'hello'\necho 'world'\n");
+    }
+
+    #[test]
+    fn test_normalize_line_endings_cr() {
+        let mac_classic_content = "#!/bin/sh\recho 'hello'\recho 'world'\r";
+        let normalized = normalize_line_endings(mac_classic_content);
+        assert_eq!(normalized, "#!/bin/sh\necho 'hello'\necho 'world'\n");
+    }
+
+    #[test]
+    fn test_normalize_line_endings_mixed() {
+        let mixed_content = "#!/bin/sh\r\necho 'hello'\recho 'world'\necho 'end'";
+        let normalized = normalize_line_endings(mixed_content);
+        assert_eq!(
+            normalized,
+            "#!/bin/sh\necho 'hello'\necho 'world'\necho 'end'"
+        );
+    }
+
+    #[test]
+    fn test_normalize_line_endings_already_lf() {
+        let unix_content = "#!/bin/sh\necho 'hello'\necho 'world'\n";
+        let normalized = normalize_line_endings(unix_content);
+        assert_eq!(normalized, unix_content); // Should be unchanged
+    }
+
+    #[test]
+    fn test_normalize_line_endings_empty() {
+        let empty_content = "";
+        let normalized = normalize_line_endings(empty_content);
+        assert_eq!(normalized, "");
     }
 }

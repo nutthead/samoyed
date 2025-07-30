@@ -32,12 +32,18 @@ pub fn sanitize_path_with_env<P: AsRef<Path>>(env: &dyn Environment, path: P) ->
     let path = path.as_ref();
     let path_str = path.to_string_lossy();
 
-    // Handle absolute paths
-    if path.is_absolute() {
+    // Handle absolute paths (including Unix-style paths on Windows)
+    if path.is_absolute() || path_str.starts_with('/') {
         // Check for home directory patterns
         if let Some(home) = env.get_var("HOME").or_else(|| env.get_var("USERPROFILE")) {
-            if path_str.starts_with(&home) {
-                let relative = path_str.strip_prefix(&home).unwrap_or(&path_str);
+            // Normalize paths for cross-platform comparison
+            let normalized_path = path_str.replace('\\', "/");
+            let normalized_home = home.replace('\\', "/");
+
+            if normalized_path.starts_with(&normalized_home) {
+                let relative = normalized_path
+                    .strip_prefix(&normalized_home)
+                    .unwrap_or(&normalized_path);
                 return format!("~{relative}");
             }
         }
