@@ -49,6 +49,10 @@ A fully functional Rust reimplementation of Husky with comprehensive features:
 - **Benchmarks**: Performance testing suite with Criterion
 - **Dependencies**: clap (CLI), toml/serde (config), anyhow (error handling)
 
+## Temp directory
+
+Instead of `file:/tmp/`, use `file:tmp/`. `file:tmp/` is intentionally gi ignored.
+
 ## Development Commands
 
 ### Current Husky (`husky/`)
