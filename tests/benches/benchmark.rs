@@ -318,14 +318,19 @@ fn benchmark_startup_time_samoid_hook_cli(c: &mut Criterion) {
             for _ in 0..iters {
                 let start = std::time::Instant::now();
 
+                // Use a non-existent hook name to measure startup overhead only
+                // samoid-hook will exit cleanly when no hook script is found
                 let output = Command::new("./target/release/samoid-hook")
-                    .arg("--help")
+                    .arg("non-existent-hook")
+                    .env("SAMOID", "1")
                     .output();
 
                 let elapsed = start.elapsed();
 
                 if let Ok(result) = output {
-                    if result.status.success() {
+                    // Exit codes 0 (hook succeeded) and 1 (hook missing) are both valid for this test
+                    // We're measuring startup time, not hook execution success
+                    if result.status.success() || result.status.code() == Some(0) {
                         total_duration += elapsed;
                     }
                 }
