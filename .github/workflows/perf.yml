@@ -331,7 +331,12 @@ jobs:
           if [[ -z "$HOOK_OVERHEAD_VALUE" || "$HOOK_OVERHEAD_VALUE" == "null" ]]; then
             HOOK_OVERHEAD_JSON="null"
           else
-            HOOK_OVERHEAD_JSON="$HOOK_OVERHEAD_VALUE"
+            # Ensure decimal numbers have leading zero for valid JSON (e.g., ".8741" -> "0.8741")
+            if [[ "$HOOK_OVERHEAD_VALUE" =~ ^\. ]]; then
+              HOOK_OVERHEAD_JSON="0$HOOK_OVERHEAD_VALUE"
+            else
+              HOOK_OVERHEAD_JSON="$HOOK_OVERHEAD_VALUE"
+            fi
           fi
           
           cat > performance-metrics.json << EOF
