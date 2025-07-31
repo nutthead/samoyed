@@ -99,6 +99,9 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: 📊 Install cargo-criterion for JSON output
+        run: cargo install cargo-criterion
+
       - name: 📦 Cache Rust dependencies
         uses: actions/cache@v4
         with:
@@ -189,22 +192,22 @@ jobs:
         run: |
           echo "=== Performance Benchmarks ==="
           
-          # Run benchmarks with JSON output
-          cargo bench --verbose --message-format=json 2>&1 | tee benchmark-results.log
+          # Run benchmarks with structured JSON output using cargo-criterion
+          cargo criterion --message-format=json 2>&1 | tee benchmark-results.log
           
-          # Extract key metrics from benchmark output
-          echo "Extracting performance metrics..."
+          # Extract key metrics from JSON output using jq
+          echo "Extracting performance metrics from JSON..."
           
-          # Parse benchmark results for hook execution overhead
-          HOOK_OVERHEAD=$(grep -A 10 "real_hook_execution_overhead" benchmark-results.log | grep "time:" | head -1 | awk '{print $3}' | sed 's/\[//g')
-          STARTUP_TIME=$(grep -A 10 "startup_time_samoid_help" benchmark-results.log | grep "time:" | head -1 | awk '{print $3}' | sed 's/\[//g')
+          # Parse JSON benchmark results for hook execution overhead
+          # cargo-criterion outputs JSON with benchmark results including estimates
+          HOOK_OVERHEAD_JSON=$(grep '"reason":"benchmark-complete"' benchmark-results.log | grep '"id":"real_hook_execution_overhead"' | head -1)
           
-          echo "Hook execution overhead: ${HOOK_OVERHEAD:-unknown}"
-          echo "Startup time: ${STARTUP_TIME:-unknown}"
-          
-          # Convert to milliseconds for comparison (assuming input is in format like "1.3296 ms")
-          if [[ "$HOOK_OVERHEAD" == *"ms"* ]]; then
-            HOOK_OVERHEAD_MS=$(echo "$HOOK_OVERHEAD" | sed 's/ ms//g')
+          if [[ -n "$HOOK_OVERHEAD_JSON" ]]; then
+            # Extract typical time estimate in nanoseconds, convert to milliseconds
+            HOOK_OVERHEAD_NS=$(echo "$HOOK_OVERHEAD_JSON" | jq -r '.typical.estimate')
+            HOOK_OVERHEAD_MS=$(echo "scale=4; $HOOK_OVERHEAD_NS / 1000000" | bc)
+            
+            echo "Hook execution overhead: ${HOOK_OVERHEAD_MS} ms (from ${HOOK_OVERHEAD_NS} ns)"
             echo "hook_overhead_ms=${HOOK_OVERHEAD_MS}" >> $GITHUB_OUTPUT
             
             # Check AC8.1 compliance (50ms limit for GitHub Actions)
@@ -214,6 +217,9 @@ jobs:
             else
               echo "✅ PASS: Hook execution overhead within 50ms limit"
             fi
+          else
+            echo "⚠️ Could not extract hook overhead from benchmark results"
+            echo "hook_overhead_ms=null" >> $GITHUB_OUTPUT
           fi
 
       - name: 📊 Generate performance report
@@ -320,14 +326,21 @@ jobs:
         id: metrics_json
         run: |
           
-          # Create structured performance data
+          # Create structured performance data with proper null handling
+          HOOK_OVERHEAD_VALUE="${{ steps.benchmarks.outputs.hook_overhead_ms }}"
+          if [[ -z "$HOOK_OVERHEAD_VALUE" || "$HOOK_OVERHEAD_VALUE" == "null" ]]; then
+            HOOK_OVERHEAD_JSON="null"
+          else
+            HOOK_OVERHEAD_JSON="$HOOK_OVERHEAD_VALUE"
+          fi
+          
           cat > performance-metrics.json << EOF
           {
             "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "commit_sha": "${{ github.sha }}",
             "branch": "${{ github.ref_name }}",
             "metrics": {
-              "hook_execution_overhead_ms": ${{ steps.benchmarks.outputs.hook_overhead_ms || 'null' }},
+              "hook_execution_overhead_ms": $HOOK_OVERHEAD_JSON,
               "startup_time_ms": null,
               "binary_size_bytes": ${{ steps.binary_sizes.outputs.total_size }},
               "memory_usage_kb": ${{ steps.memory_usage.outputs.samoid_memory_kb }},
