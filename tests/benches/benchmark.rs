@@ -253,10 +253,10 @@ fn benchmark_real_hook_execution_overhead(c: &mut Criterion) {
             for _ in 0..iters {
                 let start = std::time::Instant::now();
 
-                // Execute samoid-hook with pre-commit hook (most common scenario)
-                // SAMOID=1 ensures the hook attempts to run (not skipped)
+                // Execute samoid-hook with non-existent hook to measure pure startup overhead
+                // This measures only samoid-hook's initialization cost, not actual hook execution
                 let output = Command::new("./target/release/samoid-hook")
-                    .arg("pre-commit")
+                    .arg("non-existent-hook")
                     .env("SAMOID", "1")
                     .output();
 
