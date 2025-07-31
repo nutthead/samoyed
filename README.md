@@ -7,19 +7,9 @@
 
 A modern, fast, and secure Git hooks manager written in Rust. Samoid is a reimplementation of Husky with improved performance, better error handling, and enhanced security features.
 
-## Status
-
-### Sunburst
-
-![Sunburst](https://codecov.io/gh/nutthead/samoid/graphs/sunburst.svg?token=8ROK706MYS)
-
-### Grid
+## Test Coverage
 
 ![Grid](https://codecov.io/gh/nutthead/samoid/graphs/tree.svg?token=8ROK706MYS)
-
-### Icicle
-
-![Icicle](https://codecov.io/gh/nutthead/samoid/graphs/icicle.svg?token=8ROK706MYS)
 
 ## Features
 
@@ -142,4 +132,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - Inspired by [Husky](https://typicode.github.io/husky/)
-- Built with 🫩 🫀 🫡 in Rust
+- Built with 🤟 🫡 in Rust
