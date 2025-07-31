@@ -109,7 +109,7 @@ Uses dependency injection pattern for complete test isolation and exceptional qu
 ### Prefer absolute paths to relative paths
 
 ```bash
-# BAD - YOU MUST NEVER DO THIS
+# ⚠️🚫🔴 BAD - YOU MUST NEVER DO THIS
 cd src && rm tests/comprehensive_integration_tests.rs
 
 # GOOD - YOU MUST INSTEAD DO THIS
@@ -117,7 +117,7 @@ rm ~/Projects/github.com/typicode/husky-to-samoid/tests/comprehensive_integratio
 
 ###############################################################################
 
-# BAD - YOU MUST NEVER DO THIS
+# ⚠️🚫🔴 BAD - YOU MUST NEVER DO THIS
 rm samoid/tests/comprehensive_integration_tests.rs
 
 # GOOD - YOU MUST INSTEAD DO THIS
@@ -125,7 +125,7 @@ rm ~/Projects/github.com/typicode/husky-to-samoid/tests/comprehensive_integratio
 
 ###############################################################################
 
-# BAD
+# ⚠️🚫🔴 BAD
 cd src && cargo check --all-targets
 
 # GOOD
@@ -136,7 +136,7 @@ cd ~/Projects/github.com/typicode/husky-to-samoid && cargo check --all-targets
 This project is under the `nutthead` organization, so ensure you use the `gh` CLI correctly:
 
 ```bash
-# BAD - YOU MUST NEVER DO THIS
+# ⚠️🚫🔴 BAD - YOU MUST NEVER DO THIS
 $ gh api repos/nutthead/samoid/actions/runs/16605659171/jobs/46976672370/logs
 
 # GOOD - YOU MUST INSTEAD DO THIS
@@ -144,7 +144,7 @@ $ gh run view 16605659171 --repo nutthead/samoid --log-failed
 
 ###############################################################################
 
-# BAD - YOU MUST NEVER DO THIS
+# ⚠️🚫🔴 BAD - YOU MUST NEVER DO THIS
 $ gh api repos/nutthead/samoid/pulls/comments/2242172228/replies --method POST --field body=@/tmp/concurrency-reply.md
 
 # GOOD - YOU MUST INSTEAD DO THIS
@@ -155,7 +155,7 @@ $ gh pr comment 23 --repo nutthead/samoid --body-file /tmp/concurrency-reply.md
 
 **YOU MUST ALWAYS USE** `--body-file` instead of `--body`:
 ```bash
-# BAD - YOU MUST NEVER DO THIS
+# ⚠️🚫🔴 BAD - YOU MUST NEVER DO THIS
 $ gh issue comment 7 --repo nutthead/samoid --body <stdin text>
 
 # First write the body to a file, then use --body-file to read the body from the file
@@ -164,9 +164,17 @@ $ gh issue comment 7 --repo nutthead/samoid --body-file /tmp/issue-7-completion-
 
 ###############################################################################
 
-# BAD - YOU MUST NEVER DO THIS
+# ⚠️🚫🔴 BAD - YOU MUST NEVER DO THIS
 $ gh pr create --title "feat: implement comprehensive performance optimization (#8)" --body <stdin text>
 
 # GOOD - YOU MUST INSTEAD DO THIS
 $ gh pr create --title 'feat: implement comprehensive performance optimization (#8)' --body-file <path to file>
+
+# ⚠️🚫🔴 BAD (Tool Call on GitHub Action Runs)
+# Fetch(https://github.com/nutthead/samoid/actions/runs/16630611789/job/47058759288)
+
+# GOOD
+$ gh run view 16630611789 --repo nutthead/samoid --log-failed
+$ gh run view 16630611789 --repo nutthead/samoid --job 47058759288 --log
+
 ```
