@@ -15,7 +15,7 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - ".tarpaulin.toml"
-      - ".github/workflows/test.yml"
+      - ".github/workflows/**"
   pull_request:
     branches: [master, develop]
     paths:
@@ -24,7 +24,7 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - ".tarpaulin.toml"
-      - ".github/workflows/test.yml"
+      - ".github/workflows/**"
   workflow_dispatch:
 
 concurrency:
