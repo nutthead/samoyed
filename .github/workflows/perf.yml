@@ -160,12 +160,12 @@ jobs:
           
           # Test samoid init memory usage
           echo "Testing samoid init memory usage..."
-          /usr/bin/time -v ../target/release/samoid init 2>&1 | tee samoid-init-memory.log
+          /usr/bin/time -v ../../target/release/samoid init 2>&1 | tee samoid-init-memory.log
           SAMOID_MEMORY=$(grep "Maximum resident set size" samoid-init-memory.log | awk '{print $6}')
           
-          # Test samoid-hook memory usage  
+          # Test samoid-hook memory usage with a non-existent hook (measures startup overhead only)
           echo "Testing samoid-hook memory usage..."
-          /usr/bin/time -v ../target/release/samoid-hook --help 2>&1 | tee samoid-hook-memory.log
+          /usr/bin/time -v ../../target/release/samoid-hook non-existent-hook 2>&1 | tee samoid-hook-memory.log
           HOOK_MEMORY=$(grep "Maximum resident set size" samoid-hook-memory.log | awk '{print $6}')
           
           echo "samoid init memory: ${SAMOID_MEMORY} KB ($(echo "scale=2; ${SAMOID_MEMORY}/1024" | bc) MB)"
