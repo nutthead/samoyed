@@ -1,7 +1,7 @@
 # ⚡ Performance Testing Pipeline
 #
 # Comprehensive performance testing workflow for Samoid Git hooks manager.
-# This workflow implements AC8.7 (Dedicated performance testing pipeline) and AC8.8 
+# This workflow implements AC8.7 (Dedicated performance testing pipeline) and AC8.8
 # (Benchmark results tracking and comparison system) from Issue #8.
 #
 # ARCHITECTURE OVERVIEW:
@@ -53,23 +53,23 @@ permissions:
 on:
   # Automatic triggers for performance validation
   push:
-    branches: [master, develop]  # Only test main branches to avoid noise
+    branches: [master, develop] # Only test main branches to avoid noise
     paths:
-      - "src/**"                       # Rust source code changes
-      - "tests/**"                     # Test and benchmark changes
-      - "Cargo.toml"                   # Dependencies changes
-      - ".github/workflows/perf.yml"   # Pipeline changes themselves
+      - "src/**" # Rust source code changes
+      - "tests/**" # Test and benchmark changes
+      - "Cargo.toml" # Dependencies changes
+      - ".github/workflows/perf.yml" # Pipeline changes themselves
   pull_request:
-    branches: [master, develop]  # Performance impact analysis for PRs
+    branches: [master, develop] # Performance impact analysis for PRs
     paths:
-      - "src/**"                       # Only run if code actually changed
-      - "tests/**"                     # Test and benchmark changes
-      - "Cargo.toml"                   # Dependencies changes
-      - ".github/workflows/perf.yml"   # Test pipeline changes
+      - "src/**" # Only run if code actually changed
+      - "tests/**" # Test and benchmark changes
+      - "Cargo.toml" # Dependencies changes
+      - ".github/workflows/perf.yml" # Test pipeline changes
   schedule:
     # Nightly performance monitoring at 2 AM UTC (low GitHub Actions usage time)
     # Provides regular baseline measurements and catches gradual performance drift
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
   workflow_dispatch:
     # Manual execution capability for ad-hoc performance testing
     # Enables on-demand performance analysis and debugging
@@ -82,14 +82,14 @@ concurrency:
 
 # Environment variables for consistent Rust toolchain behavior
 env:
-  CARGO_TERM_COLOR: always    # Colorized output for better CI log readability
-  RUST_BACKTRACE: 1          # Full backtraces for debugging if benchmarks fail
+  CARGO_TERM_COLOR: always # Colorized output for better CI log readability
+  RUST_BACKTRACE: 1 # Full backtraces for debugging if benchmarks fail
 
 jobs:
   performance:
     name: Performance Benchmarks
-    runs-on: ubuntu-latest    # Consistent runner for reliable performance measurements
-    
+    runs-on: ubuntu-latest # Consistent runner for reliable performance measurements
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -128,20 +128,20 @@ jobs:
         id: binary_sizes
         run: |
           echo "=== Binary Size Analysis ==="
-          
+
           SAMOID_SIZE=$(stat -c%s target/release/samoid)
           SAMOID_HOOK_SIZE=$(stat -c%s target/release/samoid-hook)
           TOTAL_SIZE=$((SAMOID_SIZE + SAMOID_HOOK_SIZE))
-          
+
           echo "samoid binary: ${SAMOID_SIZE} bytes ($(echo "scale=2; ${SAMOID_SIZE}/1024/1024" | bc) MB)"
           echo "samoid-hook binary: ${SAMOID_HOOK_SIZE} bytes ($(echo "scale=2; ${SAMOID_HOOK_SIZE}/1024/1024" | bc) MB)"
           echo "Total size: ${TOTAL_SIZE} bytes ($(echo "scale=2; ${TOTAL_SIZE}/1024/1024" | bc) MB)"
-          
+
           # Set outputs for artifact generation
           echo "samoid_size=${SAMOID_SIZE}" >> $GITHUB_OUTPUT
           echo "samoid_hook_size=${SAMOID_HOOK_SIZE}" >> $GITHUB_OUTPUT
           echo "total_size=${TOTAL_SIZE}" >> $GITHUB_OUTPUT
-          
+
           # Check AC8.2 compliance (10MB limit)
           MAX_SIZE=$((10 * 1024 * 1024))  # 10MB in bytes
           if [ ${TOTAL_SIZE} -gt ${MAX_SIZE} ]; then
@@ -155,29 +155,29 @@ jobs:
         id: memory_usage
         run: |
           echo "=== Memory Usage Analysis ==="
-          
+
           # Create test environment
           mkdir -p tmp/perf-test
           cd tmp/perf-test
           git init
-          
+
           # Test samoid init memory usage
           echo "Testing samoid init memory usage..."
           /usr/bin/time -v ../../target/release/samoid init 2>&1 | tee samoid-init-memory.log
           SAMOID_MEMORY=$(grep "Maximum resident set size" samoid-init-memory.log | awk '{print $6}')
-          
+
           # Test samoid-hook memory usage with a non-existent hook (measures startup overhead only)
           echo "Testing samoid-hook memory usage..."
           /usr/bin/time -v ../../target/release/samoid-hook non-existent-hook 2>&1 | tee samoid-hook-memory.log
           HOOK_MEMORY=$(grep "Maximum resident set size" samoid-hook-memory.log | awk '{print $6}')
-          
+
           echo "samoid init memory: ${SAMOID_MEMORY} KB ($(echo "scale=2; ${SAMOID_MEMORY}/1024" | bc) MB)"
           echo "samoid-hook memory: ${HOOK_MEMORY} KB ($(echo "scale=2; ${HOOK_MEMORY}/1024" | bc) MB)"
-          
+
           # Set outputs
           echo "samoid_memory_kb=${SAMOID_MEMORY}" >> $GITHUB_OUTPUT
           echo "hook_memory_kb=${HOOK_MEMORY}" >> $GITHUB_OUTPUT
-          
+
           # Check AC8.3 compliance (50MB limit)
           MAX_MEMORY_KB=$((50 * 1024))  # 50MB in KB
           if [ ${SAMOID_MEMORY} -gt ${MAX_MEMORY_KB} ] || [ ${HOOK_MEMORY} -gt ${MAX_MEMORY_KB} ]; then
@@ -191,25 +191,25 @@ jobs:
         id: benchmarks
         run: |
           echo "=== Performance Benchmarks ==="
-          
+
           # Run benchmarks with structured JSON output using cargo-criterion
           cargo criterion --message-format=json 2>&1 | tee benchmark-results.log
-          
+
           # Extract key metrics from JSON output using jq
           echo "Extracting performance metrics from JSON..."
-          
+
           # Parse JSON benchmark results for hook execution overhead
           # cargo-criterion outputs JSON with benchmark results including estimates
           HOOK_OVERHEAD_JSON=$(grep '"reason":"benchmark-complete"' benchmark-results.log | grep '"id":"real_hook_execution_overhead"' | head -1)
-          
+
           if [[ -n "$HOOK_OVERHEAD_JSON" ]]; then
             # Extract typical time estimate in nanoseconds, convert to milliseconds
             HOOK_OVERHEAD_NS=$(echo "$HOOK_OVERHEAD_JSON" | jq -r '.typical.estimate')
             HOOK_OVERHEAD_MS=$(echo "scale=4; $HOOK_OVERHEAD_NS / 1000000" | bc)
-            
+
             echo "Hook execution overhead: ${HOOK_OVERHEAD_MS} ms (from ${HOOK_OVERHEAD_NS} ns)"
             echo "hook_overhead_ms=${HOOK_OVERHEAD_MS}" >> $GITHUB_OUTPUT
-            
+
             # Check AC8.1 compliance (50ms limit for GitHub Actions)
             if (( $(echo "${HOOK_OVERHEAD_MS} > 50" | bc -l) )); then
               echo "❌ FAIL: Hook execution overhead ${HOOK_OVERHEAD_MS}ms exceeds 50ms limit"
@@ -225,51 +225,51 @@ jobs:
       - name: 📊 Generate performance report
         id: perf_report
         run: |
-          
+
           # Create performance report
           cat > performance-report.md << 'EOF'
           # 📊 Performance Test Report
-          
+
           **Test Environment:** Ubuntu Latest (GitHub Actions)
           **Commit:** ${{ github.sha }}
           **Branch:** ${{ github.ref_name }}
           **Triggered by:** ${{ github.event_name }}
-          
+
           ## 📏 Binary Size Analysis (AC8.2)
-          
+
           | Binary        | Size                                                      | Status        |
           |---------------|-----------------------------------------------------------|---------------|
           | `samoid`      | ${{ steps.binary_sizes.outputs.samoid_size }} bytes      | ✅            |
           | `samoid-hook` | ${{ steps.binary_sizes.outputs.samoid_hook_size }} bytes | ✅            |
           | **Total**     | **${{ steps.binary_sizes.outputs.total_size }} bytes**   | ✅ **< 10MB** |
-          
+
           ## 🧠 Memory Usage Analysis (AC8.3)
-          
+
           | Component     | Memory Usage                                           | Status                  |
           |---------------|--------------------------------------------------------|-------------------------|
           | `samoid init` | ${{ steps.memory_usage.outputs.samoid_memory_kb }} KB | ✅                      |
           | `samoid-hook` | ${{ steps.memory_usage.outputs.hook_memory_kb }} KB   | ✅                      |
           | **Limit**     | **50 MB**                                              | ✅ **All under limit** |
-          
+
           ## ⚡ Performance Benchmarks
-          
+
           | Metric                  | Value                                                     | Target     | Status |
           |-------------------------|-----------------------------------------------------------|------------|--------|
           | Hook Execution Overhead | ${{ steps.benchmarks.outputs.hook_overhead_ms || 'N/A' }} ms | < 50ms     | ✅     |
           | Startup Time            | TBD                                                       | < 100ms    | ✅     |
           | File Operations         | TBD                                                       | Efficient  | ✅     |
-          
+
           ## 📈 Performance Summary
-          
+
           - ✅ **AC8.1**: Hook execution overhead < 50ms
-          - ✅ **AC8.2**: Binary size < 10MB  
+          - ✅ **AC8.2**: Binary size < 10MB
           - ✅ **AC8.3**: Memory usage < 50MB
           - ✅ **AC8.4**: Startup time < 100ms
           - ✅ **AC8.5**: Efficient file system operations
-          
+
           *Full benchmark results available in workflow artifacts.*
           EOF
-          
+
           echo "Performance report generated successfully"
 
       - name: 📤 Upload performance artifacts
@@ -291,20 +291,20 @@ jobs:
             const fs = require('fs');
             const reportPath = './performance-report.md';
             const comparisonPath = './performance-comparison.md';
-            
+
             let fullReport = '';
-            
+
             // Add main performance report
             if (fs.existsSync(reportPath)) {
               fullReport += fs.readFileSync(reportPath, 'utf8');
             }
-            
+
             // Add performance comparison if available
             if (fs.existsSync(comparisonPath)) {
               fullReport += '\n\n---\n\n';
               fullReport += fs.readFileSync(comparisonPath, 'utf8');
             }
-            
+
             if (fullReport) {
               try {
                 await github.rest.issues.createComment({
@@ -325,7 +325,7 @@ jobs:
       - name: 📊 Generate performance metrics JSON
         id: metrics_json
         run: |
-          
+
           # Create structured performance data with proper null handling
           HOOK_OVERHEAD_VALUE="${{ steps.benchmarks.outputs.hook_overhead_ms }}"
           if [[ -z "$HOOK_OVERHEAD_VALUE" || "$HOOK_OVERHEAD_VALUE" == "null" ]]; then
@@ -338,7 +338,7 @@ jobs:
               HOOK_OVERHEAD_JSON="$HOOK_OVERHEAD_VALUE"
             fi
           fi
-          
+
           cat > performance-metrics.json << EOF
           {
             "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -353,31 +353,31 @@ jobs:
             }
           }
           EOF
-          
+
           echo "Performance metrics JSON created"
 
       - name: 🔍 Setup Node.js for performance comparison
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "18"
 
       - name: 🎯 Run performance comparison analysis
         id: perf_comparison
         continue-on-error: true
         run: |
-          
+
           # Make the comparison script executable
           chmod +x .github/workflows/scripts/perf-compare.js
-          
+
           # Create performance data directory
           mkdir -p .perf-data
-          
+
           # Store current results
           node .github/workflows/scripts/perf-compare.js store performance-metrics.json
-          
+
           # Compare against baseline (if available)
           node .github/workflows/scripts/perf-compare.js compare performance-metrics.json || echo "⚠️ Performance comparison failed (may be expected for first run)"
-          
+
           # Check if comparison report was generated
           if [ -f performance-comparison.md ]; then
             echo "comparison_available=true" >> $GITHUB_OUTPUT
@@ -415,13 +415,13 @@ jobs:
         run: |
           echo "# ⚡ Samoid Performance Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Performance Results Section
           echo "## 🎯 Performance Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status | Details |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|---------|---------|" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "${{ needs.performance.result }}" == "success" ]; then
             echo "| ⚡ **Performance Benchmarks** | ✅ **PASSED** | All performance criteria met |" >> $GITHUB_STEP_SUMMARY
             echo "| 📏 **Binary Size** | ✅ **< 10MB** | Well within size limits |" >> $GITHUB_STEP_SUMMARY
@@ -430,9 +430,9 @@ jobs:
           else
             echo "| ⚡ **Performance Benchmarks** | ❌ **FAILED** | Some performance criteria not met |" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Performance Criteria Status
           echo "## 📈 Acceptance Criteria Status" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -444,7 +444,7 @@ jobs:
             echo "- ✅ **AC8.5**: Efficient file system operations" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Workflow Information
           echo "## ℹ️ Test Details" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
