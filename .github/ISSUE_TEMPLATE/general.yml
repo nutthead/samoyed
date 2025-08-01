@@ -1,0 +1,96 @@
+name: 📝 General Issue
+description: General issue that doesn't fit other categories
+title: "[General]: "
+labels: []
+projects: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for creating an issue! If this fits into a specific category (Feature Request, Bug Report, etc.), please consider using one of the specialized templates instead.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Provide a clear and concise summary of the issue
+      placeholder: Brief description of the issue...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What type of issue is this?
+      options:
+        - 📋 Discussion - General discussion or question
+        - 📖 Documentation - Documentation request or improvement
+        - 💡 Idea - Initial idea or proposal
+        - 🔍 Investigation - Research or investigation needed
+        - 🤝 Process - Project process or workflow discussion
+        - 📊 Planning - Project planning or roadmap item
+        - 🎯 Other - Something else not covered by other templates
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Detailed Description
+      description: Provide comprehensive details about the issue
+      placeholder: Detailed explanation of the issue, background, context...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this issue?
+      options:
+        - 🔥 High - Urgent or critical
+        - ⚡ Medium - Important
+        - 🟢 Low - Nice to have
+      default: 1
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: openup-phase
+    attributes:
+      label: OpenUP Phase (if applicable)
+      description: Which OpenUP phases might be relevant?
+      options:
+        - label: 📐 Elaboration - Architecture design and risk mitigation
+        - label: 🔨 Construction - Implementation and development
+        - label: 🏁 Transition - Deployment and production readiness
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria (if applicable)
+      description: If this requires specific deliverables, list the criteria
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies (if applicable)
+      description: List any dependencies or related issues
+      placeholder: |
+        - **Depends on**: #issue_number (Description)
+        - **Blocks**: #issue_number (Description)
+        - **Relates to**: #issue_number (Description)
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or examples
+      placeholder: Any additional information...
