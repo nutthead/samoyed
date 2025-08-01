@@ -1,10 +1,10 @@
 # Samoid
 
-![Test Suite](https://github.com/nutthead/samoid/actions/workflows/test.yml/badge.svg)](https://github.com/nutthead/samoid/actions/workflows/test.yml)&nbsp;&nbsp;![codecov](https://codecov.io/gh/nutthead/samoid/graph/badge.svg?token=8ROK706MYS)](https://codecov.io/gh/nutthead/samoid)&nbsp;&nbsp;![Security Audit](https://img.shields.io/badge/security-audit_passing-green)](https://github.com/nutthead/samoid/actions/workflows/test.yml)&nbsp;&nbsp;![Rust Version](https://img.shields.io/badge/rust-1.85%2B-blue)](https://www.rust-lang.org)
+[![Test Suite](https://github.com/nutthead/samoid/actions/workflows/test.yml/badge.svg)](https://github.com/nutthead/samoid/actions/workflows/test.yml)&nbsp;&nbsp;[![codecov](https://codecov.io/gh/nutthead/samoid/graph/badge.svg?token=8ROK706MYS)](https://codecov.io/gh/nutthead/samoid)&nbsp;&nbsp;[![Security Audit](https://img.shields.io/badge/security-audit_passing-green)](https://github.com/nutthead/samoid/actions/workflows/test.yml)&nbsp;&nbsp;[![Rust Version](https://img.shields.io/badge/rust-1.85%2B-blue)](https://www.rust-lang.org)
 
 A modern, fast, and secure Git hooks manager written in Rust. Samoid is a reimplementation of Husky with improved performance, better error handling, and enhanced security features.
 
-![Samoyed](docs/images/samoyed.png)
+![Samoyed](docs/images/samoyed.webp)
 
 ## Test Coverage
 
