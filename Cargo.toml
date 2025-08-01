@@ -1,7 +1,9 @@
 [package]
 name = "samoyed"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2024"
+description = "A modern native Git hooks manager implemented in Rust"
+license = "MIT"
 
 [[bin]]
 name = "samoyed"
