@@ -4,6 +4,8 @@
 
 A modern, fast, and secure Git hooks manager written in Rust. Samoid is a reimplementation of Husky with improved performance, better error handling, and enhanced security features.
 
+![Samoyed](docs/images/samoyed.webp)
+
 ## Test Coverage
 
 ![Grid](https://codecov.io/gh/nutthead/samoid/graphs/tree.svg?token=8ROK706MYS)
