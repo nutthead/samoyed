@@ -3,9 +3,9 @@
 //! Tests for core installation functionality including Git configuration,
 //! directory creation, and hook file generation.
 
-use samoid::environment::FileSystem;
-use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
-use samoid::install_hooks;
+use samoyed::environment::FileSystem;
+use samoyed::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
+use samoyed::install_hooks;
 use std::process::{ExitStatus, Output};
 
 // Cross-platform exit status creation
@@ -42,7 +42,7 @@ fn test_complete_installation_flow() {
         .with_response("git", &["--version"], Ok(version_output))
         .with_response(
             "git",
-            &["config", "core.hooksPath", ".samoid/_"],
+            &["config", "core.hooksPath", ".samoyed/_"],
             Ok(config_output),
         );
     let fs = MockFileSystem::new().with_directory(".git");
@@ -52,22 +52,22 @@ fn test_complete_installation_flow() {
     assert!(result.is_ok());
 
     // Verify directory creation
-    assert!(fs.exists(std::path::Path::new(".samoid/_")));
-    assert!(fs.exists(std::path::Path::new(".samoid/_/.gitignore")));
-    assert!(fs.exists(std::path::Path::new(".samoid/_/h")));
+    assert!(fs.exists(std::path::Path::new(".samoyed/_")));
+    assert!(fs.exists(std::path::Path::new(".samoyed/_/.gitignore")));
+    assert!(fs.exists(std::path::Path::new(".samoyed/_/h")));
 
     // Verify gitignore content
     let gitignore_content = fs
-        .read_to_string(std::path::Path::new(".samoid/_/.gitignore"))
+        .read_to_string(std::path::Path::new(".samoyed/_/.gitignore"))
         .unwrap();
     assert_eq!(gitignore_content, "*");
 
     // Verify hook files are created with correct content
     let pre_commit_content = fs
-        .read_to_string(std::path::Path::new(".samoid/_/pre-commit"))
+        .read_to_string(std::path::Path::new(".samoyed/_/pre-commit"))
         .unwrap();
     assert!(pre_commit_content.starts_with("#!/usr/bin/env sh"));
-    assert!(pre_commit_content.contains("exec samoid-hook"));
+    assert!(pre_commit_content.contains("exec samoyed-hook"));
 
     // Verify all standard Git hooks were created (use the actual STANDARD_HOOKS constant)
     let standard_hooks = [
@@ -88,7 +88,7 @@ fn test_complete_installation_flow() {
     ];
 
     for hook in &standard_hooks {
-        let hook_path = std::path::Path::new(".samoid/_").join(hook);
+        let hook_path = std::path::Path::new(".samoyed/_").join(hook);
         assert!(fs.exists(&hook_path), "Hook {hook} should be created");
     }
 }
@@ -161,7 +161,7 @@ fn test_reinstallation_idempotency() {
             .with_response("git", &["--version"], Ok(version_output.clone()))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output.clone()),
             );
         let fs = if i == 0 {
@@ -170,10 +170,10 @@ fn test_reinstallation_idempotency() {
             // Simulate existing installation
             MockFileSystem::new()
                 .with_directory(".git")
-                .with_directory(".samoid/_")
-                .with_file(".samoid/_/.gitignore", "*")
-                .with_file(".samoid/_/h", "#!/usr/bin/env sh\n")
-                .with_file(".samoid/_/pre-commit", "hook content")
+                .with_directory(".samoyed/_")
+                .with_file(".samoyed/_/.gitignore", "*")
+                .with_file(".samoyed/_/h", "#!/usr/bin/env sh\n")
+                .with_file(".samoyed/_/pre-commit", "hook content")
         };
 
         let result = install_hooks(&env, &runner, &fs, None);
@@ -183,8 +183,8 @@ fn test_reinstallation_idempotency() {
         );
 
         // Verify hooks still exist and are valid
-        assert!(fs.exists(std::path::Path::new(".samoid/_")));
-        assert!(fs.exists(std::path::Path::new(".samoid/_/pre-commit")));
+        assert!(fs.exists(std::path::Path::new(".samoyed/_")));
+        assert!(fs.exists(std::path::Path::new(".samoyed/_/pre-commit")));
     }
 }
 
@@ -205,7 +205,7 @@ fn test_directory_structure_validation() {
         .with_response("git", &["--version"], Ok(version_output))
         .with_response(
             "git",
-            &["config", "core.hooksPath", ".samoid/_"],
+            &["config", "core.hooksPath", ".samoyed/_"],
             Ok(config_output),
         );
     let fs = MockFileSystem::new().with_directory(".git");
@@ -214,21 +214,21 @@ fn test_directory_structure_validation() {
     assert!(result.is_ok());
 
     // Verify complete directory structure
-    assert!(fs.exists(std::path::Path::new(".samoid/_")));
+    assert!(fs.exists(std::path::Path::new(".samoyed/_")));
 
     // Check all required files exist
     let required_files = [".gitignore"];
     for file in &required_files {
-        let file_path = std::path::Path::new(".samoid/_").join(file);
+        let file_path = std::path::Path::new(".samoyed/_").join(file);
         assert!(
             fs.exists(&file_path),
-            "Required file {file} should exist in .samoid/_"
+            "Required file {file} should exist in .samoyed/_"
         );
     }
 
     // Also verify that a sample hook file exists
     assert!(
-        fs.exists(std::path::Path::new(".samoid/_/pre-commit")),
+        fs.exists(std::path::Path::new(".samoyed/_/pre-commit")),
         "Hook files should be created"
     );
 }

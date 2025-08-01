@@ -7,7 +7,7 @@
 //! # Hook Structure
 //!
 //! The module creates:
-//! - A hooks directory (e.g., `.samoid/_`)
+//! - A hooks directory (e.g., `.samoyed/_`)
 //! - A `.gitignore` file to exclude hooks from version control
 //! - Individual hook scripts for all standard Git hooks
 //! - A hook runner script (`h`) that executes the actual hook logic
@@ -100,7 +100,7 @@ impl From<std::io::Error> for HookError {
 /// # Example
 ///
 /// ```
-/// # use samoid::hooks::normalize_line_endings;
+/// # use samoyed::hooks::normalize_line_endings;
 /// let windows_content = "#!/bin/sh\r\necho 'hello'\r\n";
 /// let normalized = normalize_line_endings(windows_content);
 /// assert_eq!(normalized, "#!/bin/sh\necho 'hello'\n");
@@ -129,12 +129,12 @@ pub fn normalize_line_endings(content: &str) -> String {
 /// # Example
 ///
 /// ```
-/// use samoid::hooks::create_hook_directory;
-/// use samoid::environment::SystemFileSystem;
+/// use samoyed::hooks::create_hook_directory;
+/// use samoyed::environment::SystemFileSystem;
 /// use std::path::Path;
 ///
 /// let fs = SystemFileSystem;
-/// let hooks_dir = Path::new(".samoid/_");
+/// let hooks_dir = Path::new(".samoyed/_");
 /// create_hook_directory(&fs, hooks_dir).expect("Failed to create hooks directory");
 /// ```
 pub fn create_hook_directory(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<(), HookError> {
@@ -150,7 +150,7 @@ pub fn create_hook_directory(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<()
 /// Creates all standard Git hook files
 ///
 /// This function creates a hook file for each standard Git hook. Each hook
-/// file is a simple shell script that delegates to the `samoid-hook` binary
+/// file is a simple shell script that delegates to the `samoyed-hook` binary
 /// runner. All hook files are made executable (mode 0755).
 ///
 /// # Arguments
@@ -168,13 +168,13 @@ pub fn create_hook_directory(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<()
 /// Each hook file contains:
 /// ```bash
 /// #!/usr/bin/env sh
-/// exec samoid-hook "$(basename "$0")" "$@"
+/// exec samoyed-hook "$(basename "$0")" "$@"
 /// ```
 ///
-/// This delegates to the `samoid-hook` binary, passing the hook name and all arguments.
+/// This delegates to the `samoyed-hook` binary, passing the hook name and all arguments.
 pub fn create_hook_files(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<(), HookError> {
     let hook_content = r#"#!/usr/bin/env sh
-exec samoid-hook "$(basename "$0")" "$@""#;
+exec samoyed-hook "$(basename "$0")" "$@""#;
 
     // Normalize line endings to LF for cross-platform compatibility
     let normalized_content = normalize_line_endings(hook_content);
@@ -197,7 +197,7 @@ exec samoid-hook "$(basename "$0")" "$@""#;
 /// # Arguments
 ///
 /// * `fs` - File system abstraction for file operations
-/// * `hooks_base_dir` - Base directory (e.g., `.samoid`) where scripts should be created
+/// * `hooks_base_dir` - Base directory (e.g., `.samoyed`) where scripts should be created
 ///
 /// # Returns
 ///
@@ -274,7 +274,7 @@ mod tests {
     #[test]
     fn test_create_hook_directory() {
         let fs = MockFileSystem::new();
-        let hooks_dir = std::path::Path::new(".samoid/_");
+        let hooks_dir = std::path::Path::new(".samoyed/_");
 
         let result = create_hook_directory(&fs, hooks_dir);
         assert!(result.is_ok());
@@ -287,7 +287,7 @@ mod tests {
     #[test]
     fn test_create_hook_files() {
         let fs = MockFileSystem::new();
-        let hooks_dir = std::path::Path::new(".samoid/_");
+        let hooks_dir = std::path::Path::new(".samoyed/_");
 
         let result = create_hook_files(&fs, hooks_dir);
         assert!(result.is_ok());
@@ -301,7 +301,7 @@ mod tests {
     #[test]
     fn test_create_example_hook_scripts() {
         let fs = MockFileSystem::new();
-        let hooks_base_dir = std::path::Path::new(".samoid");
+        let hooks_base_dir = std::path::Path::new(".samoyed");
 
         let result = create_example_hook_scripts(&fs, hooks_base_dir);
         assert!(result.is_ok());
@@ -314,10 +314,10 @@ mod tests {
     #[test]
     fn test_create_example_hook_scripts_no_overwrite() {
         let fs = MockFileSystem::new().with_file(
-            ".samoid/scripts/pre-commit",
+            ".samoyed/scripts/pre-commit",
             "#!/bin/sh\n# User's existing script",
         );
-        let hooks_base_dir = std::path::Path::new(".samoid");
+        let hooks_base_dir = std::path::Path::new(".samoyed");
 
         let result = create_example_hook_scripts(&fs, hooks_base_dir);
         assert!(result.is_ok());
@@ -366,7 +366,7 @@ mod tests {
     #[test]
     fn test_create_example_hook_scripts_multiple_calls() {
         let fs = MockFileSystem::new();
-        let hooks_base_dir = std::path::Path::new(".samoid");
+        let hooks_base_dir = std::path::Path::new(".samoyed");
 
         // First call should create examples
         let result1 = create_example_hook_scripts(&fs, hooks_base_dir);
@@ -407,7 +407,7 @@ mod tests {
 
         // Test creating hook directories with different paths
         let dirs = [
-            std::path::Path::new(".samoid/_"),
+            std::path::Path::new(".samoyed/_"),
             std::path::Path::new(".hooks"),
             std::path::Path::new("custom/hooks/dir"),
         ];
@@ -426,7 +426,7 @@ mod tests {
 
         let hooks_base_dir1 = std::path::Path::new(".hooks1");
         let hooks_base_dir2 = std::path::Path::new(".hooks2");
-        let hooks_base_dir3 = std::path::Path::new(".samoid");
+        let hooks_base_dir3 = std::path::Path::new(".samoyed");
 
         // Test creating examples in different directories
         let result1 = create_example_hook_scripts(&fs, hooks_base_dir1);

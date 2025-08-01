@@ -130,8 +130,8 @@ impl std::error::Error for GitError {}
 /// # Example
 ///
 /// ```
-/// use samoid::git::check_git_repository;
-/// use samoid::environment::SystemFileSystem;
+/// use samoyed::git::check_git_repository;
+/// use samoyed::environment::SystemFileSystem;
 ///
 /// let fs = SystemFileSystem;
 /// match check_git_repository(&fs) {
@@ -163,7 +163,7 @@ pub fn check_git_repository(fs: &dyn FileSystem) -> Result<(), GitError> {
 /// # Arguments
 ///
 /// * `runner` - Command runner for executing git commands  
-/// * `hooks_path` - Path to the hooks directory (e.g., ".samoid/_")
+/// * `hooks_path` - Path to the hooks directory (e.g., ".samoyed/_")
 ///
 /// # Returns
 ///
@@ -175,11 +175,11 @@ pub fn check_git_repository(fs: &dyn FileSystem) -> Result<(), GitError> {
 /// # Example
 ///
 /// ```
-/// use samoid::git::set_hooks_path;
-/// use samoid::environment::SystemCommandRunner;
+/// use samoyed::git::set_hooks_path;
+/// use samoyed::environment::SystemCommandRunner;
 ///
 /// let runner = SystemCommandRunner;
-/// match set_hooks_path(&runner, ".samoid/_") {
+/// match set_hooks_path(&runner, ".samoyed/_") {
 ///     Ok(()) => println!("Hooks path configured"),
 ///     Err(e) => eprintln!("Configuration failed: {}", e),
 /// }

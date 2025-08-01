@@ -4,7 +4,7 @@
 //! shell on different platforms, including Windows cmd.exe, PowerShell, and Unix-like
 //! environments running on Windows (Git Bash, WSL, Cygwin).
 
-use samoid::environment::{
+use samoyed::environment::{
     FileSystem,
     mocks::{MockCommandRunner, MockEnvironment, MockFileSystem},
 };
@@ -38,18 +38,18 @@ fn test_cross_platform_hook_execution_unix() {
 
     let _runner = MockCommandRunner::new().with_response(
         "sh",
-        &["-e", ".samoid/scripts/pre-commit", ""],
+        &["-e", ".samoyed/scripts/pre-commit", ""],
         Ok(output),
     );
 
     let fs = MockFileSystem::new().with_file(
-        ".samoid/scripts/pre-commit",
+        ".samoyed/scripts/pre-commit",
         "#!/bin/sh\necho 'Unix hook executed'",
     );
 
     // This would normally call the hook runner, but we can't test process::exit easily
     // Instead, we verify the mock was set up correctly
-    assert!(fs.exists(std::path::Path::new(".samoid/scripts/pre-commit")));
+    assert!(fs.exists(std::path::Path::new(".samoyed/scripts/pre-commit")));
 }
 
 #[test]
@@ -68,16 +68,16 @@ fn test_cross_platform_hook_execution_windows_git_bash() {
     // Should use sh when Git Bash is detected
     let _runner = MockCommandRunner::new().with_response(
         "sh",
-        &["-e", ".samoid/scripts/pre-commit", ""],
+        &["-e", ".samoyed/scripts/pre-commit", ""],
         Ok(output),
     );
 
     let fs = MockFileSystem::new().with_file(
-        ".samoid/scripts/pre-commit",
+        ".samoyed/scripts/pre-commit",
         "#!/bin/sh\necho 'Git Bash hook executed'",
     );
 
-    assert!(fs.exists(std::path::Path::new(".samoid/scripts/pre-commit")));
+    assert!(fs.exists(std::path::Path::new(".samoyed/scripts/pre-commit")));
 }
 
 #[test]
@@ -94,16 +94,16 @@ fn test_cross_platform_hook_execution_windows_cmd() {
     // Should use cmd for .bat files on Windows
     let _runner = MockCommandRunner::new().with_response(
         "cmd",
-        &["/C", ".samoid/scripts/pre-commit.bat", ""],
+        &["/C", ".samoyed/scripts/pre-commit.bat", ""],
         Ok(output),
     );
 
     let fs = MockFileSystem::new().with_file(
-        ".samoid/scripts/pre-commit.bat",
+        ".samoyed/scripts/pre-commit.bat",
         "@echo off\necho Windows batch executed",
     );
 
-    assert!(fs.exists(std::path::Path::new(".samoid/scripts/pre-commit.bat")));
+    assert!(fs.exists(std::path::Path::new(".samoyed/scripts/pre-commit.bat")));
 }
 
 #[test]
@@ -124,18 +124,18 @@ fn test_cross_platform_hook_execution_windows_powershell() {
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            ".samoid/scripts/pre-commit.ps1",
+            ".samoyed/scripts/pre-commit.ps1",
             "",
         ],
         Ok(output),
     );
 
     let fs = MockFileSystem::new().with_file(
-        ".samoid/scripts/pre-commit.ps1",
+        ".samoyed/scripts/pre-commit.ps1",
         "Write-Host 'PowerShell script executed'",
     );
 
-    assert!(fs.exists(std::path::Path::new(".samoid/scripts/pre-commit.ps1")));
+    assert!(fs.exists(std::path::Path::new(".samoyed/scripts/pre-commit.ps1")));
 }
 
 #[test]

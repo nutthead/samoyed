@@ -255,7 +255,7 @@ pub fn log_file_operation_with_env(
 ) {
     if debug_mode {
         eprintln!(
-            "samoid: {} file: {}",
+            "samoyed: {} file: {}",
             operation,
             sanitize_path_with_env(env, path)
         );
@@ -266,7 +266,7 @@ pub fn log_file_operation_with_env(
 #[allow(dead_code)] // Function is part of public API but not used internally yet
 pub fn log_file_operation(debug_mode: bool, operation: &str, path: &Path) {
     if debug_mode {
-        eprintln!("samoid: {} file: {}", operation, sanitize_path(path));
+        eprintln!("samoyed: {} file: {}", operation, sanitize_path(path));
     }
 }
 
@@ -274,7 +274,7 @@ pub fn log_file_operation(debug_mode: bool, operation: &str, path: &Path) {
 pub fn log_command_execution(debug_mode: bool, command: &str, args: &[String]) {
     if debug_mode {
         let sanitized_args = sanitize_args(args);
-        eprintln!("samoid: Executing command: {command} {sanitized_args:?}");
+        eprintln!("samoyed: Executing command: {command} {sanitized_args:?}");
     }
 }
 
@@ -289,14 +289,14 @@ mod tests {
         // Mock HOME environment variable
         let env = MockEnvironment::new().with_var("HOME", "/home/testuser");
 
-        let result = sanitize_path_with_env(&env, "/home/testuser/.config/samoid");
-        assert_eq!(result, "~/.config/samoid");
+        let result = sanitize_path_with_env(&env, "/home/testuser/.config/samoyed");
+        assert_eq!(result, "~/.config/samoyed");
     }
 
     #[test]
     fn test_sanitize_path_relative() {
-        let result = sanitize_path(".samoid/scripts/pre-commit");
-        assert_eq!(result, ".samoid/scripts/pre-commit");
+        let result = sanitize_path(".samoyed/scripts/pre-commit");
+        assert_eq!(result, ".samoyed/scripts/pre-commit");
     }
 
     #[test]
@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_sanitize_env_var_safe() {
-        let result = sanitize_env_var("SAMOID_DEBUG", "1");
+        let result = sanitize_env_var("SAMOYED_DEBUG", "1");
         assert_eq!(result, Some("1".to_string()));
     }
 }

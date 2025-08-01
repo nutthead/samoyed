@@ -5,8 +5,8 @@
 
 #[cfg(target_os = "linux")]
 mod linux_tests {
-    use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
-    use samoid::install_hooks;
+    use samoyed::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
+    use samoyed::install_hooks;
     use std::process::{ExitStatus, Output};
 
     // Cross-platform exit status creation
@@ -38,7 +38,7 @@ mod linux_tests {
             .with_response("git", &["--version"], Ok(version_output))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(output.clone()),
             );
         let fs = MockFileSystem::new().with_directory(".git");
@@ -86,7 +86,7 @@ mod linux_tests {
             .with_response("git", &["--version"], Ok(version_output.clone()))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(output.clone()),
             );
         let fs = MockFileSystem::new().with_directory(".git");
@@ -99,7 +99,7 @@ mod linux_tests {
             .with_response("git", &["--version"], Ok(version_output))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(output),
             );
         let result2 = install_hooks(&env_without_xdg, &runner2, &fs, None);
@@ -123,7 +123,7 @@ mod linux_tests {
             .with_response("git", &["--version"], Ok(version_output))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(output),
             );
         let fs = MockFileSystem::new().with_directory(".git");
@@ -165,7 +165,7 @@ mod linux_tests {
                 .with_response("git", &["--version"], Ok(version_output))
                 .with_response(
                     "git",
-                    &["config", "core.hooksPath", ".samoid/_"],
+                    &["config", "core.hooksPath", ".samoyed/_"],
                     Ok(output),
                 );
             let fs = MockFileSystem::new().with_directory(".git");
@@ -204,7 +204,7 @@ mod linux_tests {
                 .with_response("git", &["--version"], Ok(version_output))
                 .with_response(
                     "git",
-                    &["config", "core.hooksPath", ".samoid/_"],
+                    &["config", "core.hooksPath", ".samoyed/_"],
                     Ok(output),
                 );
             let fs = MockFileSystem::new().with_directory(".git");

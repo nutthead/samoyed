@@ -1,31 +1,31 @@
-//! Hook Execution Runtime for Samoid (`samoid-hook` binary)
+//! Hook Execution Runtime for Samoyed (`samoyed-hook` binary)
 //!
-//! This module defines a separate binary (`samoid-hook`) that serves as the Git hook executor.
-//! It is NOT part of the main `samoid` CLI binary, but rather a companion binary that gets
-//! installed into `.samoid/_/h` and is referenced by all Git hook files.
+//! This module defines a separate binary (`samoyed-hook`) that serves as the Git hook executor.
+//! It is NOT part of the main `samoyed` CLI binary, but rather a companion binary that gets
+//! installed into `.samoyed/_/h` and is referenced by all Git hook files.
 //!
 //! # Binary Architecture
 //!
-//! Samoid consists of two binaries:
-//! - `samoid`: The main CLI tool for installation and configuration (defined in `main.rs`)
-//! - `samoid-hook`: This hook runner binary that executes during Git operations
+//! Samoyed consists of two binaries:
+//! - `samoyed`: The main CLI tool for installation and configuration (defined in `main.rs`)
+//! - `samoyed-hook`: This hook runner binary that executes during Git operations
 //!
-//! When Git triggers a hook (e.g., pre-commit), it executes the hook file in `.samoid/_/`,
-//! which in turn executes this `samoid-hook` binary with the hook name as an argument.
+//! When Git triggers a hook (e.g., pre-commit), it executes the hook file in `.samoyed/_/`,
+//! which in turn executes this `samoyed-hook` binary with the hook name as an argument.
 //!
 //! # Environment Variables
 //!
-//! - **SAMOID=0**: Skip all hook execution (useful for CI/deployment, rebasing)
-//! - **SAMOID=1**: Normal execution mode (default)
-//! - **SAMOID=2**: Enable debug mode with detailed script tracing
+//! - **SAMOYED=0**: Skip all hook execution (useful for CI/deployment, rebasing)
+//! - **SAMOYED=1**: Normal execution mode (default)
+//! - **SAMOYED=2**: Enable debug mode with detailed script tracing
 //!
 //! # Execution Flow
 //!
-//! 1. Git triggers hook → 2. Hook file runs `samoid-hook` → 3. This binary executes user's script
+//! 1. Git triggers hook → 2. Hook file runs `samoyed-hook` → 3. This binary executes user's script
 //!
 //! The hook runner follows these steps:
-//! 1. Parse environment variables (SAMOID=0/1/2)
-//! 2. Load initialization script from `~/.config/samoid/init.sh` (if exists)
+//! 1. Parse environment variables (SAMOYED=0/1/2)
+//! 2. Load initialization script from `~/.config/samoyed/init.sh` (if exists)
 //! 3. Locate and execute the actual hook script from project root
 //! 4. Handle errors and propagate exit codes to Git
 //!
@@ -43,18 +43,18 @@ mod logging;
 
 /// Simplified configuration structure for hook runner
 #[derive(Debug, Serialize, Deserialize, Clone)]
-struct SamoidConfig {
+struct SamoyedConfig {
     /// Hook definitions (required)
     pub hooks: HashMap<String, String>,
 
     /// Optional settings (with defaults)
     #[serde(default)]
-    pub settings: SamoidSettings,
+    pub settings: SamoyedSettings,
 }
 
 /// Settings structure with defaults
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-struct SamoidSettings {
+struct SamoyedSettings {
     #[serde(default)]
     pub hook_directory: Option<String>,
     #[serde(default)]
@@ -87,21 +87,21 @@ fn run_hook(
     fs: &dyn FileSystem,
     args: &[String],
 ) -> Result<()> {
-    // Check SAMOID environment variable for execution mode
-    let samoid_mode = env.get_var("SAMOID").unwrap_or_else(|| "1".to_string());
+    // Check SAMOYED environment variable for execution mode
+    let samoyed_mode = env.get_var("SAMOYED").unwrap_or_else(|| "1".to_string());
 
-    // SAMOID=0 means skip execution entirely
-    if samoid_mode == "0" {
+    // SAMOYED=0 means skip execution entirely
+    if samoyed_mode == "0" {
         process::exit(0);
     }
 
-    // SAMOID=2 enables debug mode (script tracing)
-    let debug_mode = samoid_mode == "2";
+    // SAMOYED=2 enables debug mode (script tracing)
+    let debug_mode = samoyed_mode == "2";
 
     if debug_mode {
-        eprintln!("samoid: Debug mode enabled (SAMOID=2)");
+        eprintln!("samoyed: Debug mode enabled (SAMOYED=2)");
         let sanitized_args = sanitize_args(args);
-        eprintln!("samoid: Hook runner args: {sanitized_args:?}");
+        eprintln!("samoyed: Hook runner args: {sanitized_args:?}");
     }
 
     // Determine hook name from the first argument (e.g., pre-commit, post-commit)
@@ -115,17 +115,17 @@ fn run_hook(
     };
 
     if debug_mode {
-        eprintln!("samoid: Detected hook name: {hook_name}");
+        eprintln!("samoyed: Detected hook name: {hook_name}");
     }
 
-    // First, try to load and execute command from samoid.toml
+    // First, try to load and execute command from samoyed.toml
     match load_hook_command_from_config(fs, hook_name, debug_mode) {
         Ok(command) => {
             if debug_mode {
-                eprintln!("samoid: Found command in samoid.toml: {command}");
+                eprintln!("samoyed: Found command in samoyed.toml: {command}");
             }
 
-            // Load initialization script from ~/.config/samoid/init.sh
+            // Load initialization script from ~/.config/samoyed/init.sh
             load_init_script(env, runner, fs, debug_mode)?;
 
             // Execute the command from configuration
@@ -133,13 +133,13 @@ fn run_hook(
         }
         Err(e) => {
             if debug_mode {
-                eprintln!("samoid: Failed to load command from samoid.toml: {e}");
+                eprintln!("samoyed: Failed to load command from samoyed.toml: {e}");
             }
         }
     }
 
-    // Fallback: Build the expected hook script path: .samoid/scripts/{hook_name}
-    let hook_script_path = PathBuf::from(".samoid").join("scripts").join(hook_name);
+    // Fallback: Build the expected hook script path: .samoyed/scripts/{hook_name}
+    let hook_script_path = PathBuf::from(".samoyed").join("scripts").join(hook_name);
 
     if debug_mode {
         log_file_operation_with_env(
@@ -153,56 +153,56 @@ fn run_hook(
     // Check if the hook script exists - if not, exit silently (this is normal)
     if !fs.exists(&hook_script_path) {
         if debug_mode {
-            eprintln!("samoid: Hook script not found, exiting silently");
+            eprintln!("samoyed: Hook script not found, exiting silently");
         }
         process::exit(0);
     }
 
-    // Load initialization script from ~/.config/samoid/init.sh
+    // Load initialization script from ~/.config/samoyed/init.sh
     load_init_script(env, runner, fs, debug_mode)?;
 
     // Execute the hook script with proper environment
     execute_hook_script(env, runner, fs, &hook_script_path, &args[2..], debug_mode)
 }
 
-/// Load hook command from samoid.toml configuration
+/// Load hook command from samoyed.toml configuration
 fn load_hook_command_from_config(
     fs: &dyn FileSystem,
     hook_name: &str,
     debug_mode: bool,
 ) -> Result<String> {
-    let config_path = Path::new("samoid.toml");
+    let config_path = Path::new("samoyed.toml");
 
     if debug_mode {
-        eprintln!("samoid: Checking for samoid.toml...");
+        eprintln!("samoyed: Checking for samoyed.toml...");
     }
 
     if !fs.exists(config_path) {
         if debug_mode {
-            eprintln!("samoid: No samoid.toml found");
+            eprintln!("samoyed: No samoyed.toml found");
         }
-        anyhow::bail!("No samoid.toml configuration file found");
+        anyhow::bail!("No samoyed.toml configuration file found");
     }
 
     if debug_mode {
-        eprintln!("samoid: Reading samoid.toml...");
+        eprintln!("samoyed: Reading samoyed.toml...");
     }
 
     let config_content = fs
         .read_to_string(config_path)
-        .context("Failed to read samoid.toml")?;
+        .context("Failed to read samoyed.toml")?;
 
     if debug_mode {
-        eprintln!("samoid: Parsing samoid.toml...");
+        eprintln!("samoyed: Parsing samoyed.toml...");
     }
 
-    let config: SamoidConfig =
-        toml::from_str(&config_content).context("Failed to parse samoid.toml")?;
+    let config: SamoyedConfig =
+        toml::from_str(&config_content).context("Failed to parse samoyed.toml")?;
 
     if debug_mode {
-        eprintln!("samoid: Successfully parsed config, looking for hook '{hook_name}'");
+        eprintln!("samoyed: Successfully parsed config, looking for hook '{hook_name}'");
         eprintln!(
-            "samoid: Available hooks: {:?}",
+            "samoyed: Available hooks: {:?}",
             config.hooks.keys().collect::<Vec<_>>()
         );
     }
@@ -211,7 +211,7 @@ fn load_hook_command_from_config(
         Ok(command.clone())
     } else {
         if debug_mode {
-            eprintln!("samoid: No command configured for hook '{hook_name}' in samoid.toml");
+            eprintln!("samoyed: No command configured for hook '{hook_name}' in samoyed.toml");
         }
         anyhow::bail!("No command configured for hook '{hook_name}'");
     }
@@ -226,9 +226,9 @@ fn execute_hook_command(
     debug_mode: bool,
 ) -> Result<()> {
     if debug_mode {
-        eprintln!("samoid: Executing command: {command}");
+        eprintln!("samoyed: Executing command: {command}");
         let sanitized_hook_args = sanitize_args(hook_args);
-        eprintln!("samoid: Hook arguments: {sanitized_hook_args:?}");
+        eprintln!("samoyed: Hook arguments: {sanitized_hook_args:?}");
     }
 
     // Use shell to execute the command
@@ -262,7 +262,7 @@ fn execute_hook_command(
     let exit_code = output.status.code().unwrap_or(1);
 
     if debug_mode {
-        eprintln!("samoid: Hook command exit code: {exit_code}");
+        eprintln!("samoyed: Hook command exit code: {exit_code}");
     }
 
     // Print stdout and stderr from the hook
@@ -275,13 +275,13 @@ fn execute_hook_command(
 
     // Handle specific error cases
     if exit_code != 0 {
-        eprintln!("samoid - hook command failed (code {exit_code}): {command}");
+        eprintln!("samoyed - hook command failed (code {exit_code}): {command}");
 
         // Check for command not found (exit code 127)
         if exit_code == 127 {
-            eprintln!("samoid - command not found in PATH");
+            eprintln!("samoyed - command not found in PATH");
             if !debug_mode {
-                eprintln!("samoid - run with SAMOID=2 for more details");
+                eprintln!("samoyed - run with SAMOYED=2 for more details");
             }
         }
     }
@@ -292,10 +292,10 @@ fn execute_hook_command(
 
 /// Loads and prepares the user's initialization script for hook execution.
 ///
-/// This function locates and validates the optional Samoid initialization script that users
+/// This function locates and validates the optional Samoyed initialization script that users
 /// can create to set up their hook environment. The script is expected to be located at
-/// `~/.config/samoid/init.sh` (following XDG Base Directory specification) or
-/// `$XDG_CONFIG_HOME/samoid/init.sh` if the environment variable is set.
+/// `~/.config/samoyed/init.sh` (following XDG Base Directory specification) or
+/// `$XDG_CONFIG_HOME/samoyed/init.sh` if the environment variable is set.
 ///
 /// # Purpose
 ///
@@ -327,7 +327,7 @@ fn execute_hook_command(
 /// # Example Init Script
 ///
 /// ```bash
-/// # ~/.config/samoid/init.sh
+/// # ~/.config/samoyed/init.sh
 /// export NODE_OPTIONS="--max-old-space-size=4096"
 /// export PATH="$HOME/.local/bin:$PATH"
 ///
@@ -341,8 +341,8 @@ fn execute_hook_command(
 ///
 /// # Platform Considerations
 ///
-/// - **Linux/macOS**: Uses `$HOME/.config/samoid/init.sh` by default
-/// - **Windows**: Falls back to `$USERPROFILE/.config/samoid/init.sh`
+/// - **Linux/macOS**: Uses `$HOME/.config/samoyed/init.sh` by default
+/// - **Windows**: Falls back to `$USERPROFILE/.config/samoyed/init.sh`
 /// - Respects `$XDG_CONFIG_HOME` if set (XDG Base Directory specification)
 fn load_init_script(
     env: &dyn Environment,
@@ -350,7 +350,7 @@ fn load_init_script(
     fs: &dyn FileSystem,
     debug_mode: bool,
 ) -> Result<()> {
-    // Determine the init script path: ~/.config/samoid/init.sh
+    // Determine the init script path: ~/.config/samoyed/init.sh
     let home_dir = env
         .get_var("HOME")
         .or_else(|| env.get_var("USERPROFILE")) // Windows fallback
@@ -359,15 +359,15 @@ fn load_init_script(
     // Determine configuration directory based on platform and environment
     let config_dir = if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode)
     {
-        // Native Windows: use %APPDATA%/samoid or fall back to %USERPROFILE%/.config/samoid
+        // Native Windows: use %APPDATA%/samoyed or fall back to %USERPROFILE%/.config/samoyed
         env.get_var("APPDATA")
-            .map(|appdata| format!("{appdata}/samoid"))
-            .unwrap_or_else(|| format!("{home_dir}/.config/samoid"))
+            .map(|appdata| format!("{appdata}/samoyed"))
+            .unwrap_or_else(|| format!("{home_dir}/.config/samoyed"))
     } else {
         // Unix-like systems (including WSL, Git Bash): use XDG Base Directory
         env.get_var("XDG_CONFIG_HOME")
-            .map(|xdg| format!("{xdg}/samoid"))
-            .unwrap_or_else(|| format!("{home_dir}/.config/samoid"))
+            .map(|xdg| format!("{xdg}/samoyed"))
+            .unwrap_or_else(|| format!("{home_dir}/.config/samoyed"))
     };
 
     // Choose script name based on environment
@@ -399,10 +399,10 @@ fn load_init_script(
         // In a real implementation, this would require more complex shell integration
         // For now, we'll document this limitation and focus on hook execution
         if debug_mode {
-            eprintln!("samoid: Init script found but sourcing not implemented yet");
+            eprintln!("samoyed: Init script found but sourcing not implemented yet");
         }
     } else if debug_mode {
-        eprintln!("samoid: No init script found");
+        eprintln!("samoyed: No init script found");
     }
 
     Ok(())
@@ -447,7 +447,7 @@ fn determine_shell_execution(
         // Check for Unix-like environments on Windows
         if is_windows_unix_environment(env, debug_mode) {
             if debug_mode {
-                eprintln!("samoid: Detected Unix-like environment on Windows, using sh");
+                eprintln!("samoyed: Detected Unix-like environment on Windows, using sh");
             }
             return (
                 "sh".to_string(),
@@ -461,7 +461,7 @@ fn determine_shell_execution(
 
         // Native Windows execution
         if debug_mode {
-            eprintln!("samoid: Native Windows detected, determining shell by file extension");
+            eprintln!("samoyed: Native Windows detected, determining shell by file extension");
         }
 
         // Determine shell based on file extension
@@ -506,7 +506,7 @@ fn determine_shell_execution(
 
     // Unix-like systems (Linux, macOS, etc.)
     if debug_mode {
-        eprintln!("samoid: Unix-like system detected, using sh");
+        eprintln!("samoyed: Unix-like system detected, using sh");
     }
     (
         "sh".to_string(),
@@ -541,7 +541,7 @@ fn is_windows_unix_environment(env: &dyn Environment, debug_mode: bool) -> bool 
     // Check for Git Bash / MSYS2
     if let Some(msystem) = env.get_var("MSYSTEM") {
         if debug_mode {
-            eprintln!("samoid: Detected MSYSTEM={msystem}");
+            eprintln!("samoyed: Detected MSYSTEM={msystem}");
         }
         return matches!(msystem.as_str(), "MINGW32" | "MINGW64" | "MSYS");
     }
@@ -549,7 +549,7 @@ fn is_windows_unix_environment(env: &dyn Environment, debug_mode: bool) -> bool 
     // Check for Cygwin
     if env.get_var("CYGWIN").is_some() {
         if debug_mode {
-            eprintln!("samoid: Detected Cygwin environment");
+            eprintln!("samoyed: Detected Cygwin environment");
         }
         return true;
     }
@@ -557,7 +557,7 @@ fn is_windows_unix_environment(env: &dyn Environment, debug_mode: bool) -> bool 
     // Check for WSL (Windows Subsystem for Linux)
     if env.get_var("WSL_DISTRO_NAME").is_some() || env.get_var("WSL_INTEROP").is_some() {
         if debug_mode {
-            eprintln!("samoid: Detected WSL environment");
+            eprintln!("samoyed: Detected WSL environment");
         }
         return true;
     }
@@ -577,7 +577,7 @@ fn execute_hook_script(
     if debug_mode {
         log_file_operation_with_env(env, debug_mode, "Executing hook script", script_path);
         let sanitized_hook_args = sanitize_args(hook_args);
-        eprintln!("samoid: Hook arguments: {sanitized_hook_args:?}");
+        eprintln!("samoyed: Hook arguments: {sanitized_hook_args:?}");
     }
 
     // Convert String args to &str for the runner interface
@@ -607,16 +607,16 @@ fn execute_hook_script(
     let exit_code = output.status.code().unwrap_or(1);
 
     if debug_mode {
-        eprintln!("samoid: Hook script exit code: {exit_code}");
+        eprintln!("samoyed: Hook script exit code: {exit_code}");
         if !output.stdout.is_empty() {
             eprintln!(
-                "samoid: Hook stdout: {}",
+                "samoyed: Hook stdout: {}",
                 String::from_utf8_lossy(&output.stdout)
             );
         }
         if !output.stderr.is_empty() {
             eprintln!(
-                "samoid: Hook stderr: {}",
+                "samoyed: Hook stderr: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
         }
@@ -637,11 +637,11 @@ fn execute_hook_script(
             .and_then(|name| name.to_str())
             .unwrap_or("unknown");
 
-        eprintln!("samoid - {hook_name} script failed (code {exit_code})");
+        eprintln!("samoyed - {hook_name} script failed (code {exit_code})");
 
         // Check for command not found (exit code 127)
         if exit_code == 127 {
-            eprintln!("samoid - command not found in PATH");
+            eprintln!("samoyed - command not found in PATH");
             if debug_mode {
                 // Only show PATH in debug mode, and sanitize it
                 if let Ok(path) = std::env::var("PATH") {
@@ -652,10 +652,10 @@ fn execute_hook_script(
                         ":"
                     };
                     let dir_count = path.split(separator).count();
-                    eprintln!("samoid - PATH contains {dir_count} directories");
+                    eprintln!("samoyed - PATH contains {dir_count} directories");
                 }
             } else {
-                eprintln!("samoid - run with SAMOID=2 for more details");
+                eprintln!("samoyed - run with SAMOYED=2 for more details");
             }
         }
     }
@@ -686,14 +686,14 @@ mod tests {
     }
 
     #[test]
-    fn test_run_hook_with_samoid_0_skips_execution() {
-        let env = MockEnvironment::new().with_var("SAMOID", "0");
+    fn test_run_hook_with_samoyed_0_skips_execution() {
+        let env = MockEnvironment::new().with_var("SAMOYED", "0");
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new();
 
-        let args = vec!["samoid-hook".to_string(), "pre-commit".to_string()];
+        let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
 
-        // The function should return Ok and exit early with SAMOID=0
+        // The function should return Ok and exit early with SAMOYED=0
         // Note: In a real test, we'd need to mock process::exit
         // For now, we test the logic path before the exit
         let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
@@ -705,12 +705,12 @@ mod tests {
     #[test]
     fn test_run_hook_with_debug_mode() {
         let env = MockEnvironment::new()
-            .with_var("SAMOID", "2")
+            .with_var("SAMOYED", "2")
             .with_var("HOME", "/home/test");
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new(); // No hook script exists
 
-        let args = vec!["samoid-hook".to_string(), "pre-commit".to_string()];
+        let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
 
         // Should exit early because hook script doesn't exist
         let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
@@ -721,7 +721,7 @@ mod tests {
     #[test]
     fn test_run_hook_executes_existing_script() {
         let env = MockEnvironment::new()
-            .with_var("SAMOID", "1")
+            .with_var("SAMOYED", "1")
             .with_var("HOME", "/home/test");
 
         // Mock successful hook execution
@@ -732,16 +732,16 @@ mod tests {
         };
         let runner = MockCommandRunner::new().with_response(
             "sh",
-            &["-e", ".samoid/scripts/pre-commit", ""],
+            &["-e", ".samoyed/scripts/pre-commit", ""],
             Ok(output),
         );
 
         let fs = MockFileSystem::new().with_file(
-            ".samoid/scripts/pre-commit",
+            ".samoyed/scripts/pre-commit",
             "#!/bin/sh\necho 'Hook executed successfully'",
         );
 
-        let args = vec!["samoid-hook".to_string(), "pre-commit".to_string()];
+        let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
 
         // Should execute the hook and exit with code 0
         let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
@@ -752,7 +752,7 @@ mod tests {
     #[test]
     fn test_run_hook_handles_failed_script() {
         let env = MockEnvironment::new()
-            .with_var("SAMOID", "1")
+            .with_var("SAMOYED", "1")
             .with_var("HOME", "/home/test");
 
         // Mock failed hook execution
@@ -763,13 +763,13 @@ mod tests {
         };
         let runner = MockCommandRunner::new().with_response(
             "sh",
-            &["-e", ".samoid/scripts/pre-commit", ""],
+            &["-e", ".samoyed/scripts/pre-commit", ""],
             Ok(output),
         );
 
-        let fs = MockFileSystem::new().with_file(".samoid/scripts/pre-commit", "#!/bin/sh\nexit 1");
+        let fs = MockFileSystem::new().with_file(".samoyed/scripts/pre-commit", "#!/bin/sh\nexit 1");
 
-        let args = vec!["samoid-hook".to_string(), "pre-commit".to_string()];
+        let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
 
         // Should execute the hook and exit with code 1
         let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
@@ -780,7 +780,7 @@ mod tests {
     #[test]
     fn test_run_hook_command_not_found() {
         let env = MockEnvironment::new()
-            .with_var("SAMOID", "1")
+            .with_var("SAMOYED", "1")
             .with_var("HOME", "/home/test");
 
         // Mock command not found (exit code 127)
@@ -791,16 +791,16 @@ mod tests {
         };
         let runner = MockCommandRunner::new().with_response(
             "sh",
-            &["-e", ".samoid/scripts/pre-commit", ""],
+            &["-e", ".samoyed/scripts/pre-commit", ""],
             Ok(output),
         );
 
         let fs = MockFileSystem::new().with_file(
-            ".samoid/scripts/pre-commit",
+            ".samoyed/scripts/pre-commit",
             "#!/bin/sh\nnonexistent_command",
         );
 
-        let args = vec!["samoid-hook".to_string(), "pre-commit".to_string()];
+        let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
 
         // Should handle command not found error
         let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
@@ -815,7 +815,7 @@ mod tests {
             .with_var("XDG_CONFIG_HOME", "/home/test/.config");
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new().with_file(
-            "/home/test/.config/samoid/init.sh",
+            "/home/test/.config/samoyed/init.sh",
             "export PATH=/custom:$PATH",
         );
 
@@ -842,18 +842,18 @@ mod tests {
     #[test]
     fn test_hook_name_extraction() {
         let env = MockEnvironment::new()
-            .with_var("SAMOID", "1")
+            .with_var("SAMOYED", "1")
             .with_var("HOME", "/home/test");
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new(); // No hook script
 
         // Test with different hook names
         let test_cases = vec![
-            vec!["samoid-hook".to_string(), "pre-commit".to_string()],
-            vec!["samoid-hook".to_string(), "post-commit".to_string()],
-            vec!["samoid-hook".to_string(), "pre-push".to_string()],
+            vec!["samoyed-hook".to_string(), "pre-commit".to_string()],
+            vec!["samoyed-hook".to_string(), "post-commit".to_string()],
+            vec!["samoyed-hook".to_string(), "pre-push".to_string()],
             vec![
-                "samoid-hook".to_string(),
+                "samoyed-hook".to_string(),
                 "/path/to/pre-receive".to_string(),
             ],
         ];
@@ -869,7 +869,7 @@ mod tests {
     #[test]
     fn test_hook_with_arguments() {
         let env = MockEnvironment::new()
-            .with_var("SAMOID", "1")
+            .with_var("SAMOYED", "1")
             .with_var("HOME", "/home/test");
 
         let output = Output {
@@ -879,15 +879,15 @@ mod tests {
         };
         let runner = MockCommandRunner::new().with_response(
             "sh",
-            &["-e", ".samoid/scripts/pre-push", "origin main"],
+            &["-e", ".samoyed/scripts/pre-push", "origin main"],
             Ok(output),
         );
 
         let fs =
-            MockFileSystem::new().with_file(".samoid/scripts/pre-push", "#!/bin/sh\necho $1 $2");
+            MockFileSystem::new().with_file(".samoyed/scripts/pre-push", "#!/bin/sh\necho $1 $2");
 
         let args = vec![
-            "samoid-hook".to_string(),
+            "samoyed-hook".to_string(),
             "pre-push".to_string(),
             "origin".to_string(),
             "main".to_string(),
@@ -899,14 +899,14 @@ mod tests {
     }
 
     #[test]
-    fn test_default_samoid_mode() {
-        let env = MockEnvironment::new().with_var("HOME", "/home/test"); // No SAMOID variable set
+    fn test_default_samoyed_mode() {
+        let env = MockEnvironment::new().with_var("HOME", "/home/test"); // No SAMOYED variable set
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new(); // No hook script
 
-        let args = vec!["samoid-hook".to_string(), "pre-commit".to_string()];
+        let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
 
-        // Should default to SAMOID=1 (normal mode)
+        // Should default to SAMOYED=1 (normal mode)
         let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
 
         assert!(result.is_err()); // Due to process::exit(0)
@@ -936,7 +936,7 @@ mod tests {
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new();
 
-        let args = vec!["samoid-hook".to_string()]; // Missing hook name
+        let args = vec!["samoyed-hook".to_string()]; // Missing hook name
 
         let result = run_hook(&env, &runner, &fs, &args);
         assert!(result.is_err());
@@ -952,7 +952,7 @@ mod tests {
     fn test_windows_home_fallback() {
         let env = MockEnvironment::new()
             .with_var("USERPROFILE", "C:\\Users\\test") // Windows home
-            .with_var("SAMOID", "1");
+            .with_var("SAMOYED", "1");
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new();
 
@@ -1118,7 +1118,7 @@ mod tests {
         let env = MockEnvironment::new().with_var("HOME", "/home/user");
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new().with_file(
-            "/home/user/.config/samoid/init.sh",
+            "/home/user/.config/samoyed/init.sh",
             "#!/bin/bash\nexport FOO=bar",
         );
 
@@ -1130,7 +1130,7 @@ mod tests {
             .with_var("HOME", "/home/user")
             .with_var("XDG_CONFIG_HOME", "/custom/config");
         let fs_xdg = MockFileSystem::new().with_file(
-            "/custom/config/samoid/init.sh",
+            "/custom/config/samoyed/init.sh",
             "#!/bin/bash\nexport BAR=baz",
         );
 
@@ -1150,7 +1150,7 @@ mod tests {
         // Test 4: Windows USERPROFILE fallback
         let env_windows = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\user");
         let fs_windows = MockFileSystem::new().with_file(
-            "C:\\Users\\user\\.config\\samoid\\init.sh",
+            "C:\\Users\\user\\.config\\samoyed\\init.sh",
             "REM Windows init",
         );
 

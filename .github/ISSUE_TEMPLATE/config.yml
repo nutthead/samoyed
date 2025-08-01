@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: 💬 Discussions
-    url: https://github.com/nutthead/samoid/discussions
+    url: https://github.com/nutthead/samoyed/discussions
     about: Ask questions, share ideas, or discuss the project with the community
   - name: 📚 Documentation
-    url: https://github.com/nutthead/samoid/blob/master/README.md
+    url: https://github.com/nutthead/samoyed/blob/master/README.md
     about: Read the project documentation and user guides
   - name: 🔍 Search Issues
-    url: https://github.com/nutthead/samoid/issues
+    url: https://github.com/nutthead/samoyed/issues
     about: Search existing issues before creating a new one

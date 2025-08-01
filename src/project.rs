@@ -82,7 +82,7 @@ impl ProjectType {
             ProjectType::Go => "go fmt ./... && go vet ./...",
             ProjectType::Node => "npm run lint && npm test",
             ProjectType::Python => "black --check . && flake8",
-            ProjectType::Unknown => "echo 'Please configure your pre-commit hook in samoid.toml'",
+            ProjectType::Unknown => "echo 'Please configure your pre-commit hook in samoyed.toml'",
         }
     }
 
@@ -300,7 +300,7 @@ mod tests {
 
         let unknown_cmd = ProjectType::Unknown.default_pre_commit_command();
         assert!(unknown_cmd.contains("echo"));
-        assert!(unknown_cmd.contains("samoid.toml"));
+        assert!(unknown_cmd.contains("samoyed.toml"));
     }
 
     #[test]

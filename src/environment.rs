@@ -217,8 +217,8 @@ impl FileSystem for SystemFileSystem {
 /// # Example
 ///
 /// ```
-/// use samoid::environment::mocks::{MockEnvironment, MockCommandRunner, MockFileSystem};
-/// use samoid::environment::{Environment, CommandRunner, FileSystem};
+/// use samoyed::environment::mocks::{MockEnvironment, MockCommandRunner, MockFileSystem};
+/// use samoyed::environment::{Environment, CommandRunner, FileSystem};
 /// use std::process::{Output, ExitStatus};
 ///
 /// // Cross-platform exit status creation
@@ -237,8 +237,8 @@ impl FileSystem for SystemFileSystem {
 /// }
 ///
 /// // Create a mock environment with a specific variable
-/// let env = MockEnvironment::new().with_var("SAMOID", "0");
-/// assert_eq!(env.get_var("SAMOID"), Some("0".to_string()));
+/// let env = MockEnvironment::new().with_var("SAMOYED", "0");
+/// assert_eq!(env.get_var("SAMOYED"), Some("0".to_string()));
 ///
 /// // Create a mock command runner with a predefined response
 /// let output = Output {
@@ -306,9 +306,9 @@ pub mod mocks {
         /// # Example
         ///
         /// ```
-        /// # use samoid::environment::mocks::MockEnvironment;
+        /// # use samoyed::environment::mocks::MockEnvironment;
         /// let env = MockEnvironment::new()
-        ///     .with_var("SAMOID", "0")
+        ///     .with_var("SAMOYED", "0")
         ///     .with_var("CI", "true");
         /// ```
         pub fn with_var(self, key: &str, value: &str) -> Self {
@@ -453,7 +453,7 @@ pub mod mocks {
         /// # Example
         ///
         /// ```
-        /// # use samoid::environment::mocks::MockFileSystem;
+        /// # use samoyed::environment::mocks::MockFileSystem;
         /// let fs = MockFileSystem::new()
         ///     .with_file("/config.json", "{\"key\": \"value\"}")
         ///     .with_file("/script.sh", "#!/bin/bash\necho hello");
@@ -483,7 +483,7 @@ pub mod mocks {
         /// # Example
         ///
         /// ```
-        /// # use samoid::environment::mocks::MockFileSystem;
+        /// # use samoyed::environment::mocks::MockFileSystem;
         /// let fs = MockFileSystem::new()
         ///     .with_directory(".git")
         ///     .with_directory("src/components");
@@ -560,7 +560,7 @@ mod tests {
         assert!(path.is_some());
 
         // Test getting non-existent environment variable
-        let nonexistent = env.get_var("SAMOID_NONEXISTENT_VAR_12345");
+        let nonexistent = env.get_var("SAMOYED_NONEXISTENT_VAR_12345");
         assert_eq!(nonexistent, None);
     }
 
@@ -601,7 +601,7 @@ mod tests {
     #[test]
     fn test_system_file_system_write_and_read() {
         let fs = SystemFileSystem;
-        let test_path = std::path::Path::new("/tmp/samoid_test_file");
+        let test_path = std::path::Path::new("/tmp/samoyed_test_file");
 
         // Test write operation
         let result = fs.write(test_path, "test content");
@@ -619,7 +619,7 @@ mod tests {
     #[test]
     fn test_system_file_system_create_dir_all() {
         let fs = SystemFileSystem;
-        let test_dir = std::path::Path::new("/tmp/samoid_test_dir/nested/path");
+        let test_dir = std::path::Path::new("/tmp/samoyed_test_dir/nested/path");
 
         // Test directory creation
         let result = fs.create_dir_all(test_dir);
@@ -629,13 +629,13 @@ mod tests {
         assert!(fs.exists(test_dir));
 
         // Clean up
-        let _ = std::fs::remove_dir_all("/tmp/samoid_test_dir");
+        let _ = std::fs::remove_dir_all("/tmp/samoyed_test_dir");
     }
 
     #[test]
     fn test_system_file_system_set_permissions() {
         let fs = SystemFileSystem;
-        let test_path = std::path::Path::new("/tmp/samoid_test_permissions");
+        let test_path = std::path::Path::new("/tmp/samoyed_test_permissions");
 
         // Create a test file first
         let _ = fs.write(test_path, "test");
@@ -651,7 +651,7 @@ mod tests {
     #[test]
     fn test_system_file_system_read_nonexistent() {
         let fs = SystemFileSystem;
-        let nonexistent_path = std::path::Path::new("/tmp/samoid_nonexistent_file_12345");
+        let nonexistent_path = std::path::Path::new("/tmp/samoyed_nonexistent_file_12345");
 
         // Test reading non-existent file
         let result = fs.read_to_string(nonexistent_path);
@@ -661,7 +661,7 @@ mod tests {
     #[test]
     fn test_system_file_system_set_permissions_nonexistent() {
         let fs = SystemFileSystem;
-        let nonexistent_path = std::path::Path::new("/tmp/samoid_nonexistent_file_12345");
+        let nonexistent_path = std::path::Path::new("/tmp/samoyed_nonexistent_file_12345");
 
         // Test setting permissions on non-existent file
         let result = fs.set_permissions(nonexistent_path, 0o644);

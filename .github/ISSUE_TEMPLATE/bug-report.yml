@@ -102,9 +102,9 @@ body:
     id: logs
     attributes:
       label: Debug Logs
-      description: If available, include output from running with debug mode (SAMOID=2)
+      description: If available, include output from running with debug mode (SAMOYED=2)
       placeholder: |
-        Output from SAMOID=2 samoid command...
+        Output from SAMOYED=2 samoyed command...
       render: text
 
   - type: checkboxes

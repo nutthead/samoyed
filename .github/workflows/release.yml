@@ -1,6 +1,6 @@
-# 🚀 Release Workflow for Samoid
+# 🚀 Release Workflow for Samoyed
 #
-# This workflow automates the release process for Samoid, implementing:
+# This workflow automates the release process for Samoyed, implementing:
 # - AC11.10: Automated binary builds and GitHub releases
 # - AC11.11: Changelog generation
 # - AC11.12: Publishing to crates.io
@@ -191,8 +191,8 @@ jobs:
           fi
           
           # Package from the target directory
-          ASSET_NAME="samoid-${{ needs.prepare.outputs.version }}-${{ matrix.target }}.tar.gz"
-          tar czf "${ASSET_NAME}" -C "${TARGET_DIR}" samoid samoid-hook
+          ASSET_NAME="samoyed-${{ needs.prepare.outputs.version }}-${{ matrix.target }}.tar.gz"
+          tar czf "${ASSET_NAME}" -C "${TARGET_DIR}" samoyed samoyed-hook
           echo "ASSET=${ASSET_NAME}" >> $GITHUB_ENV
 
       - name: 📦 Package release (Windows)
@@ -207,9 +207,9 @@ jobs:
           fi
           
           # Package from the target directory
-          ASSET_NAME="samoid-${{ needs.prepare.outputs.version }}-${{ matrix.target }}.zip"
+          ASSET_NAME="samoyed-${{ needs.prepare.outputs.version }}-${{ matrix.target }}.zip"
           cd "${TARGET_DIR}"
-          7z a "../../../${ASSET_NAME}" samoid.exe samoid-hook.exe
+          7z a "../../../${ASSET_NAME}" samoyed.exe samoyed-hook.exe
           cd ../../../
           echo "ASSET=${ASSET_NAME}" >> $GITHUB_ENV
 
@@ -335,7 +335,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.prepare.outputs.version }}
-          name: Samoid v${{ needs.prepare.outputs.version }}
+          name: Samoyed v${{ needs.prepare.outputs.version }}
           body_path: artifacts/changelog/CHANGELOG.md
           prerelease: ${{ needs.prepare.outputs.is_prerelease }}
           files: |
