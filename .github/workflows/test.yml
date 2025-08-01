@@ -133,31 +133,31 @@ jobs:
         if: matrix.rust == 'stable' && runner.os != 'Windows'
         run: |
           mkdir -p artifacts
-          cp target/release/samoid artifacts/
-          cp target/release/samoid-hook artifacts/
+          cp target/release/samoyed artifacts/
+          cp target/release/samoyed-hook artifacts/
           cd artifacts
-          tar czf samoid-${{ runner.os }}-${{ runner.arch }}.tar.gz samoid samoid-hook
-          echo "📦 Created artifact: samoid-${{ runner.os }}-${{ runner.arch }}.tar.gz"
+          tar czf samoyed-${{ runner.os }}-${{ runner.arch }}.tar.gz samoyed samoyed-hook
+          echo "📦 Created artifact: samoyed-${{ runner.os }}-${{ runner.arch }}.tar.gz"
 
       - name: 📦 Package release artifacts (Windows)
         if: matrix.rust == 'stable' && runner.os == 'Windows'
         shell: bash
         run: |
           mkdir -p artifacts
-          cp target/release/samoid.exe artifacts/
-          cp target/release/samoid-hook.exe artifacts/
+          cp target/release/samoyed.exe artifacts/
+          cp target/release/samoyed-hook.exe artifacts/
           cd artifacts
-          7z a -tzip samoid-${{ runner.os }}-${{ runner.arch }}.zip samoid.exe samoid-hook.exe
-          echo "📦 Created artifact: samoid-${{ runner.os }}-${{ runner.arch }}.zip"
+          7z a -tzip samoyed-${{ runner.os }}-${{ runner.arch }}.zip samoyed.exe samoyed-hook.exe
+          echo "📦 Created artifact: samoyed-${{ runner.os }}-${{ runner.arch }}.zip"
 
       - name: 📤 Upload release artifacts
         if: matrix.rust == 'stable'
         uses: actions/upload-artifact@v4
         with:
-          name: samoid-${{ matrix.os }}-${{ matrix.rust }}-${{ matrix.shell || 'default' }}
+          name: samoyed-${{ matrix.os }}-${{ matrix.rust }}-${{ matrix.shell || 'default' }}
           path: |
-            artifacts/samoid-*.tar.gz
-            artifacts/samoid-*.zip
+            artifacts/samoyed-*.tar.gz
+            artifacts/samoyed-*.zip
           retention-days: 30
 
       - name: 🧪 Run unit tests
@@ -287,7 +287,7 @@ jobs:
           file: target/tarpaulin/coverage/lcov.info
           directory: target/tarpaulin/coverage/
           flags: unittests
-          name: samoid-coverage
+          name: samoyed-coverage
           fail_ci_if_error: false
           verbose: true
         env:
@@ -488,7 +488,7 @@ jobs:
     steps:
       - name: 📊 Generate test summary
         run: |
-          echo "# 🧪 Samoid Test Suite Summary" >> $GITHUB_STEP_SUMMARY
+          echo "# 🧪 Samoyed Test Suite Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Test Results Section
@@ -615,7 +615,7 @@ jobs:
       - name: 📥 Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: samoid-*
+          pattern: samoyed-*
           path: collected-artifacts/
 
       - name: 📋 List collected artifacts
@@ -629,7 +629,7 @@ jobs:
       - name: 📤 Upload combined artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: samoid-binaries-all-platforms
+          name: samoyed-binaries-all-platforms
           path: collected-artifacts/**/*.{tar.gz,zip}
           retention-days: 30
 
@@ -647,7 +647,7 @@ jobs:
             size=$(du -h "$file" | cut -f1)
 
             # Extract platform and arch from filename
-            if [[ $filename =~ samoid-(.+)-(.+)\.(tar\.gz|zip) ]]; then
+            if [[ $filename =~ samoyed-(.+)-(.+)\.(tar\.gz|zip) ]]; then
               platform="${BASH_REMATCH[1]}"
               arch="${BASH_REMATCH[2]}"
               echo "| $platform | $arch | \`$filename\` | $size |" >> $GITHUB_STEP_SUMMARY

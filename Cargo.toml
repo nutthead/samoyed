@@ -1,14 +1,14 @@
 [package]
-name = "samoid"
-version = "0.1.4"
+name = "samoyed"
+version = "0.1.5"
 edition = "2024"
 
 [[bin]]
-name = "samoid"
+name = "samoyed"
 path = "src/main.rs"
 
 [[bin]]
-name = "samoid-hook"
+name = "samoyed-hook"
 path = "src/hook_runner.rs"
 
 [dependencies]

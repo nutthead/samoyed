@@ -6,7 +6,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
-use crate::config::SamoidConfig;
+use crate::config::SamoyedConfig;
 use crate::environment::{CommandRunner, Environment, FileSystem};
 use crate::installer::install_hooks;
 use crate::project::ProjectType;
@@ -15,9 +15,9 @@ use crate::project::ProjectType;
 ///
 /// This function performs the complete initialization process:
 /// 1. Validates that we're in a Git repository
-/// 2. Creates the `.samoid` directory structure
+/// 2. Creates the `.samoyed` directory structure
 /// 3. Detects or uses the specified project type
-/// 4. Generates an appropriate `samoid.toml` configuration
+/// 4. Generates an appropriate `samoyed.toml` configuration
 /// 5. Installs the Git hooks
 ///
 /// # Arguments
@@ -35,7 +35,7 @@ use crate::project::ProjectType;
 ///
 /// This function will return an error if:
 /// - The current directory is not a Git repository
-/// - Unable to create the `.samoid` directory
+/// - Unable to create the `.samoyed` directory
 /// - Configuration generation or validation fails
 /// - Hook installation fails
 pub fn init_command(
@@ -49,18 +49,18 @@ pub fn init_command(
         anyhow::bail!("Not a git repository. Run 'git init' first.");
     }
 
-    // Create .samoid directory if it doesn't exist
-    fs.create_dir_all(Path::new(".samoid"))
-        .context("Failed to create .samoid directory")?;
+    // Create .samoyed directory if it doesn't exist
+    fs.create_dir_all(Path::new(".samoyed"))
+        .context("Failed to create .samoyed directory")?;
 
     // Determine initialization mode: existing config gets updated, new projects get generated defaults
-    let config_exists = fs.exists(Path::new("samoid.toml"));
+    let config_exists = fs.exists(Path::new("samoyed.toml"));
 
     // Check if user wants verbose output
-    let verbose = env.get_var("SAMOID_VERBOSE").unwrap_or_default() == "1";
+    let verbose = env.get_var("SAMOYED_VERBOSE").unwrap_or_default() == "1";
 
     if config_exists {
-        let message = "samoid.toml already exists. Updating configuration...";
+        let message = "samoyed.toml already exists. Updating configuration...";
         if verbose {
             println!("🔧 {message}");
         } else {
@@ -78,9 +78,9 @@ pub fn init_command(
         };
 
         // Create default configuration
-        let config = SamoidConfig::default_for_project_type(&project_type);
+        let config = SamoyedConfig::default_for_project_type(&project_type);
 
-        // Write samoid.toml
+        // Write samoyed.toml
         let toml_content =
             toml::to_string_pretty(&config).context("Failed to serialize configuration")?;
 
@@ -89,24 +89,24 @@ pub fn init_command(
             .validate()
             .map_err(|e| anyhow::anyhow!("Generated configuration is invalid: {}", e))?;
 
-        fs.write(Path::new("samoid.toml"), &toml_content)
-            .context("Failed to write samoid.toml")?;
+        fs.write(Path::new("samoyed.toml"), &toml_content)
+            .context("Failed to write samoyed.toml")?;
 
         if verbose {
             println!(
-                "✅ Created samoid.toml with {} defaults (verbose mode)",
+                "✅ Created samoyed.toml with {} defaults (verbose mode)",
                 project_type.name()
             );
         } else {
             println!(
-                "✅ Created samoid.toml with {} defaults",
+                "✅ Created samoyed.toml with {} defaults",
                 project_type.name()
             );
         }
     }
 
     // Install Git hooks using the core installation system
-    match install_hooks(env, runner, fs, Some(".samoid")) {
+    match install_hooks(env, runner, fs, Some(".samoyed")) {
         Ok(msg) => {
             if !msg.is_empty() {
                 println!("{msg}");
@@ -118,7 +118,7 @@ pub fn init_command(
         }
     }
 
-    println!("✅ samoid is ready! Edit samoid.toml to customize your hooks.");
+    println!("✅ samoyed is ready! Edit samoyed.toml to customize your hooks.");
 
     Ok(())
 }
@@ -165,7 +165,7 @@ mod tests {
             .with_response("git", &["--version"], Ok(version_output))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output),
             );
 
@@ -216,7 +216,7 @@ mod tests {
             .with_response("git", &["--version"], Ok(version_output))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output),
             );
 
@@ -249,7 +249,7 @@ mod tests {
             .with_response("git", &["--version"], Ok(version_output))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output),
             );
 
@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_init_command_with_existing_config() {
-        // Test when samoid.toml already exists
+        // Test when samoyed.toml already exists
         let env = MockEnvironment::new();
 
         // Mock git --version first
@@ -283,14 +283,14 @@ mod tests {
             .with_response("git", &["--version"], Ok(version_output))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output),
             );
 
         // Mock filesystem with git repository and existing config
         let fs = MockFileSystem::new()
             .with_directory(".git")
-            .with_file("samoid.toml", "[hooks]\npre-commit = \"echo test\"");
+            .with_file("samoyed.toml", "[hooks]\npre-commit = \"echo test\"");
 
         let result = init_command(&env, &runner, &fs, None);
         assert!(result.is_ok());
@@ -317,7 +317,7 @@ mod tests {
             .with_response("git", &["--version"], Ok(version_output))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output),
             );
 
@@ -351,7 +351,7 @@ mod tests {
                 .with_response("git", &["--version"], Ok(version_output.clone()))
                 .with_response(
                     "git",
-                    &["config", "core.hooksPath", ".samoid/_"],
+                    &["config", "core.hooksPath", ".samoyed/_"],
                     Ok(config_output.clone()),
                 );
 
@@ -381,7 +381,7 @@ mod tests {
             .with_response("git", &["--version"], Ok(version_output))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output),
             );
 
@@ -415,7 +415,7 @@ mod tests {
             .with_response("git", &["--version"], Ok(version_output.clone()))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output.clone()),
             );
 
@@ -437,8 +437,8 @@ mod tests {
 
     #[test]
     fn test_verbose_output_with_environment_variable() {
-        // Test that the SAMOID_VERBOSE environment variable affects output
-        let env = MockEnvironment::new().with_var("SAMOID_VERBOSE", "1");
+        // Test that the SAMOYED_VERBOSE environment variable affects output
+        let env = MockEnvironment::new().with_var("SAMOYED_VERBOSE", "1");
 
         let version_output = Output {
             status: exit_status(0),
@@ -454,7 +454,7 @@ mod tests {
             .with_response("git", &["--version"], Ok(version_output.clone()))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output.clone()),
             );
 
@@ -467,7 +467,7 @@ mod tests {
         // Test with existing config and verbose mode
         let fs_with_config = MockFileSystem::new()
             .with_directory(".git")
-            .with_file("samoid.toml", "[hooks]\npre-commit = \"test\"");
+            .with_file("samoyed.toml", "[hooks]\npre-commit = \"test\"");
 
         let result = init_command(&env, &runner, &fs_with_config, None);
         assert!(result.is_ok());
@@ -475,7 +475,7 @@ mod tests {
 
     #[test]
     fn test_environment_variable_not_set() {
-        // Test that when SAMOID_VERBOSE is not set or not "1", verbose mode is disabled
+        // Test that when SAMOYED_VERBOSE is not set or not "1", verbose mode is disabled
         let env = MockEnvironment::new(); // No environment variables set
 
         let version_output = Output {
@@ -492,7 +492,7 @@ mod tests {
             .with_response("git", &["--version"], Ok(version_output.clone()))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output.clone()),
             );
 
@@ -501,12 +501,12 @@ mod tests {
         let result = init_command(&env, &runner, &fs, None);
         assert!(result.is_ok());
 
-        // Test with SAMOID_VERBOSE set to something other than "1"
-        let env_other = MockEnvironment::new().with_var("SAMOID_VERBOSE", "0");
+        // Test with SAMOYED_VERBOSE set to something other than "1"
+        let env_other = MockEnvironment::new().with_var("SAMOYED_VERBOSE", "0");
         let result = init_command(&env_other, &runner, &fs, None);
         assert!(result.is_ok());
 
-        let env_false = MockEnvironment::new().with_var("SAMOID_VERBOSE", "false");
+        let env_false = MockEnvironment::new().with_var("SAMOYED_VERBOSE", "false");
         let result = init_command(&env_false, &runner, &fs, None);
         assert!(result.is_ok());
     }

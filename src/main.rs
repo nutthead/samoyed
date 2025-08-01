@@ -1,4 +1,4 @@
-//! Command Line Interface for Samoid Git hooks manager
+//! Command Line Interface for Samoyed Git hooks manager
 //!
 //! This binary provides a CLI for managing Git hooks through TOML configuration.
 //! Supports the `init` command and deprecated command warnings.
@@ -20,7 +20,7 @@ use environment::{SystemCommandRunner, SystemEnvironment, SystemFileSystem};
 use exit_codes::{EX_USAGE, determine_exit_code};
 
 #[derive(Parser)]
-#[command(name = "samoid")]
+#[command(name = "samoyed")]
 #[command(about = "Modern native Git hooks manager")]
 #[command(version = "0.1.0")]
 struct Cli {
@@ -30,7 +30,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Initialize samoid in the current repository
+    /// Initialize samoyed in the current repository
     Init {
         /// Project type to auto-detect (optional)
         #[arg(short, long)]
@@ -52,8 +52,8 @@ fn main() -> Result<()> {
         }
         None => {
             // Show help when no command is provided
-            eprintln!("Error: No command specified. Use 'samoid init' to get started.");
-            eprintln!("Run 'samoid --help' for usage information.");
+            eprintln!("Error: No command specified. Use 'samoyed init' to get started.");
+            eprintln!("Run 'samoyed --help' for usage information.");
             process::exit(EX_USAGE); // Command line usage error
         }
     }
@@ -80,7 +80,7 @@ mod tests {
     fn test_cli_struct_parsing() {
         // Test CLI struct can be created and parsed correctly
         // Test valid arguments
-        let args = vec!["samoid", "init"];
+        let args = vec!["samoyed", "init"];
         let cli = Cli::try_parse_from(args);
         assert!(cli.is_ok());
 
@@ -93,7 +93,7 @@ mod tests {
         }
 
         // Test with project type argument
-        let args = vec!["samoid", "init", "--project-type", "rust"];
+        let args = vec!["samoyed", "init", "--project-type", "rust"];
         let cli = Cli::try_parse_from(args);
         assert!(cli.is_ok());
 
@@ -106,7 +106,7 @@ mod tests {
         }
 
         // Test with short form
-        let args = vec!["samoid", "init", "-p", "go"];
+        let args = vec!["samoyed", "init", "-p", "go"];
         let cli = Cli::try_parse_from(args);
         assert!(cli.is_ok());
 
@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn test_cli_no_command() {
         // Test CLI with no command (None case)
-        let args = vec!["samoid"];
+        let args = vec!["samoyed"];
         let cli = Cli::try_parse_from(args);
         assert!(cli.is_ok());
 
@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn test_cli_invalid_arguments() {
         // Test CLI with invalid arguments
-        let args = vec!["samoid", "invalid-command"];
+        let args = vec!["samoyed", "invalid-command"];
         let cli = Cli::try_parse_from(args);
         assert!(cli.is_err());
     }

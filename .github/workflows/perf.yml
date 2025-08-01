@@ -1,6 +1,6 @@
 # ⚡ Performance Testing Pipeline
 #
-# Comprehensive performance testing workflow for Samoid Git hooks manager.
+# Comprehensive performance testing workflow for Samoyed Git hooks manager.
 # This workflow implements AC8.7 (Dedicated performance testing pipeline) and AC8.8
 # (Benchmark results tracking and comparison system) from Issue #8.
 #
@@ -118,7 +118,7 @@ jobs:
       - name: 🔧 Configure working directory
         run: |
           pwd
-          echo "Working directory is now root (samoid moved to root)"
+          echo "Working directory is now root (samoyed moved to root)"
 
       - name: 🏗️ Build release binaries
         run: |
@@ -129,17 +129,17 @@ jobs:
         run: |
           echo "=== Binary Size Analysis ==="
 
-          SAMOID_SIZE=$(stat -c%s target/release/samoid)
-          SAMOID_HOOK_SIZE=$(stat -c%s target/release/samoid-hook)
+          SAMOID_SIZE=$(stat -c%s target/release/samoyed)
+          SAMOID_HOOK_SIZE=$(stat -c%s target/release/samoyed-hook)
           TOTAL_SIZE=$((SAMOID_SIZE + SAMOID_HOOK_SIZE))
 
-          echo "samoid binary: ${SAMOID_SIZE} bytes ($(echo "scale=2; ${SAMOID_SIZE}/1024/1024" | bc) MB)"
-          echo "samoid-hook binary: ${SAMOID_HOOK_SIZE} bytes ($(echo "scale=2; ${SAMOID_HOOK_SIZE}/1024/1024" | bc) MB)"
+          echo "samoyed binary: ${SAMOID_SIZE} bytes ($(echo "scale=2; ${SAMOID_SIZE}/1024/1024" | bc) MB)"
+          echo "samoyed-hook binary: ${SAMOID_HOOK_SIZE} bytes ($(echo "scale=2; ${SAMOID_HOOK_SIZE}/1024/1024" | bc) MB)"
           echo "Total size: ${TOTAL_SIZE} bytes ($(echo "scale=2; ${TOTAL_SIZE}/1024/1024" | bc) MB)"
 
           # Set outputs for artifact generation
-          echo "samoid_size=${SAMOID_SIZE}" >> $GITHUB_OUTPUT
-          echo "samoid_hook_size=${SAMOID_HOOK_SIZE}" >> $GITHUB_OUTPUT
+          echo "samoyed_size=${SAMOID_SIZE}" >> $GITHUB_OUTPUT
+          echo "samoyed_hook_size=${SAMOID_HOOK_SIZE}" >> $GITHUB_OUTPUT
           echo "total_size=${TOTAL_SIZE}" >> $GITHUB_OUTPUT
 
           # Check AC8.2 compliance (10MB limit)
@@ -161,21 +161,21 @@ jobs:
           cd tmp/perf-test
           git init
 
-          # Test samoid init memory usage
-          echo "Testing samoid init memory usage..."
-          /usr/bin/time -v ../../target/release/samoid init 2>&1 | tee samoid-init-memory.log
-          SAMOID_MEMORY=$(grep "Maximum resident set size" samoid-init-memory.log | awk '{print $6}')
+          # Test samoyed init memory usage
+          echo "Testing samoyed init memory usage..."
+          /usr/bin/time -v ../../target/release/samoyed init 2>&1 | tee samoyed-init-memory.log
+          SAMOID_MEMORY=$(grep "Maximum resident set size" samoyed-init-memory.log | awk '{print $6}')
 
-          # Test samoid-hook memory usage with a non-existent hook (measures startup overhead only)
-          echo "Testing samoid-hook memory usage..."
-          /usr/bin/time -v ../../target/release/samoid-hook non-existent-hook 2>&1 | tee samoid-hook-memory.log
-          HOOK_MEMORY=$(grep "Maximum resident set size" samoid-hook-memory.log | awk '{print $6}')
+          # Test samoyed-hook memory usage with a non-existent hook (measures startup overhead only)
+          echo "Testing samoyed-hook memory usage..."
+          /usr/bin/time -v ../../target/release/samoyed-hook non-existent-hook 2>&1 | tee samoyed-hook-memory.log
+          HOOK_MEMORY=$(grep "Maximum resident set size" samoyed-hook-memory.log | awk '{print $6}')
 
-          echo "samoid init memory: ${SAMOID_MEMORY} KB ($(echo "scale=2; ${SAMOID_MEMORY}/1024" | bc) MB)"
-          echo "samoid-hook memory: ${HOOK_MEMORY} KB ($(echo "scale=2; ${HOOK_MEMORY}/1024" | bc) MB)"
+          echo "samoyed init memory: ${SAMOID_MEMORY} KB ($(echo "scale=2; ${SAMOID_MEMORY}/1024" | bc) MB)"
+          echo "samoyed-hook memory: ${HOOK_MEMORY} KB ($(echo "scale=2; ${HOOK_MEMORY}/1024" | bc) MB)"
 
           # Set outputs
-          echo "samoid_memory_kb=${SAMOID_MEMORY}" >> $GITHUB_OUTPUT
+          echo "samoyed_memory_kb=${SAMOID_MEMORY}" >> $GITHUB_OUTPUT
           echo "hook_memory_kb=${HOOK_MEMORY}" >> $GITHUB_OUTPUT
 
           # Check AC8.3 compliance (50MB limit)
@@ -239,16 +239,16 @@ jobs:
 
           | Binary        | Size                                                      | Status        |
           |---------------|-----------------------------------------------------------|---------------|
-          | `samoid`      | ${{ steps.binary_sizes.outputs.samoid_size }} bytes      | ✅            |
-          | `samoid-hook` | ${{ steps.binary_sizes.outputs.samoid_hook_size }} bytes | ✅            |
+          | `samoyed`      | ${{ steps.binary_sizes.outputs.samoyed_size }} bytes      | ✅            |
+          | `samoyed-hook` | ${{ steps.binary_sizes.outputs.samoyed_hook_size }} bytes | ✅            |
           | **Total**     | **${{ steps.binary_sizes.outputs.total_size }} bytes**   | ✅ **< 10MB** |
 
           ## 🧠 Memory Usage Analysis (AC8.3)
 
           | Component     | Memory Usage                                           | Status                  |
           |---------------|--------------------------------------------------------|-------------------------|
-          | `samoid init` | ${{ steps.memory_usage.outputs.samoid_memory_kb }} KB | ✅                      |
-          | `samoid-hook` | ${{ steps.memory_usage.outputs.hook_memory_kb }} KB   | ✅                      |
+          | `samoyed init` | ${{ steps.memory_usage.outputs.samoyed_memory_kb }} KB | ✅                      |
+          | `samoyed-hook` | ${{ steps.memory_usage.outputs.hook_memory_kb }} KB   | ✅                      |
           | **Limit**     | **50 MB**                                              | ✅ **All under limit** |
 
           ## ⚡ Performance Benchmarks
@@ -348,7 +348,7 @@ jobs:
               "hook_execution_overhead_ms": $HOOK_OVERHEAD_JSON,
               "startup_time_ms": null,
               "binary_size_bytes": ${{ steps.binary_sizes.outputs.total_size }},
-              "memory_usage_kb": ${{ steps.memory_usage.outputs.samoid_memory_kb }},
+              "memory_usage_kb": ${{ steps.memory_usage.outputs.samoyed_memory_kb }},
               "filesystem_operations_us": null
             }
           }
@@ -413,7 +413,7 @@ jobs:
     steps:
       - name: 📊 Generate performance summary
         run: |
-          echo "# ⚡ Samoid Performance Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "# ⚡ Samoyed Performance Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Performance Results Section

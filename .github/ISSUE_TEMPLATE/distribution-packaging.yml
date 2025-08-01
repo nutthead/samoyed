@@ -59,7 +59,7 @@ body:
       placeholder: |
         Current installation options:
         - Manual binary download from GitHub releases
-        - cargo install samoid (Rust developers only)
+        - cargo install samoyed (Rust developers only)
         - Limitations: [specific pain points]
     validations:
       required: true
@@ -112,7 +112,7 @@ body:
       description: Provide details about the package configuration
       placeholder: |
         Package configuration:
-        - Package name: samoid
+        - Package name: samoyed
         - Version management: [semver, git tags]
         - Dependencies: [none, system requirements]
         - Installation location: [/usr/local/bin, ~/.local/bin]

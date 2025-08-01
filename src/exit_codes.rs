@@ -96,7 +96,7 @@ pub const EX_CONFIG: i32 = 78;
 ///
 /// ```rust,ignore
 /// use anyhow::anyhow;
-/// use samoid::exit_codes::determine_exit_code;
+/// use samoyed::exit_codes::determine_exit_code;
 ///
 /// let error = anyhow!("Permission denied");
 /// let exit_code = determine_exit_code(&error);

@@ -1,8 +1,8 @@
-# Samoid
+# Samoyed
 
-[![Test Suite](https://github.com/nutthead/samoid/actions/workflows/test.yml/badge.svg)](https://github.com/nutthead/samoid/actions/workflows/test.yml)&nbsp;&nbsp;[![codecov](https://codecov.io/gh/nutthead/samoid/graph/badge.svg?token=8ROK706MYS)](https://codecov.io/gh/nutthead/samoid)&nbsp;&nbsp;[![Security Audit](https://img.shields.io/badge/security-audit_passing-green)](https://github.com/nutthead/samoid/actions/workflows/test.yml)&nbsp;&nbsp;[![Rust Version](https://img.shields.io/badge/rust-1.85%2B-blue)](https://www.rust-lang.org)
+[![Test Suite](https://github.com/nutthead/samoyed/actions/workflows/test.yml/badge.svg)](https://github.com/nutthead/samoyed/actions/workflows/test.yml)&nbsp;&nbsp;[![codecov](https://codecov.io/gh/nutthead/samoyed/graph/badge.svg?token=8ROK706MYS)](https://codecov.io/gh/nutthead/samoyed)&nbsp;&nbsp;[![Security Audit](https://img.shields.io/badge/security-audit_passing-green)](https://github.com/nutthead/samoyed/actions/workflows/test.yml)&nbsp;&nbsp;[![Rust Version](https://img.shields.io/badge/rust-1.85%2B-blue)](https://www.rust-lang.org)
 
-A modern, fast, and secure Git hooks manager written in Rust. Samoid is inspired by Husky with improved performance, better error handling, and enhanced security features.
+A modern, fast, and secure Git hooks manager written in Rust. Samoyed is inspired by Husky with improved performance, better error handling, and enhanced security features.
 
 You don’t have to fuss with that pesky `package.json` file in your projects anymore! 🤌
 
@@ -10,7 +10,7 @@ You don’t have to fuss with that pesky `package.json` file in your projects an
 
 ## Test Coverage
 
-![Grid](https://codecov.io/gh/nutthead/samoid/graphs/tree.svg?token=8ROK706MYS)
+![Grid](https://codecov.io/gh/nutthead/samoyed/graphs/tree.svg?token=8ROK706MYS)
 
 ## Features
 
@@ -24,7 +24,7 @@ You don’t have to fuss with that pesky `package.json` file in your projects an
 ## Installation
 
 ```bash
-cargo install samoid
+cargo install samoyed
 ```
 
 ## Quick Start
@@ -32,13 +32,13 @@ cargo install samoid
 Initialize Git hooks in your repository:
 
 ```bash
-samoid init
+samoyed init
 ```
 
 This will:
-1. Configure Git to use `.samoid/_` as the hooks directory
+1. Configure Git to use `.samoyed/_` as the hooks directory
 2. Create the hooks directory structure
-3. Install hook files that delegate to the `samoid-hook` runner
+3. Install hook files that delegate to the `samoyed-hook` runner
 
 ## Usage
 
@@ -46,23 +46,23 @@ This will:
 
 ```bash
 # Initialize hooks (one-time setup)
-samoid init
+samoyed init
 
 # Install hooks with custom directory
-samoid init --hooks-dir custom-hooks
+samoyed init --hooks-dir custom-hooks
 ```
 
 ### Environment Variables
 
-- `SAMOID=0` - Skip hook installation entirely
-- `SAMOID_DEBUG=1` - Enable debug logging
+- `SAMOYED=0` - Skip hook installation entirely
+- `SAMOYED_DEBUG=1` - Enable debug logging
 
 ## Architecture
 
-Samoid uses a dual-binary architecture:
+Samoyed uses a dual-binary architecture:
 
-- **`samoid`**: CLI interface for initialization and management
-- **`samoid-hook`**: Lightweight hook runner executed by Git
+- **`samoyed`**: CLI interface for initialization and management
+- **`samoyed-hook`**: Lightweight hook runner executed by Git
 
 This separation ensures minimal overhead during Git operations while providing rich functionality for setup and management.
 
@@ -118,7 +118,7 @@ cargo tarpaulin --out html --output-dir target/coverage
 
 ## Contributing
 
-1. Let's [discuss](https://github.com/nutthead/samoid/discussions)
+1. Let's [discuss](https://github.com/nutthead/samoyed/discussions)
 2. Fork the repository
 3. Create a feature branch
 4. Make your changes

@@ -23,15 +23,15 @@
 //! - **`benchmark_mock_installation`**: Tests hook installation with mock environment
 //! - **`benchmark_mock_installation_custom_dir`**: Tests custom directory installation
 //! - **`benchmark_mock_filesystem_operations`**: Tests filesystem abstraction performance
-//! - **`benchmark_skip_installation`**: Tests SAMOID=0 skip logic performance
+//! - **`benchmark_skip_installation`**: Tests SAMOYED=0 skip logic performance
 //! - **`benchmark_large_mock_filesystem`**: Tests performance with large project simulation
 //!
 //! ### Real-World Benchmarks (`real_benches` group)
 //! These benchmarks test actual binary execution for realistic performance measurement:
 //!
 //! - **`benchmark_real_hook_execution_overhead`**: Measures pure hook execution overhead
-//! - **`benchmark_startup_time_samoid_cli`**: Measures CLI startup performance
-//! - **`benchmark_startup_time_samoid_hook_cli`**: Measures hook runner startup performance
+//! - **`benchmark_startup_time_samoyed_cli`**: Measures CLI startup performance
+//! - **`benchmark_startup_time_samoyed_hook_cli`**: Measures hook runner startup performance
 //! - **`benchmark_filesystem_operations_real`**: Measures real filesystem operation performance
 //!
 //! ## Design Principles
@@ -79,9 +79,9 @@
 //! provide the metrics used for acceptance criteria validation.
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use samoid::environment::FileSystem;
-use samoid::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
-use samoid::install_hooks;
+use samoyed::environment::FileSystem;
+use samoyed::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
+use samoyed::install_hooks;
 use std::hint::black_box;
 use std::process::{ExitStatus, Output};
 
@@ -115,7 +115,7 @@ fn exit_status(code: i32) -> ExitStatus {
 /// This benchmark measures the performance of the core `install_hooks` function
 /// using mock implementations to isolate the logic performance from I/O overhead.
 ///
-/// **Test Scenario**: Default installation with `.samoid/_` as hooks directory
+/// **Test Scenario**: Default installation with `.samoyed/_` as hooks directory
 /// **Mock Setup**: Git repository exists, git config command succeeds
 /// **Performance Target**: < 1μs (mock operations should be nearly instant)
 fn benchmark_mock_installation(c: &mut Criterion) {
@@ -132,7 +132,7 @@ fn benchmark_mock_installation(c: &mut Criterion) {
             };
             let runner = MockCommandRunner::new().with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(output),
             );
 
@@ -173,20 +173,20 @@ fn benchmark_mock_filesystem_operations(c: &mut Criterion) {
         b.iter(|| {
             let fs = MockFileSystem::new()
                 .with_directory(".git")
-                .with_file(".samoid/_/pre-commit", "#!/bin/sh\necho 'hook'");
+                .with_file(".samoyed/_/pre-commit", "#!/bin/sh\necho 'hook'");
 
             // Simulate multiple filesystem operations
             black_box(fs.exists(std::path::Path::new(".git")));
-            black_box(fs.exists(std::path::Path::new(".samoid/_")));
-            black_box(fs.exists(std::path::Path::new(".samoid/_/pre-commit")));
+            black_box(fs.exists(std::path::Path::new(".samoyed/_")));
+            black_box(fs.exists(std::path::Path::new(".samoyed/_/pre-commit")));
         })
     });
 }
 
 fn benchmark_skip_installation(c: &mut Criterion) {
-    c.bench_function("skip_installation_samoid_0", |b| {
+    c.bench_function("skip_installation_samoyed_0", |b| {
         b.iter(|| {
-            let env = MockEnvironment::new().with_var("SAMOID", "0");
+            let env = MockEnvironment::new().with_var("SAMOYED", "0");
             let runner = MockCommandRunner::new();
             let fs = MockFileSystem::new();
 
@@ -214,7 +214,7 @@ fn benchmark_large_mock_filesystem(c: &mut Criterion) {
             };
             let runner = MockCommandRunner::new().with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(output),
             );
 
@@ -224,13 +224,13 @@ fn benchmark_large_mock_filesystem(c: &mut Criterion) {
     });
 }
 
-/// Benchmarks real-world hook execution overhead by running actual samoid-hook binary
+/// Benchmarks real-world hook execution overhead by running actual samoyed-hook binary
 ///
 /// **Critical Performance Test**: This measures the pure overhead that Samoid adds to
 /// Git hook execution, which is the most important performance metric for user experience.
 ///
 /// **Test Method**:
-/// - Executes the actual `samoid-hook` binary with a hook name argument
+/// - Executes the actual `samoyed-hook` binary with a hook name argument
 /// - Measures total time from process start to completion
 /// - Uses missing hook scenario (exit code 1) to measure pure Samoid overhead
 /// - Excludes actual hook script execution time to isolate Samoid's overhead
@@ -253,11 +253,11 @@ fn benchmark_real_hook_execution_overhead(c: &mut Criterion) {
             for _ in 0..iters {
                 let start = std::time::Instant::now();
 
-                // Execute samoid-hook with non-existent hook to measure pure startup overhead
-                // This measures only samoid-hook's initialization cost, not actual hook execution
-                let output = Command::new("./target/release/samoid-hook")
+                // Execute samoyed-hook with non-existent hook to measure pure startup overhead
+                // This measures only samoyed-hook's initialization cost, not actual hook execution
+                let output = Command::new("./target/release/samoyed-hook")
                     .arg("non-existent-hook")
-                    .env("SAMOID", "1")
+                    .env("SAMOYED", "1")
                     .output();
 
                 let elapsed = start.elapsed();
@@ -278,18 +278,18 @@ fn benchmark_real_hook_execution_overhead(c: &mut Criterion) {
     });
 }
 
-fn benchmark_startup_time_samoid_cli(c: &mut Criterion) {
+fn benchmark_startup_time_samoyed_cli(c: &mut Criterion) {
     use std::process::Command;
     use std::time::Duration;
 
-    c.bench_function("startup_time_samoid_help", |b| {
+    c.bench_function("startup_time_samoyed_help", |b| {
         b.iter_custom(|iters| {
             let mut total_duration = Duration::new(0, 0);
 
             for _ in 0..iters {
                 let start = std::time::Instant::now();
 
-                let output = Command::new("./target/release/samoid")
+                let output = Command::new("./target/release/samoyed")
                     .arg("--help")
                     .output();
 
@@ -307,11 +307,11 @@ fn benchmark_startup_time_samoid_cli(c: &mut Criterion) {
     });
 }
 
-fn benchmark_startup_time_samoid_hook_cli(c: &mut Criterion) {
+fn benchmark_startup_time_samoyed_hook_cli(c: &mut Criterion) {
     use std::process::Command;
     use std::time::Duration;
 
-    c.bench_function("startup_time_samoid_hook_help", |b| {
+    c.bench_function("startup_time_samoyed_hook_help", |b| {
         b.iter_custom(|iters| {
             let mut total_duration = Duration::new(0, 0);
 
@@ -319,10 +319,10 @@ fn benchmark_startup_time_samoid_hook_cli(c: &mut Criterion) {
                 let start = std::time::Instant::now();
 
                 // Use a non-existent hook name to measure startup overhead only
-                // samoid-hook will exit cleanly when no hook script is found
-                let output = Command::new("./target/release/samoid-hook")
+                // samoyed-hook will exit cleanly when no hook script is found
+                let output = Command::new("./target/release/samoyed-hook")
                     .arg("non-existent-hook")
-                    .env("SAMOID", "1")
+                    .env("SAMOYED", "1")
                     .output();
 
                 let elapsed = start.elapsed();
@@ -344,10 +344,10 @@ fn benchmark_startup_time_samoid_hook_cli(c: &mut Criterion) {
 /// Benchmarks real filesystem operations during hook installation workflow
 ///
 /// **Performance Test**: Measures actual filesystem I/O performance for operations
-/// that occur during `samoid init` to validate AC8.5 (Efficient filesystem operations).
+/// that occur during `samoyed init` to validate AC8.5 (Efficient filesystem operations).
 ///
 /// **Test Scenario**:
-/// - Creates temporary directory structure (.git, .samoid, hooks directory)
+/// - Creates temporary directory structure (.git, .samoyed, hooks directory)
 /// - Writes hook files with realistic content
 /// - Performs existence checks and read operations
 /// - Measures complete workflow timing including all I/O operations
@@ -357,7 +357,7 @@ fn benchmark_startup_time_samoid_hook_cli(c: &mut Criterion) {
 ///
 /// **Why This Matters**:
 /// Installation performance affects developer onboarding experience. Slow filesystem
-/// operations make `samoid init` feel sluggish and impact first impressions.
+/// operations make `samoyed init` feel sluggish and impact first impressions.
 fn benchmark_filesystem_operations_real(c: &mut Criterion) {
     use std::fs;
     use tempfile::TempDir;
@@ -369,8 +369,8 @@ fn benchmark_filesystem_operations_real(c: &mut Criterion) {
 
             // Simulate real filesystem operations during hook installation
             let git_dir = test_path.join(".git");
-            let samoid_dir = test_path.join(".samoid");
-            let hooks_dir = samoid_dir.join("_");
+            let samoyed_dir = test_path.join(".samoyed");
+            let hooks_dir = samoyed_dir.join("_");
 
             // Create directories - ignore Results since we're benchmarking, not testing correctness
             let _ = black_box(fs::create_dir_all(&git_dir));
@@ -378,7 +378,7 @@ fn benchmark_filesystem_operations_real(c: &mut Criterion) {
 
             // Check existence (common operations during validation)
             black_box(git_dir.exists());
-            black_box(samoid_dir.exists());
+            black_box(samoyed_dir.exists());
             black_box(hooks_dir.exists());
 
             // Write hook files with realistic hook runner content
@@ -386,7 +386,7 @@ fn benchmark_filesystem_operations_real(c: &mut Criterion) {
                 let hook_file = hooks_dir.join(hook);
                 let _ = black_box(fs::write(
                     &hook_file,
-                    "#!/bin/sh\n./samoid-hook $0 \"$@\"\n",
+                    "#!/bin/sh\n./samoyed-hook $0 \"$@\"\n",
                 ));
             }
 
@@ -411,8 +411,8 @@ criterion_group!(
 criterion_group!(
     real_benches,
     benchmark_real_hook_execution_overhead,
-    benchmark_startup_time_samoid_cli,
-    benchmark_startup_time_samoid_hook_cli,
+    benchmark_startup_time_samoyed_cli,
+    benchmark_startup_time_samoyed_hook_cli,
     benchmark_filesystem_operations_real
 );
 

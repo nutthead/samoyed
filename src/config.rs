@@ -1,4 +1,4 @@
-//! Configuration structures for samoid.toml
+//! Configuration structures for samoyed.toml
 //!
 //! Defines the TOML schema and default configurations for different project types.
 
@@ -7,21 +7,21 @@ use std::collections::HashMap;
 
 use crate::project::ProjectType;
 
-/// Main configuration structure for samoid.toml
+/// Main configuration structure for samoyed.toml
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SamoidConfig {
+pub struct SamoyedConfig {
     /// Hook definitions (required)
     pub hooks: HashMap<String, String>,
 
     /// Optional settings
-    #[serde(default, skip_serializing_if = "SamoidSettings::is_default")]
-    pub settings: SamoidSettings,
+    #[serde(default, skip_serializing_if = "SamoyedSettings::is_default")]
+    pub settings: SamoyedSettings,
 }
 
-/// Optional settings section for samoid.toml
+/// Optional settings section for samoyed.toml
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct SamoidSettings {
-    /// Directory for hook files (default: ".samoid")
+pub struct SamoyedSettings {
+    /// Directory for hook files (default: ".samoyed")
     #[serde(default = "default_hook_directory")]
     pub hook_directory: String,
 
@@ -38,7 +38,7 @@ pub struct SamoidSettings {
     pub skip_hooks: bool,
 }
 
-impl Default for SamoidSettings {
+impl Default for SamoyedSettings {
     fn default() -> Self {
         Self {
             hook_directory: default_hook_directory(),
@@ -49,14 +49,14 @@ impl Default for SamoidSettings {
     }
 }
 
-impl SamoidSettings {
+impl SamoyedSettings {
     /// Check if settings are all default values (for skip_serializing_if)
     fn is_default(&self) -> bool {
         *self == Self::default()
     }
 }
 
-impl SamoidConfig {
+impl SamoyedConfig {
     /// Create a default configuration for a specific project type
     pub fn default_for_project_type(project_type: &ProjectType) -> Self {
         let mut hooks = HashMap::new();
@@ -74,7 +74,7 @@ impl SamoidConfig {
 
         Self {
             hooks,
-            settings: SamoidSettings::default(),
+            settings: SamoyedSettings::default(),
         }
     }
 
@@ -110,7 +110,7 @@ impl SamoidConfig {
 
 /// Default hook directory
 fn default_hook_directory() -> String {
-    ".samoid".to_string()
+    ".samoyed".to_string()
 }
 
 /// Default fail_fast setting
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_default_config_rust() {
-        let config = SamoidConfig::default_for_project_type(&ProjectType::Rust);
+        let config = SamoyedConfig::default_for_project_type(&ProjectType::Rust);
         assert!(config.hooks.contains_key("pre-commit"));
         assert!(config.hooks["pre-commit"].contains("cargo"));
         assert!(config.validate().is_ok());
@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn test_default_config_go() {
-        let config = SamoidConfig::default_for_project_type(&ProjectType::Go);
+        let config = SamoyedConfig::default_for_project_type(&ProjectType::Go);
         assert!(config.hooks.contains_key("pre-commit"));
         assert!(config.hooks["pre-commit"].contains("go fmt"));
         assert!(config.validate().is_ok());
@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_default_config_node() {
-        let config = SamoidConfig::default_for_project_type(&ProjectType::Node);
+        let config = SamoyedConfig::default_for_project_type(&ProjectType::Node);
         assert!(config.hooks.contains_key("pre-commit"));
         assert!(config.hooks["pre-commit"].contains("npm"));
         assert!(config.validate().is_ok());
@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn test_default_config_python() {
-        let config = SamoidConfig::default_for_project_type(&ProjectType::Python);
+        let config = SamoyedConfig::default_for_project_type(&ProjectType::Python);
         assert!(config.hooks.contains_key("pre-commit"));
         assert!(config.hooks["pre-commit"].contains("black"));
         assert!(config.validate().is_ok());
@@ -177,9 +177,9 @@ mod tests {
 
     #[test]
     fn test_validation_empty_hooks() {
-        let config = SamoidConfig {
+        let config = SamoyedConfig {
             hooks: HashMap::new(),
-            settings: SamoidSettings::default(),
+            settings: SamoyedSettings::default(),
         };
         assert!(config.validate().is_err());
     }
@@ -189,9 +189,9 @@ mod tests {
         let mut hooks = HashMap::new();
         hooks.insert("invalid-hook".to_string(), "echo test".to_string());
 
-        let config = SamoidConfig {
+        let config = SamoyedConfig {
             hooks,
-            settings: SamoidSettings::default(),
+            settings: SamoyedSettings::default(),
         };
         assert!(config.validate().is_err());
     }
@@ -201,9 +201,9 @@ mod tests {
         let mut hooks = HashMap::new();
         hooks.insert("pre-commit".to_string(), "".to_string());
 
-        let config = SamoidConfig {
+        let config = SamoyedConfig {
             hooks,
-            settings: SamoidSettings::default(),
+            settings: SamoyedSettings::default(),
         };
         assert!(config.validate().is_err());
     }
@@ -213,11 +213,11 @@ mod tests {
         let mut hooks = HashMap::new();
         hooks.insert("pre-commit".to_string(), "echo test".to_string());
 
-        let config = SamoidConfig {
+        let config = SamoyedConfig {
             hooks,
-            settings: SamoidSettings {
+            settings: SamoyedSettings {
                 hook_directory: "../dangerous".to_string(),
-                ..SamoidSettings::default()
+                ..SamoyedSettings::default()
             },
         };
         assert!(config.validate().is_err());
@@ -250,8 +250,8 @@ mod tests {
 
     #[test]
     fn test_settings_default() {
-        let settings = SamoidSettings::default();
-        assert_eq!(settings.hook_directory, ".samoid");
+        let settings = SamoyedSettings::default();
+        assert_eq!(settings.hook_directory, ".samoyed");
         assert!(!settings.debug);
         assert!(settings.fail_fast);
         assert!(!settings.skip_hooks);
@@ -259,19 +259,19 @@ mod tests {
 
     #[test]
     fn test_settings_is_default() {
-        let default_settings = SamoidSettings::default();
+        let default_settings = SamoyedSettings::default();
         assert!(default_settings.is_default());
 
-        let custom_settings = SamoidSettings {
+        let custom_settings = SamoyedSettings {
             debug: true,
-            ..SamoidSettings::default()
+            ..SamoyedSettings::default()
         };
         assert!(!custom_settings.is_default());
     }
 
     #[test]
     fn test_toml_serialization() {
-        let config = SamoidConfig::default_for_project_type(&ProjectType::Rust);
+        let config = SamoyedConfig::default_for_project_type(&ProjectType::Rust);
         let toml_str = toml::to_string_pretty(&config).unwrap();
 
         // Should contain hooks section
@@ -296,7 +296,7 @@ debug = true
 fail_fast = false
 "#;
 
-        let config: SamoidConfig = toml::from_str(toml_content).unwrap();
+        let config: SamoyedConfig = toml::from_str(toml_content).unwrap();
         assert_eq!(config.hooks.len(), 2);
         assert!(config.settings.debug);
         assert!(!config.settings.fail_fast);
@@ -306,7 +306,7 @@ fail_fast = false
     #[test]
     fn test_validate_method_coverage() {
         // Test various validation scenarios to ensure complete coverage
-        let mut config = SamoidConfig::default_for_project_type(&ProjectType::Rust);
+        let mut config = SamoyedConfig::default_for_project_type(&ProjectType::Rust);
 
         // Test valid configuration
         assert!(config.validate().is_ok());
@@ -325,9 +325,9 @@ fail_fast = false
     #[test]
     fn test_comprehensive_validation_coverage() {
         // Test all validation code paths to ensure 100% coverage
-        let mut config = SamoidConfig {
+        let mut config = SamoyedConfig {
             hooks: std::collections::HashMap::new(),
-            settings: SamoidSettings::default(),
+            settings: SamoyedSettings::default(),
         };
 
         // Add a valid hook to test hook validation logic
@@ -368,9 +368,9 @@ fail_fast = false
             "pre-push",
             "pre-auto-gc",
         ] {
-            let mut test_config = SamoidConfig {
+            let mut test_config = SamoyedConfig {
                 hooks: std::collections::HashMap::new(),
-                settings: SamoidSettings::default(),
+                settings: SamoyedSettings::default(),
             };
             test_config
                 .hooks
@@ -385,7 +385,7 @@ fail_fast = false
     #[test]
     fn test_settings_validation_edge_cases() {
         // Test edge cases in settings validation
-        let mut config = SamoidConfig::default_for_project_type(&ProjectType::Rust);
+        let mut config = SamoyedConfig::default_for_project_type(&ProjectType::Rust);
 
         // Test hook_directory validation with valid paths
         config.settings.hook_directory = ".custom".to_string();
@@ -413,19 +413,19 @@ fail_fast = false
     fn test_default_functions_coverage() {
         // Test the default functions to ensure they're covered
         let default_dir = super::default_hook_directory();
-        assert_eq!(default_dir, ".samoid");
+        assert_eq!(default_dir, ".samoyed");
 
         let default_fail_fast = super::default_fail_fast();
         assert!(default_fail_fast);
 
         // Test Settings construction with defaults
-        let settings = SamoidSettings {
+        let settings = SamoyedSettings {
             hook_directory: default_hook_directory(),
             debug: false,
             fail_fast: default_fail_fast,
             skip_hooks: false,
         };
-        assert_eq!(settings.hook_directory, ".samoid");
+        assert_eq!(settings.hook_directory, ".samoyed");
         assert!(settings.fail_fast);
     }
 
@@ -439,7 +439,7 @@ fail_fast = false
             ProjectType::Python,
             ProjectType::Unknown,
         ] {
-            let config = SamoidConfig::default_for_project_type(&project_type);
+            let config = SamoyedConfig::default_for_project_type(&project_type);
             assert!(
                 config.validate().is_ok(),
                 "Failed validation for project type: {project_type:?}"

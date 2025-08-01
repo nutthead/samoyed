@@ -4,7 +4,7 @@
 //!
 //! This module serves as the central orchestrator for the Samoid Git hooks installation process.
 //! It provides a comprehensive, robust, and secure way to set up Git hooks that delegate to
-//! the `samoid-hook` binary runner, following modern Git hooks management patterns.
+//! the `samoyed-hook` binary runner, following modern Git hooks management patterns.
 //!
 //! ## Raison d'être
 //!
@@ -36,12 +36,12 @@
 //!
 //! The installation follows a carefully orchestrated sequence:
 //!
-//! 1. **Environment Check**: Verify SAMOID environment variable (skip if SAMOID=0)
+//! 1. **Environment Check**: Verify SAMOID environment variable (skip if SAMOYED=0)
 //! 2. **Path Validation**: Ensure the hooks directory path is safe and valid
 //! 3. **Repository Validation**: Confirm we're operating within a Git repository
 //! 4. **Git Configuration**: Set core.hooksPath to point to our hooks directory
 //! 5. **Directory Creation**: Establish the hooks directory structure with proper permissions
-//! 6. **Hook Installation**: Create individual hook files that delegate to samoid-hook binary
+//! 6. **Hook Installation**: Create individual hook files that delegate to samoyed-hook binary
 //! 7. **Verification**: Ensure all components are properly installed and accessible
 //!
 //! ## Error Handling Strategy
@@ -77,8 +77,8 @@
 //! ## Usage Examples
 //!
 //! ```rust,ignore
-//! use samoid::installer::install_hooks;
-//! use samoid::environment::{SystemEnvironment, SystemCommandRunner, SystemFileSystem};
+//! use samoyed::installer::install_hooks;
+//! use samoyed::environment::{SystemEnvironment, SystemCommandRunner, SystemFileSystem};
 //!
 //! // Basic installation with default directory
 //! let env = SystemEnvironment;
@@ -226,7 +226,7 @@ impl std::fmt::Display for InstallError {
                     PathValidationError::AbsolutePath => {
                         write!(
                             f,
-                            "\n\nUse a relative path like '.samoid' or 'hooks' instead."
+                            "\n\nUse a relative path like '.samoyed' or 'hooks' instead."
                         )?;
                     }
                     PathValidationError::InvalidCharacters(_) => {
@@ -236,7 +236,7 @@ impl std::fmt::Display for InstallError {
                         )?;
                     }
                     PathValidationError::EmptyPath => {
-                        write!(f, "\n\nProvide a valid directory name like '.samoid'.")?;
+                        write!(f, "\n\nProvide a valid directory name like '.samoyed'.")?;
                     }
                     PathValidationError::TooLong(_) => {
                         write!(f, "\n\nUse a shorter directory name.")?;
@@ -273,28 +273,28 @@ impl From<HookError> for InstallError {
 /// * `env` - Environment provider for reading environment variables
 /// * `runner` - Command runner for executing Git commands
 /// * `fs` - File system abstraction for file operations
-/// * `custom_dir` - Optional custom directory name (defaults to ".samoid")
+/// * `custom_dir` - Optional custom directory name (defaults to ".samoyed")
 ///
 /// # Returns
 ///
-/// * `Ok(String)` - Success message (empty string or "SAMOID=0 skip install")
+/// * `Ok(String)` - Success message (empty string or "SAMOYED=0 skip install")
 /// * `Err(InstallError)` - If any step of the installation fails
 ///
 /// # Environment Variables
 ///
-/// - `SAMOID=0` - Skip installation (for CI environments or debugging)
+/// - `SAMOYED=0` - Skip installation (for CI environments or debugging)
 ///
 /// # Example
 ///
 /// ```
-/// use samoid::install_hooks;
-/// use samoid::environment::{SystemEnvironment, SystemCommandRunner, SystemFileSystem};
+/// use samoyed::install_hooks;
+/// use samoyed::environment::{SystemEnvironment, SystemCommandRunner, SystemFileSystem};
 ///
 /// let env = SystemEnvironment;
 /// let runner = SystemCommandRunner;
 /// let fs = SystemFileSystem;
 ///
-/// // Install with default directory (.samoid)
+/// // Install with default directory (.samoyed)
 /// match install_hooks(&env, &runner, &fs, None) {
 ///     Ok(msg) => {
 ///         if !msg.is_empty() {
@@ -305,8 +305,8 @@ impl From<HookError> for InstallError {
 /// }
 ///
 /// // Install with custom directory
-/// match install_hooks(&env, &runner, &fs, Some(".samoid")) {
-///     Ok(_) => println!("Hooks installed in .samoid/_"),
+/// match install_hooks(&env, &runner, &fs, Some(".samoyed")) {
+///     Ok(_) => println!("Hooks installed in .samoyed/_"),
 ///     Err(e) => eprintln!("Installation failed: {}", e),
 /// }
 /// ```
@@ -322,11 +322,11 @@ pub fn install_hooks(
     custom_dir: Option<&str>,
 ) -> Result<String, InstallError> {
     // Check SAMOID environment variable
-    if env.get_var("SAMOID").unwrap_or_default() == "0" {
-        return Ok("SAMOID=0 skip install".to_string());
+    if env.get_var("SAMOYED").unwrap_or_default() == "0" {
+        return Ok("SAMOYED=0 skip install".to_string());
     }
 
-    let hooks_dir_name = custom_dir.unwrap_or(".samoid");
+    let hooks_dir_name = custom_dir.unwrap_or(".samoyed");
 
     // Comprehensive path validation
     validate_hooks_directory_path(hooks_dir_name)?;
@@ -345,7 +345,7 @@ pub fn install_hooks(
     hooks::create_hook_directory(fs, &hooks_dir)?;
     hooks::create_hook_files(fs, &hooks_dir)?;
 
-    // Create example hook scripts for users to customize in .samoid/scripts/
+    // Create example hook scripts for users to customize in .samoyed/scripts/
     // These are optional and won't overwrite existing user scripts
     let hooks_base_dir = PathBuf::from(hooks_dir_name);
     hooks::create_example_hook_scripts(fs, &hooks_base_dir)?;
@@ -465,14 +465,14 @@ mod tests {
     }
 
     #[test]
-    fn test_install_hooks_skip_when_samoid_0() {
-        let env = MockEnvironment::new().with_var("SAMOID", "0");
+    fn test_install_hooks_skip_when_samoyed_0() {
+        let env = MockEnvironment::new().with_var("SAMOYED", "0");
         let runner = MockCommandRunner::new();
         let fs = MockFileSystem::new();
 
         let result = install_hooks(&env, &runner, &fs, None);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "SAMOID=0 skip install");
+        assert_eq!(result.unwrap(), "SAMOYED=0 skip install");
     }
 
     #[test]
@@ -527,7 +527,7 @@ mod tests {
             .with_response("git", &["--version"], Ok(version_output))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output),
             );
 
@@ -643,7 +643,7 @@ mod tests {
             .with_response("git", &["--version"], Ok(version_output))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output),
             );
 
@@ -776,7 +776,7 @@ mod tests {
     #[test]
     fn test_install_hooks_empty_environment_variable() {
         // Test when SAMOID is set to empty string (should not skip)
-        let env = MockEnvironment::new().with_var("SAMOID", "");
+        let env = MockEnvironment::new().with_var("SAMOYED", "");
         let version_output = Output {
             status: exit_status(0),
             stdout: b"git version 2.34.1".to_vec(),
@@ -791,7 +791,7 @@ mod tests {
             .with_response("git", &["--version"], Ok(version_output))
             .with_response(
                 "git",
-                &["config", "core.hooksPath", ".samoid/_"],
+                &["config", "core.hooksPath", ".samoyed/_"],
                 Ok(config_output),
             );
         let fs = MockFileSystem::new().with_directory(".git");
@@ -807,7 +807,7 @@ mod tests {
         let test_values = ["1", "true", "false", "disabled", "anything"];
 
         for value in &test_values {
-            let env = MockEnvironment::new().with_var("SAMOID", value);
+            let env = MockEnvironment::new().with_var("SAMOYED", value);
             let version_output = Output {
                 status: exit_status(0),
                 stdout: b"git version 2.34.1".to_vec(),
@@ -822,7 +822,7 @@ mod tests {
                 .with_response("git", &["--version"], Ok(version_output))
                 .with_response(
                     "git",
-                    &["config", "core.hooksPath", ".samoid/_"],
+                    &["config", "core.hooksPath", ".samoyed/_"],
                     Ok(config_output),
                 );
             let fs = MockFileSystem::new().with_directory(".git");
@@ -941,7 +941,7 @@ mod tests {
     #[test]
     fn test_path_validation_valid_paths() {
         let valid_paths = [
-            ".samoid",
+            ".samoyed",
             "hooks",
             ".git-hooks",
             "my_hooks",

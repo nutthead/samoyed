@@ -6,8 +6,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use samoid::install_hooks;
-//! use samoid::environment::{SystemEnvironment, SystemCommandRunner, SystemFileSystem};
+//! use samoyed::install_hooks;
+//! use samoyed::environment::{SystemEnvironment, SystemCommandRunner, SystemFileSystem};
 //!
 //! let env = SystemEnvironment;
 //! let runner = SystemCommandRunner;

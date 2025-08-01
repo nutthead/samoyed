@@ -530,8 +530,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "samoid"
-version = "0.1.4"
+name = "samoyed"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "clap",
