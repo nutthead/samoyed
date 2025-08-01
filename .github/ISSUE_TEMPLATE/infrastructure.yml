@@ -1,0 +1,180 @@
+name: 🔧 Infrastructure & Process
+description: Issues related to CI/CD, release management, build systems, and development processes
+title: "[Infrastructure]: "
+labels: ["🔄 ci/cd", "🎯 type: nonfunctional", "🏁 phase: transition"]
+projects: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an infrastructure improvement! These changes help streamline development and deployment processes.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Provide a clear summary of the infrastructure change or improvement
+      placeholder: Brief description of the infrastructure enhancement...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: infrastructure-type
+    attributes:
+      label: Infrastructure Type
+      description: What type of infrastructure change is this?
+      options:
+        - 🔄 CI/CD Pipeline - GitHub Actions, workflows, automation
+        - 📦 Release Management - Versioning, distribution, packaging
+        - 🏗️ Build System - Compilation, dependencies, toolchain
+        - 🔍 Quality Gates - Code coverage, linting, security scanning
+        - 📊 Monitoring - Performance tracking, metrics, alerting
+        - 🚀 Deployment - Distribution channels, installation methods
+        - 🔧 Developer Tools - Local development, debugging, utilities
+        - 📚 Documentation - Process documentation, automation
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-state
+    attributes:
+      label: Current State
+      description: Describe the current infrastructure setup and any limitations
+      placeholder: |
+        Current implementation:
+        - Component 1...
+        - Component 2...
+        - Limitations...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-changes
+    attributes:
+      label: Proposed Changes
+      description: Describe the specific infrastructure changes you're suggesting
+      placeholder: |
+        Proposed improvements:
+        - Change 1...
+        - Change 2...
+        - Expected benefits...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List the specific requirements that must be met
+      placeholder: |
+        - [ ] Requirement 1 (e.g., automated workflow triggers on push)
+        - [ ] Requirement 2 (e.g., build artifacts generated for all platforms)
+        - [ ] Requirement 3 (e.g., deployment completes in < 5 minutes)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: workflow-components
+    attributes:
+      label: Workflow Components (if applicable)
+      description: Which workflow components are involved?
+      options:
+        - label: GitHub Actions workflows
+        - label: Build and compilation
+        - label: Testing and validation
+        - label: Code quality checks
+        - label: Security scanning
+        - label: Performance benchmarking
+        - label: Release creation
+        - label: Artifact publishing
+        - label: Dependency management
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this infrastructure change?
+      options:
+        - 🔥 High - Blocking development or deployment
+        - ⚡ Medium - Important for project health
+        - 🟢 Low - Nice to have improvement
+      default: 1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Estimated Effort (Story Points)
+      description: Rough estimate of implementation complexity
+      options:
+        - 🟢 1-2 - Small effort
+        - 🟡 3-5 - Medium effort
+        - 🟠 6-7 - Large effort
+        - 🔴 8-10 - Extra large effort
+      default: 1
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical-details
+    attributes:
+      label: Technical Implementation
+      description: Provide technical details about the implementation approach
+      placeholder: |
+        Implementation approach:
+        - Tool/technology choices...
+        - Configuration changes...
+        - Integration points...
+
+  - type: textarea
+    id: testing-validation
+    attributes:
+      label: Testing & Validation
+      description: How will you test and validate these infrastructure changes?
+      placeholder: |
+        Validation plan:
+        - Test scenario 1...
+        - Test scenario 2...
+        - Success criteria...
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List any dependencies, prerequisites, or related issues
+      placeholder: |
+        - **Depends on**: #issue_number (Description)
+        - **Requires**: External service/tool setup
+        - **Blocks**: #issue_number (Description)
+
+  - type: checkboxes
+    id: environments
+    attributes:
+      label: Target Environments
+      description: Which environments will be affected?
+      options:
+        - label: Development (local)
+        - label: CI/CD (GitHub Actions)
+        - label: Testing/Staging
+        - label: Production/Release
+        - label: Documentation/Website
+
+  - type: textarea
+    id: risks-mitigation
+    attributes:
+      label: Risks & Mitigation
+      description: Identify potential risks and how to mitigate them
+      placeholder: |
+        Potential risks:
+        - Risk 1: [description] → Mitigation: [approach]
+        - Risk 2: [description] → Mitigation: [approach]
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, diagrams, or examples
+      placeholder: Any additional information...

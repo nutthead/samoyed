@@ -1,0 +1,108 @@
+name: 🚀 Feature Request
+description: Request a new feature or functional requirement
+title: "[Feature]: "
+labels: ["✨ enhancement", "🛠️ type: functional", "🔨 phase: construction"]
+projects: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to request a new feature! Please provide detailed information to help us understand and prioritize your request.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Provide a clear and concise summary of the feature you're requesting
+      placeholder: Brief description of the feature...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List the specific requirements that must be met for this feature to be considered complete
+      placeholder: |
+        - [ ] Requirement 1
+        - [ ] Requirement 2  
+        - [ ] Requirement 3
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature for the project?
+      options:
+        - 🔥 High - Critical for project success
+        - ⚡ Medium - Important but not critical
+        - 🟢 Low - Nice to have
+      default: 1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Estimated Effort (Story Points)
+      description: Rough estimate of implementation complexity
+      options:
+        - 🟢 1-2 - Small effort
+        - 🟡 3-5 - Medium effort  
+        - 🟠 6-7 - Large effort
+        - 🔴 8-10 - Extra large effort
+      default: 1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: OpenUP Phase
+      description: Which OpenUP phase does this feature belong to?
+      options:
+        - 📐 Elaboration - Architecture design and risk mitigation
+        - 🔨 Construction - Implementation and development
+        - 🏁 Transition - Deployment and production readiness
+      default: 1
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Detailed Description
+      description: Provide comprehensive details about the feature, including technical specifications if applicable
+      placeholder: Detailed explanation of the feature requirements...
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List any dependencies or related issues
+      placeholder: |
+        - **Depends on**: #issue_number (Description)
+        - **Blocks**: #issue_number (Description)
+        - **Relates to**: #issue_number (Description)
+
+  - type: dropdown
+    id: source
+    attributes:
+      label: Source
+      description: Where did this requirement originate?
+      options:
+        - 🔍 Analysis - Requirement from reverse engineering or analysis
+        - 📄 Document - Requirement from specification or documentation
+        - 👤 User - User-requested feature
+        - 🐛 Bug - Feature needed to fix a bug
+      default: 0
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, mockups, or examples that would help implement this feature
+      placeholder: Any additional information...

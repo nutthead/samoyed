@@ -1,0 +1,149 @@
+name: ⚡ Quality Enhancement
+description: Request improvements to performance, testing, reliability, or other quality attributes
+title: "[Quality]: "
+labels: ["🎯 type: nonfunctional", "⚡ priority: medium", "🔨 phase: construction"]
+projects: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a quality improvement! These enhancements help make Samoid more reliable, performant, and maintainable.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Provide a clear summary of the quality improvement you're requesting
+      placeholder: Brief description of the quality enhancement...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: quality-attribute
+    attributes:
+      label: Quality Attribute
+      description: Which quality attribute does this enhancement address?
+      options:
+        - 🚀 Performance - Speed, memory usage, efficiency
+        - 🛡️ Reliability - Error handling, robustness, fault tolerance
+        - 🧪 Testing - Test coverage, test infrastructure, validation
+        - 🔒 Security - Vulnerability fixes, security enhancements
+        - 🌐 Compatibility - Cross-platform support, environment compatibility
+        - 📚 Maintainability - Code quality, documentation, architecture
+        - 🔍 Observability - Logging, monitoring, debugging
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-state
+    attributes:
+      label: Current State
+      description: Describe the current state and what specific issues exist
+      placeholder: |
+        Current implementation details:
+        - Issue 1...
+        - Issue 2...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-improvement
+    attributes:
+      label: Proposed Improvement
+      description: Describe the specific improvements you're suggesting
+      placeholder: |
+        Proposed changes:
+        - Enhancement 1...
+        - Enhancement 2...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List measurable criteria that define when this enhancement is complete
+      placeholder: |
+        - [ ] Performance metric: [specific target, e.g., < 50ms execution time]
+        - [ ] Reliability metric: [specific target, e.g., >99% success rate]
+        - [ ] Test coverage: [specific target, e.g., >90% code coverage]
+        - [ ] Other criteria...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this quality improvement?
+      options:
+        - 🔥 High - Critical quality issue affecting users
+        - ⚡ Medium - Important improvement for project health
+        - 🟢 Low - Nice to have enhancement
+      default: 1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Estimated Effort (Story Points)
+      description: Rough estimate of implementation complexity
+      options:
+        - 🟢 1-2 - Small effort
+        - 🟡 3-5 - Medium effort
+        - 🟠 6-7 - Large effort
+        - 🔴 8-10 - Extra large effort
+      default: 1
+    validations:
+      required: true
+
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Success Metrics
+      description: How will you measure the success of this improvement?
+      placeholder: |
+        Before/after measurements:
+        - Metric 1: Current [X] → Target [Y]
+        - Metric 2: Current [X] → Target [Y]
+
+  - type: textarea
+    id: technical-details
+    attributes:
+      label: Technical Details
+      description: Provide technical implementation details, approach, or architectural considerations
+      placeholder: Technical approach and implementation details...
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List any dependencies or related issues
+      placeholder: |
+        - **Depends on**: #issue_number (Description)
+        - **Blocks**: #issue_number (Description)
+        - **Relates to**: #issue_number (Description)
+
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Impact Areas
+      description: Which areas of the codebase will be affected?
+      options:
+        - label: Core installation system
+        - label: CLI interface
+        - label: Hook execution runtime
+        - label: Test infrastructure
+        - label: CI/CD pipeline
+        - label: Documentation
+        - label: Build system
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, benchmarks, research, or examples
+      placeholder: Any additional information...

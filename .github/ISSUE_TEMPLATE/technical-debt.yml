@@ -1,0 +1,182 @@
+name: 🧹 Technical Debt & Cleanup
+description: Address technical debt, remove unnecessary features, or clean up codebase
+title: "[Cleanup]: "
+labels: ["🧹 cleanup", "📐 phase: elaboration"]
+projects: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for identifying technical debt! Cleaning up technical debt keeps the codebase maintainable and focused.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Provide a clear summary of the technical debt or cleanup needed
+      placeholder: Brief description of what needs to be cleaned up or removed...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: debt-type
+    attributes:
+      label: Type of Technical Debt
+      description: What type of technical debt is this?
+      options:
+        - 🗑️ Remove Feature - Unnecessary or problematic feature removal
+        - 🔧 Refactor Code - Code structure improvements
+        - 📝 Update Documentation - Outdated or incorrect documentation
+        - 🏷️ Remove Dependencies - Unused or problematic dependencies
+        - 🧪 Test Cleanup - Test improvements or removal of redundant tests
+        - 📦 Build System - Build configuration cleanup
+        - 🔍 Code Quality - Address linting warnings, code smells
+        - 🏗️ Architecture - Architectural improvements or simplification
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: Problem Description
+      description: Describe why this is technical debt and what problems it causes
+      placeholder: |
+        Current issues:
+        - Problem 1: [specific issue]
+        - Problem 2: [impact on codebase]
+        - Why it's problematic: [explanation]
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: Describe how you plan to address this technical debt
+      placeholder: |
+        Cleanup approach:
+        - Step 1: [action]
+        - Step 2: [action]
+        - Final state: [desired outcome]
+    validations:
+      required: true
+
+  - type: textarea
+    id: justification
+    attributes:
+      label: Justification
+      description: Explain why this cleanup is important and beneficial
+      placeholder: |
+        Benefits of cleanup:
+        - Benefit 1: [e.g., reduced complexity]
+        - Benefit 2: [e.g., improved maintainability]
+        - Benefit 3: [e.g., alignment with project goals]
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: cleanup-scope
+    attributes:
+      label: Cleanup Scope
+      description: What areas of the project will be affected?
+      options:
+        - label: Source code
+        - label: Documentation
+        - label: Tests
+        - label: Build configuration
+        - label: CI/CD workflows
+        - label: Dependencies
+        - label: Configuration files
+        - label: Examples/samples
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is this cleanup?
+      options:
+        - 🔥 High - Blocking development or causing issues
+        - ⚡ Medium - Important for project health
+        - 🟢 Low - Nice to have cleanup
+      default: 2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Estimated Effort (Story Points)
+      description: Rough estimate of cleanup complexity
+      options:
+        - 🟢 1-2 - Small cleanup
+        - 🟡 3-5 - Medium cleanup
+        - 🟠 6-7 - Large cleanup
+        - 🔴 8-10 - Major refactoring
+      default: 0
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: breaking-changes
+    attributes:
+      label: Breaking Changes
+      description: Will this cleanup introduce breaking changes?
+      options:
+        - label: Yes, this will introduce breaking changes
+        - label: No, this is backwards compatible
+        - label: Unsure, needs investigation
+
+  - type: textarea
+    id: migration-plan
+    attributes:
+      label: Migration Plan (if applicable)
+      description: If this introduces breaking changes, describe the migration path
+      placeholder: |
+        Migration steps for users:
+        - Step 1: [action users need to take]
+        - Step 2: [next action]
+        - Deprecation timeline: [if applicable]
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List the specific criteria that define when this cleanup is complete
+      placeholder: |
+        - [ ] Feature/code removed completely
+        - [ ] Documentation updated
+        - [ ] Tests updated or removed
+        - [ ] No regressions introduced
+        - [ ] Migration guide created (if needed)
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List any dependencies or related issues
+      placeholder: |
+        - **Depends on**: #issue_number (Description)
+        - **Blocks**: #issue_number (Description)
+        - **Related to**: #issue_number (Description)
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks & Considerations
+      description: Identify potential risks or considerations for this cleanup
+      placeholder: |
+        Potential risks:
+        - Risk 1: [description and mitigation]
+        - Risk 2: [description and mitigation]
+        - Backwards compatibility concerns...
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, code examples, or references
+      placeholder: Any additional information...

@@ -1,0 +1,124 @@
+name: 🐛 Bug Report
+description: Report a bug or defect in Samoid
+title: "[Bug]: "
+labels: ["🐛 bug", "🔥 priority: high"]
+projects: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please provide detailed information to help us reproduce and fix the issue.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Bug Summary
+      description: Provide a clear and concise description of the bug
+      placeholder: Brief description of what went wrong...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Provide detailed steps to reproduce the behavior
+      placeholder: |
+        1. Run command '...'
+        2. In directory with '...'
+        3. Expected '...' but got '...'
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe what should have happened...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Describe what actually happened...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - 🔴 Critical - Application crashes or data loss
+        - 🟠 High - Major functionality broken
+        - 🟡 Medium - Minor functionality affected
+        - 🟢 Low - Cosmetic or minor issue
+      default: 1
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: platform
+    attributes:
+      label: Platform
+      description: Which platforms are affected?
+      options:
+        - label: Linux
+        - label: macOS
+        - label: Windows
+        - label: WSL (Windows Subsystem for Linux)
+        - label: Git Bash
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Information
+      description: Please provide relevant environment details
+      placeholder: |
+        - OS: [e.g., Ubuntu 24.04, macOS 14.0, Windows 11]
+        - Samoid version: [e.g., 0.1.4]
+        - Git version: [e.g., 2.45.0]
+        - Shell: [e.g., bash, zsh, PowerShell]
+        - Other relevant tools: [e.g., node 18.0, cargo 1.75]
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-output
+    attributes:
+      label: Error Output
+      description: Include any error messages, stack traces, or debug output
+      placeholder: |
+        Paste error output here...
+      render: text
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug Logs
+      description: If available, include output from running with debug mode (SAMOID=2)
+      placeholder: |
+        Output from SAMOID=2 samoid command...
+      render: text
+
+  - type: checkboxes
+    id: workaround
+    attributes:
+      label: Workaround
+      description: Do you have a workaround for this issue?
+      options:
+        - label: Yes, I have a workaround (please describe below)
+        - label: No workaround available
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem, including configuration files or repository structure
+      placeholder: Any additional information that might help...
