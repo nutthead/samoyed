@@ -767,7 +767,8 @@ mod tests {
             Ok(output),
         );
 
-        let fs = MockFileSystem::new().with_file(".samoyed/scripts/pre-commit", "#!/bin/sh\nexit 1");
+        let fs =
+            MockFileSystem::new().with_file(".samoyed/scripts/pre-commit", "#!/bin/sh\nexit 1");
 
         let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
 
