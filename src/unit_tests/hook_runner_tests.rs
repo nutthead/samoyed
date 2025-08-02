@@ -398,7 +398,6 @@ fn test_load_init_script() {
     assert!(result.is_ok(), "Should succeed when init script exists");
 }
 
-
 #[test]
 fn test_load_hook_command_from_config_success() {
     let fs = MockFileSystem::new().with_file(
@@ -893,7 +892,6 @@ fn test_load_init_script_xdg_config_debug() {
     assert!(result.is_ok());
 }
 
-
 #[test]
 fn test_run_hook_debug_mode_comprehensive() {
     let env = MockEnvironment::new()
@@ -1110,7 +1108,6 @@ fn test_load_init_script_found_not_implemented() {
     let result = load_init_script(&env, &runner, &fs, true);
     assert!(result.is_ok());
 }
-
 
 #[test]
 fn test_samoyed_mode_zero_detection() {
