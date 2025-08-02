@@ -68,38 +68,6 @@ Samoyed uses a three-layer architecture that provides both flexibility and perfo
 
 ### Execution Flow
 
-```plantuml
-@startuml
-participant "Git" as Git
-participant ".samoyed/_/pre-commit" as Hook
-participant "samoyed-hook" as Runner
-participant "samoyed.toml" as Config
-participant ".samoyed/scripts/pre-commit" as Script
-participant "Shell" as Shell
-
-Git -> Hook : git commit triggers
-Hook -> Runner : exec samoyed-hook "pre-commit" "$@"
-
-Runner -> Config : 1. Check for [hooks] pre-commit
-
-alt Command found in samoyed.toml
-    Config --> Runner : "cargo fmt --check && cargo clippy"
-    Runner -> Shell : Execute command via shell
-    Shell --> Runner : Exit code
-else No command in samoyed.toml
-    Runner -> Script : 2. Look for .samoyed/scripts/pre-commit
-    alt Script exists
-        Runner -> Script : Execute script file
-        Script --> Runner : Exit code
-    else No script found
-        Runner --> Git : Exit silently (0)
-    end
-end
-
-Runner --> Git : Propagate exit code
-@enduml
-```
-
 ```mermaid
 sequenceDiagram
     participant Git as Git
