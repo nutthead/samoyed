@@ -1072,36 +1072,133 @@ fn test_hook_execution_with_complex_arguments() {
 }
 
 #[test]
-fn test_error_propagation_and_exit_codes() {
+fn test_error_propagation_and_exit_code_1() {
+    let exit_code = 1;
     let env = MockEnvironment::new()
         .with_var("SAMOYED", "1")
         .with_var("HOME", "/home/test");
 
-    // Test various exit codes
-    for exit_code in [1, 2, 127, 255] {
-        let output = make_output(
-            exit_code,
-            b"",
-            &format!("Error with code {exit_code}").into_bytes(),
-        );
-        let runner = MockCommandRunner::new().with_response(
-            "sh",
-            &["-c", &format!("exit {exit_code}")],
-            Ok(output),
-        );
+    let output = make_output(
+        exit_code,
+        b"",
+        &format!("Error with code {exit_code}").into_bytes(),
+    );
+    let runner = MockCommandRunner::new().with_response(
+        "sh",
+        &["-c", &format!("exit {exit_code}")],
+        Ok(output),
+    );
 
-        let fs = MockFileSystem::new().with_file(
-            "samoyed.toml",
-            &format!(
-                r#"[hooks]
+    let fs = MockFileSystem::new().with_file(
+        "samoyed.toml",
+        &format!(
+            r#"[hooks]
 pre-commit = "exit {exit_code}""#
-            ),
-        );
+        ),
+    );
 
-        let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
 
-        // This should propagate the exit code
-        let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
-        assert!(result.is_err()); // Due to process::exit(exit_code)
-    }
+    // This should propagate the exit code
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(exit_code)
+}
+
+#[test]
+fn test_error_propagation_and_exit_code_2() {
+    let exit_code = 2;
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    let output = make_output(
+        exit_code,
+        b"",
+        &format!("Error with code {exit_code}").into_bytes(),
+    );
+    let runner = MockCommandRunner::new().with_response(
+        "sh",
+        &["-c", &format!("exit {exit_code}")],
+        Ok(output),
+    );
+
+    let fs = MockFileSystem::new().with_file(
+        "samoyed.toml",
+        &format!(
+            r#"[hooks]
+pre-commit = "exit {exit_code}""#
+        ),
+    );
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // This should propagate the exit code
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(exit_code)
+}
+
+#[test]
+fn test_error_propagation_and_exit_code_127() {
+    let exit_code = 127;
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    let output = make_output(
+        exit_code,
+        b"",
+        &format!("Error with code {exit_code}").into_bytes(),
+    );
+    let runner = MockCommandRunner::new().with_response(
+        "sh",
+        &["-c", &format!("exit {exit_code}")],
+        Ok(output),
+    );
+
+    let fs = MockFileSystem::new().with_file(
+        "samoyed.toml",
+        &format!(
+            r#"[hooks]
+pre-commit = "exit {exit_code}""#
+        ),
+    );
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // This should propagate the exit code
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(exit_code)
+}
+
+#[test]
+fn test_error_propagation_and_exit_code_255() {
+    let exit_code = 255;
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    let output = make_output(
+        exit_code,
+        b"",
+        &format!("Error with code {exit_code}").into_bytes(),
+    );
+    let runner = MockCommandRunner::new().with_response(
+        "sh",
+        &["-c", &format!("exit {exit_code}")],
+        Ok(output),
+    );
+
+    let fs = MockFileSystem::new().with_file(
+        "samoyed.toml",
+        &format!(
+            r#"[hooks]
+pre-commit = "exit {exit_code}""#
+        ),
+    );
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // This should propagate the exit code
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(exit_code)
 }
