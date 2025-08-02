@@ -1113,7 +1113,6 @@ fn test_load_init_script_found_not_implemented() {
     assert!(result.is_ok());
 }
 
-// Tests targeting specific uncovered lines for higher coverage
 
 #[test]
 fn test_samoyed_mode_zero_detection() {
