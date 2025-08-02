@@ -846,3 +846,196 @@ fn test_execute_hook_script_function() {
     });
     assert!(result.is_err()); // Due to process::exit(0)
 }
+
+#[test]
+fn test_determine_shell_execution_windows_native() {
+    #[cfg(target_os = "windows")]
+    let env = MockEnvironment::new(); // No Unix environment variables
+    #[cfg(not(target_os = "windows"))]
+    let _env = MockEnvironment::new(); // No Unix environment variables
+
+    #[cfg(target_os = "windows")]
+    let script_path = std::path::Path::new("C:\\path\\to\\script");
+    #[cfg(not(target_os = "windows"))]
+    let _script_path = std::path::Path::new("C:\\path\\to\\script");
+
+    #[cfg(target_os = "windows")]
+    let args = ["arg1", "arg2"];
+    #[cfg(not(target_os = "windows"))]
+    let _args = ["arg1", "arg2"];
+
+    // Native Windows should default to cmd for extensionless files
+    #[cfg(target_os = "windows")]
+    {
+        let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+        assert_eq!(shell, "cmd");
+        assert_eq!(shell_args, vec!["/C", "C:\\path\\to\\script", "arg1 arg2"]);
+    }
+}
+
+#[test]
+fn test_determine_shell_execution_windows_appdata_config() {
+    #[cfg(target_os = "windows")]
+    let env = MockEnvironment::new()
+        .with_var("APPDATA", "C:\\Users\\test\\AppData\\Roaming")
+        .with_var("USERPROFILE", "C:\\Users\\test");
+    #[cfg(not(target_os = "windows"))]
+    let _env = MockEnvironment::new()
+        .with_var("APPDATA", "C:\\Users\\test\\AppData\\Roaming")
+        .with_var("USERPROFILE", "C:\\Users\\test");
+
+    // Test Windows APPDATA configuration path in init script loading
+    #[cfg(target_os = "windows")]
+    {
+        let runner = MockCommandRunner::new();
+        let fs = MockFileSystem::new().with_file(
+            "C:\\Users\\test\\AppData\\Roaming\\samoyed\\init.cmd",
+            "@echo off\nset NODE_OPTIONS=--max-old-space-size=4096",
+        );
+
+        let result = load_init_script(&env, &runner, &fs, false);
+        assert!(result.is_ok());
+    }
+}
+
+#[test]
+fn test_run_hook_windows_cmd_execution() {
+    #[cfg(target_os = "windows")]
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("USERPROFILE", "C:\\Users\\test");
+    #[cfg(not(target_os = "windows"))]
+    let _env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("USERPROFILE", "C:\\Users\\test");
+
+    #[cfg(target_os = "windows")]
+    {
+        // Mock Windows batch file execution
+        let output = Output {
+            status: exit_status(0),
+            stdout: b"Windows batch executed".to_vec(),
+            stderr: vec![],
+        };
+        let runner = MockCommandRunner::new().with_response(
+            "cmd",
+            &["/C", ".samoyed\\scripts\\pre-commit.bat", ""],
+            Ok(output),
+        );
+
+        let fs = MockFileSystem::new().with_file(
+            ".samoyed/scripts/pre-commit.bat",
+            "@echo off\necho Windows batch executed",
+        );
+
+        let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+        // This should execute the Windows batch file
+        let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+        assert!(result.is_err()); // Due to process::exit(0)
+    }
+}
+
+#[test]
+fn test_run_hook_windows_powershell_execution() {
+    #[cfg(target_os = "windows")]
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("USERPROFILE", "C:\\Users\\test");
+    #[cfg(not(target_os = "windows"))]
+    let _env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("USERPROFILE", "C:\\Users\\test");
+
+    #[cfg(target_os = "windows")]
+    {
+        // Mock PowerShell script execution
+        let output = Output {
+            status: exit_status(0),
+            stdout: b"PowerShell script executed".to_vec(),
+            stderr: vec![],
+        };
+        let runner = MockCommandRunner::new().with_response(
+            "powershell",
+            &[
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                ".samoyed\\scripts\\pre-commit.ps1",
+                "",
+            ],
+            Ok(output),
+        );
+
+        let fs = MockFileSystem::new().with_file(
+            ".samoyed/scripts/pre-commit.ps1",
+            "Write-Host 'PowerShell script executed'",
+        );
+
+        let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+        // This should execute the PowerShell script
+        let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+        assert!(result.is_err()); // Due to process::exit(0)
+    }
+}
+
+#[test]
+fn test_windows_shell_detection_edge_cases() {
+    // Test Windows environment detection edge cases
+    let env_empty = MockEnvironment::new();
+    assert!(!is_windows_unix_environment(&env_empty, false));
+
+    let env_invalid_msystem = MockEnvironment::new().with_var("MSYSTEM", "INVALID");
+    assert!(!is_windows_unix_environment(&env_invalid_msystem, false));
+
+    let env_wsl_both = MockEnvironment::new()
+        .with_var("WSL_DISTRO_NAME", "Ubuntu")
+        .with_var("WSL_INTEROP", "/run/WSL/123_interop");
+    assert!(is_windows_unix_environment(&env_wsl_both, false));
+}
+
+#[test]
+fn test_load_init_script_windows_native_paths() {
+    #[cfg(target_os = "windows")]
+    let env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\test");
+    #[cfg(not(target_os = "windows"))]
+    let _env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\test");
+
+    #[cfg(target_os = "windows")]
+    {
+        let runner = MockCommandRunner::new();
+        let fs = MockFileSystem::new(); // No init script
+
+        // Should succeed even without init script on Windows
+        let result = load_init_script(&env, &runner, &fs, false);
+        assert!(result.is_ok());
+    }
+}
+
+#[test]
+fn test_execute_hook_command_windows_shell() {
+    #[cfg(target_os = "windows")]
+    let env = MockEnvironment::new(); // Native Windows environment
+    #[cfg(not(target_os = "windows"))]
+    let _env = MockEnvironment::new(); // Native Windows environment
+
+    #[cfg(target_os = "windows")]
+    {
+        // Mock Windows command execution
+        let output = Output {
+            status: exit_status(0),
+            stdout: b"Windows command executed".to_vec(),
+            stderr: vec![],
+        };
+        let runner = MockCommandRunner::new().with_response("cmd", &["/C", "dir"], Ok(output));
+
+        let hook_args = vec![];
+
+        // This function should exit with process::exit, so catch the panic
+        let result = std::panic::catch_unwind(|| {
+            execute_hook_command(&env, &runner, "dir", &hook_args, false)
+        });
+        assert!(result.is_err()); // Due to process::exit(0)
+    }
+}
