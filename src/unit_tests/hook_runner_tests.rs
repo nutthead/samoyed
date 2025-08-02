@@ -894,7 +894,6 @@ fn test_load_init_script_xdg_config_debug() {
     assert!(result.is_ok());
 }
 
-// More targeted tests to hit specific uncovered lines
 
 #[test]
 fn test_run_hook_debug_mode_comprehensive() {
