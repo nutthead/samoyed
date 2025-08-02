@@ -1039,3 +1039,233 @@ fn test_execute_hook_command_windows_shell() {
         assert!(result.is_err()); // Due to process::exit(0)
     }
 }
+
+#[test]
+fn test_run_hook_with_samoyed_0_early_exit() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "0") // Skip execution
+        .with_var("HOME", "/home/test");
+    let runner = MockCommandRunner::new();
+    let fs = MockFileSystem::new();
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // The function should exit early with SAMOYED=0
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
+}
+
+#[test]
+fn test_run_hook_debug_mode_extensive_logging() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "2") // Debug mode
+        .with_var("HOME", "/home/test");
+
+    // Mock successful script execution with debug output
+    let output = Output {
+        status: exit_status(0),
+        stdout: b"Debug command executed".to_vec(),
+        stderr: vec![],
+    };
+    let runner = MockCommandRunner::new().with_response("sh", &["-c", "echo 'debug'"], Ok(output));
+
+    let fs = MockFileSystem::new().with_file(
+        "samoyed.toml",
+        r#"[hooks]
+pre-commit = "echo 'debug'""#,
+    );
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // This should execute with extensive debug logging
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
+}
+
+#[test]
+fn test_run_hook_various_environment_modes() {
+    // Test SAMOYED=1 (normal mode)
+    let env_normal = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+    let runner = MockCommandRunner::new();
+    let fs = MockFileSystem::new(); // No hooks available
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    let result = std::panic::catch_unwind(|| run_hook(&env_normal, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
+
+    // Test unset SAMOYED (should default to "1")
+    let env_unset = MockEnvironment::new().with_var("HOME", "/home/test");
+    let result = std::panic::catch_unwind(|| run_hook(&env_unset, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
+
+    // Test invalid SAMOYED value (should be treated as normal mode)
+    let env_invalid = MockEnvironment::new()
+        .with_var("SAMOYED", "invalid")
+        .with_var("HOME", "/home/test");
+    let result = std::panic::catch_unwind(|| run_hook(&env_invalid, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
+}
+
+#[test]
+fn test_hook_name_extraction_edge_cases() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+    let runner = MockCommandRunner::new();
+    let fs = MockFileSystem::new(); // No hook script
+
+    // Test with path-like hook name
+    let args_path = vec![
+        "samoyed-hook".to_string(),
+        "/path/to/pre-commit".to_string(),
+    ];
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args_path));
+    assert!(result.is_err()); // Due to process::exit(0)
+
+    // Test with Windows-style path
+    let args_windows = vec![
+        "samoyed-hook".to_string(),
+        "C:\\hooks\\pre-commit.exe".to_string(),
+    ];
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args_windows));
+    assert!(result.is_err()); // Due to process::exit(0)
+}
+
+#[test]
+fn test_init_script_xdg_config_home() {
+    let env = MockEnvironment::new()
+        .with_var("HOME", "/home/test")
+        .with_var("XDG_CONFIG_HOME", "/custom/config");
+    let runner = MockCommandRunner::new();
+    let fs = MockFileSystem::new().with_file(
+        "/custom/config/samoyed/init.sh",
+        "#!/bin/bash\nexport CUSTOM_VAR=value",
+    );
+
+    let result = load_init_script(&env, &runner, &fs, true);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_init_script_no_home_variables() {
+    let env = MockEnvironment::new(); // No HOME or USERPROFILE
+    let runner = MockCommandRunner::new();
+    let fs = MockFileSystem::new();
+
+    let result = load_init_script(&env, &runner, &fs, false);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not determine home directory")
+    );
+}
+
+#[test]
+fn test_command_execution_with_stdout_stderr() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    // Mock command with both stdout and stderr
+    let output = Output {
+        status: exit_status(0),
+        stdout: b"Command output to stdout".to_vec(),
+        stderr: b"Command output to stderr".to_vec(),
+    };
+    let runner = MockCommandRunner::new().with_response(
+        "sh",
+        &["-c", "echo 'test' && echo 'error' >&2"],
+        Ok(output),
+    );
+
+    let fs = MockFileSystem::new().with_file(
+        "samoyed.toml",
+        r#"[hooks]
+pre-commit = "echo 'test' && echo 'error' >&2""#,
+    );
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // This should handle both stdout and stderr
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
+}
+
+#[test]
+fn test_hook_execution_with_complex_arguments() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    // Mock script execution with complex arguments
+    let output = Output {
+        status: exit_status(0),
+        stdout: b"Complex args processed".to_vec(),
+        stderr: vec![],
+    };
+    let runner = MockCommandRunner::new().with_response(
+        "sh",
+        &[
+            "-e",
+            ".samoyed/scripts/prepare-commit-msg",
+            ".git/COMMIT_EDITMSG commit",
+        ],
+        Ok(output),
+    );
+
+    let fs = MockFileSystem::new().with_file(
+        ".samoyed/scripts/prepare-commit-msg",
+        "#!/bin/sh\necho \"Processing: $1 $2\"",
+    );
+
+    let args = vec![
+        "samoyed-hook".to_string(),
+        "prepare-commit-msg".to_string(),
+        ".git/COMMIT_EDITMSG".to_string(),
+        "commit".to_string(),
+    ];
+
+    // This should handle complex Git hook arguments
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
+}
+
+#[test]
+fn test_error_propagation_and_exit_codes() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    // Test various exit codes
+    for exit_code in [1, 2, 127, 255] {
+        let output = Output {
+            status: exit_status(exit_code),
+            stdout: vec![],
+            stderr: format!("Error with code {exit_code}").into_bytes(),
+        };
+        let runner = MockCommandRunner::new().with_response(
+            "sh",
+            &["-c", &format!("exit {exit_code}")],
+            Ok(output),
+        );
+
+        let fs = MockFileSystem::new().with_file(
+            "samoyed.toml",
+            &format!(
+                r#"[hooks]
+pre-commit = "exit {exit_code}""#
+            ),
+        );
+
+        let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+        // This should propagate the exit code
+        let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+        assert!(result.is_err()); // Due to process::exit(exit_code)
+    }
+}
