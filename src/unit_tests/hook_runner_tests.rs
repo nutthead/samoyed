@@ -648,7 +648,8 @@ fn test_debug_mode_output_coverage() {
         .with_var("SAMOYED", "2") // Debug mode
         .with_var("HOME", "/home/test");
 
-    let runner = MockCommandRunner::new();
+    let output = make_output(0, b"test output", b"");
+    let runner = MockCommandRunner::new().with_response("sh", &["-c", "echo test"], Ok(output));
     let fs = MockFileSystem::new().with_file("samoyed.toml", "[hooks]\npre-commit = \"echo test\"");
 
     let args = vec![
@@ -658,9 +659,9 @@ fn test_debug_mode_output_coverage() {
         "args".to_string(),
     ];
 
-    // This should exercise debug logging paths
+    // This should exercise debug logging paths and exit with code 0
     let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
-    assert!(result.is_err()); // Due to process::exit
+    assert!(result.is_err()); // Due to process::exit(0)
 }
 
 // Additional tests for comprehensive coverage
