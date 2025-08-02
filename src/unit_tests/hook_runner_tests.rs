@@ -284,123 +284,71 @@ fn test_windows_home_fallback() {
     assert!(result.is_ok());
 }
 
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn test_determine_shell_execution_unix() {
-    #[cfg(not(target_os = "windows"))]
     let env = MockEnvironment::new();
-    #[cfg(target_os = "windows")]
-    let _env = MockEnvironment::new();
-
-    #[cfg(not(target_os = "windows"))]
     let script_path = std::path::Path::new("/path/to/script.sh");
-    #[cfg(target_os = "windows")]
-    let _script_path = std::path::Path::new("/path/to/script.sh");
-
-    #[cfg(not(target_os = "windows"))]
     let args = ["arg1", "arg2"];
-    #[cfg(target_os = "windows")]
-    let _args = ["arg1", "arg2"];
 
-    // On Unix systems (when not compiled for Windows), should always use sh
-    #[cfg(not(target_os = "windows"))]
-    {
-        let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
-        assert_eq!(shell, "sh");
-        assert_eq!(shell_args, vec!["-e", "/path/to/script.sh", "arg1 arg2"]);
-    }
+    // On Unix systems, should always use sh
+    let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+    assert_eq!(shell, "sh");
+    assert_eq!(shell_args, vec!["-e", "/path/to/script.sh", "arg1 arg2"]);
 }
 
+#[cfg(target_os = "windows")]
 #[test]
 fn test_determine_shell_execution_windows_git_bash() {
-    #[cfg(target_os = "windows")]
     let env = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
-    #[cfg(not(target_os = "windows"))]
-    let _env = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
-
-    #[cfg(target_os = "windows")]
     let script_path = std::path::Path::new("C:\\path\\to\\script.sh");
-    #[cfg(not(target_os = "windows"))]
-    let _script_path = std::path::Path::new("C:\\path\\to\\script.sh");
-
-    #[cfg(target_os = "windows")]
     let args = ["arg1", "arg2"];
-    #[cfg(not(target_os = "windows"))]
-    let _args = ["arg1", "arg2"];
 
     // When MSYSTEM is set, should use sh even on Windows
-    #[cfg(target_os = "windows")]
-    {
-        let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
-        assert_eq!(shell, "sh");
-        assert_eq!(
-            shell_args,
-            vec!["-e", "C:\\path\\to\\script.sh", "arg1 arg2"]
-        );
-    }
+    let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+    assert_eq!(shell, "sh");
+    assert_eq!(
+        shell_args,
+        vec!["-e", "C:\\path\\to\\script.sh", "arg1 arg2"]
+    );
 }
 
+#[cfg(target_os = "windows")]
 #[test]
 fn test_determine_shell_execution_windows_cmd() {
-    #[cfg(target_os = "windows")]
     let env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
-    #[cfg(not(target_os = "windows"))]
-    let _env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
-
-    #[cfg(target_os = "windows")]
     let script_path = std::path::Path::new("C:\\path\\to\\script.bat");
-    #[cfg(not(target_os = "windows"))]
-    let _script_path = std::path::Path::new("C:\\path\\to\\script.bat");
-
-    #[cfg(target_os = "windows")]
     let args = ["arg1", "arg2"];
-    #[cfg(not(target_os = "windows"))]
-    let _args = ["arg1", "arg2"];
 
     // Windows batch files should use cmd
-    #[cfg(target_os = "windows")]
-    {
-        let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
-        assert_eq!(shell, "cmd");
-        assert_eq!(
-            shell_args,
-            vec!["/C", "C:\\path\\to\\script.bat", "arg1 arg2"]
-        );
-    }
+    let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+    assert_eq!(shell, "cmd");
+    assert_eq!(
+        shell_args,
+        vec!["/C", "C:\\path\\to\\script.bat", "arg1 arg2"]
+    );
 }
 
+#[cfg(target_os = "windows")]
 #[test]
 fn test_determine_shell_execution_windows_powershell() {
-    #[cfg(target_os = "windows")]
     let env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
-    #[cfg(not(target_os = "windows"))]
-    let _env = MockEnvironment::new(); // No MSYSTEM or CYGWIN
-
-    #[cfg(target_os = "windows")]
     let script_path = std::path::Path::new("C:\\path\\to\\script.ps1");
-    #[cfg(not(target_os = "windows"))]
-    let _script_path = std::path::Path::new("C:\\path\\to\\script.ps1");
-
-    #[cfg(target_os = "windows")]
     let args = ["arg1", "arg2"];
-    #[cfg(not(target_os = "windows"))]
-    let _args = ["arg1", "arg2"];
 
     // PowerShell scripts should use powershell
-    #[cfg(target_os = "windows")]
-    {
-        let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
-        assert_eq!(shell, "powershell");
-        assert_eq!(
-            shell_args,
-            vec![
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                "C:\\path\\to\\script.ps1",
-                "arg1 arg2"
-            ]
-        );
-    }
+    let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+    assert_eq!(shell, "powershell");
+    assert_eq!(
+        shell_args,
+        vec![
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "C:\\path\\to\\script.ps1",
+            "arg1 arg2"
+        ]
+    );
 }
 
 #[test]
@@ -804,129 +752,95 @@ fn test_execute_hook_script_function() {
     assert!(result.is_err()); // Due to process::exit(0)
 }
 
+#[cfg(target_os = "windows")]
 #[test]
 fn test_determine_shell_execution_windows_native() {
-    #[cfg(target_os = "windows")]
     let env = MockEnvironment::new(); // No Unix environment variables
-    #[cfg(not(target_os = "windows"))]
-    let _env = MockEnvironment::new(); // No Unix environment variables
-
-    #[cfg(target_os = "windows")]
     let script_path = std::path::Path::new("C:\\path\\to\\script");
-    #[cfg(not(target_os = "windows"))]
-    let _script_path = std::path::Path::new("C:\\path\\to\\script");
-
-    #[cfg(target_os = "windows")]
     let args = ["arg1", "arg2"];
-    #[cfg(not(target_os = "windows"))]
-    let _args = ["arg1", "arg2"];
 
     // Native Windows should default to cmd for extensionless files
-    #[cfg(target_os = "windows")]
-    {
-        let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
-        assert_eq!(shell, "cmd");
-        assert_eq!(shell_args, vec!["/C", "C:\\path\\to\\script", "arg1 arg2"]);
-    }
+    let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, false);
+    assert_eq!(shell, "cmd");
+    assert_eq!(shell_args, vec!["/C", "C:\\path\\to\\script", "arg1 arg2"]);
 }
 
+#[cfg(target_os = "windows")]
 #[test]
 fn test_determine_shell_execution_windows_appdata_config() {
-    #[cfg(target_os = "windows")]
     let env = MockEnvironment::new()
-        .with_var("APPDATA", "C:\\Users\\test\\AppData\\Roaming")
-        .with_var("USERPROFILE", "C:\\Users\\test");
-    #[cfg(not(target_os = "windows"))]
-    let _env = MockEnvironment::new()
         .with_var("APPDATA", "C:\\Users\\test\\AppData\\Roaming")
         .with_var("USERPROFILE", "C:\\Users\\test");
 
     // Test Windows APPDATA configuration path in init script loading
-    #[cfg(target_os = "windows")]
-    {
-        let runner = MockCommandRunner::new();
-        let fs = MockFileSystem::new().with_file(
-            "C:\\Users\\test\\AppData\\Roaming\\samoyed\\init.cmd",
-            "@echo off\nset NODE_OPTIONS=--max-old-space-size=4096",
-        );
+    let runner = MockCommandRunner::new();
+    let fs = MockFileSystem::new().with_file(
+        "C:\\Users\\test\\AppData\\Roaming\\samoyed\\init.cmd",
+        "@echo off\nset NODE_OPTIONS=--max-old-space-size=4096",
+    );
 
-        let result = load_init_script(&env, &runner, &fs, false);
-        assert!(result.is_ok());
-    }
+    let result = load_init_script(&env, &runner, &fs, false);
+    assert!(result.is_ok());
 }
 
+#[cfg(target_os = "windows")]
 #[test]
 fn test_run_hook_windows_cmd_execution() {
-    #[cfg(target_os = "windows")]
     let env = MockEnvironment::new()
         .with_var("SAMOYED", "1")
         .with_var("USERPROFILE", "C:\\Users\\test");
-    #[cfg(not(target_os = "windows"))]
-    let _env = MockEnvironment::new()
-        .with_var("SAMOYED", "1")
-        .with_var("USERPROFILE", "C:\\Users\\test");
 
-    #[cfg(target_os = "windows")]
-    {
-        // Mock Windows batch file execution
-        let output = make_output(0, b"Windows batch executed", b"");
-        let runner = MockCommandRunner::new().with_response(
-            "cmd",
-            &["/C", ".samoyed\\scripts\\pre-commit.bat", ""],
-            Ok(output),
-        );
+    // Mock Windows batch file execution
+    let output = make_output(0, b"Windows batch executed", b"");
+    let runner = MockCommandRunner::new().with_response(
+        "cmd",
+        &["/C", ".samoyed\\scripts\\pre-commit.bat", ""],
+        Ok(output),
+    );
 
-        let fs = MockFileSystem::new().with_file(
-            ".samoyed/scripts/pre-commit.bat",
-            "@echo off\necho Windows batch executed",
-        );
+    let fs = MockFileSystem::new().with_file(
+        ".samoyed/scripts/pre-commit.bat",
+        "@echo off\necho Windows batch executed",
+    );
 
-        let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
 
-        // This should execute the Windows batch file
-        let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
-        assert!(result.is_err()); // Due to process::exit(0)
-    }
+    // This should execute the Windows batch file
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
 }
 
+#[cfg(target_os = "windows")]
 #[test]
 fn test_run_hook_windows_powershell_execution() {
-    #[cfg(target_os = "windows")]
     let env = MockEnvironment::new()
         .with_var("SAMOYED", "1")
         .with_var("USERPROFILE", "C:\\Users\\test");
-    #[cfg(not(target_os = "windows"))]
-    let _env = MockEnvironment::new()
-        .with_var("SAMOYED", "1")
-        .with_var("USERPROFILE", "C:\\Users\\test");
 
-    #[cfg(target_os = "windows")]
-    {
-        // Mock PowerShell script execution
-        let output = make_output(0, b"PowerShell script executed", b"");
-        let runner = MockCommandRunner::new().with_response(
-            "powershell",
-            &[
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                ".samoyed\\scripts\\pre-commit.ps1",
-                "",
-            ],
-            Ok(output),
-        );
+    // Mock PowerShell script execution
+    let output = make_output(0, b"PowerShell script executed", b"");
+    let runner = MockCommandRunner::new().with_response(
+        "powershell",
+        &[
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            ".samoyed\\scripts\\pre-commit.ps1",
+            "",
+        ],
+        Ok(output),
+    );
 
-        let fs = MockFileSystem::new().with_file(
-            ".samoyed/scripts/pre-commit.ps1",
-            "Write-Host 'PowerShell script executed'",
-        );
+    let fs = MockFileSystem::new().with_file(
+        ".samoyed/scripts/pre-commit.ps1",
+        "Write-Host 'PowerShell script executed'",
+    );
 
-        let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
 
-        // This should execute the PowerShell script
-        let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
-        assert!(result.is_err()); // Due to process::exit(0)
-    }
+    // This should execute the PowerShell script
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
 }
 
 #[test]
@@ -944,45 +858,34 @@ fn test_windows_shell_detection_edge_cases() {
     assert!(is_windows_unix_environment(&env_wsl_both, false));
 }
 
+#[cfg(target_os = "windows")]
 #[test]
 fn test_load_init_script_windows_native_paths() {
-    #[cfg(target_os = "windows")]
     let env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\test");
-    #[cfg(not(target_os = "windows"))]
-    let _env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\test");
 
-    #[cfg(target_os = "windows")]
-    {
-        let runner = MockCommandRunner::new();
-        let fs = MockFileSystem::new(); // No init script
+    let runner = MockCommandRunner::new();
+    let fs = MockFileSystem::new(); // No init script
 
-        // Should succeed even without init script on Windows
-        let result = load_init_script(&env, &runner, &fs, false);
-        assert!(result.is_ok());
-    }
+    // Should succeed even without init script on Windows
+    let result = load_init_script(&env, &runner, &fs, false);
+    assert!(result.is_ok());
 }
 
+#[cfg(target_os = "windows")]
 #[test]
 fn test_execute_hook_command_windows_shell() {
-    #[cfg(target_os = "windows")]
     let env = MockEnvironment::new(); // Native Windows environment
-    #[cfg(not(target_os = "windows"))]
-    let _env = MockEnvironment::new(); // Native Windows environment
 
-    #[cfg(target_os = "windows")]
-    {
-        // Mock Windows command execution
-        let output = make_output(0, b"Windows command executed", b"");
-        let runner = MockCommandRunner::new().with_response("cmd", &["/C", "dir"], Ok(output));
+    // Mock Windows command execution
+    let output = make_output(0, b"Windows command executed", b"");
+    let runner = MockCommandRunner::new().with_response("cmd", &["/C", "dir"], Ok(output));
 
-        let hook_args = vec![];
+    let hook_args = vec![];
 
-        // This function should exit with process::exit, so catch the panic
-        let result = std::panic::catch_unwind(|| {
-            execute_hook_command(&env, &runner, "dir", &hook_args, false)
-        });
-        assert!(result.is_err()); // Due to process::exit(0)
-    }
+    // This function should exit with process::exit, so catch the panic
+    let result =
+        std::panic::catch_unwind(|| execute_hook_command(&env, &runner, "dir", &hook_args, false));
+    assert!(result.is_err()); // Due to process::exit(0)
 }
 
 #[test]
