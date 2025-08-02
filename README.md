@@ -23,6 +23,8 @@ You don’t have to fuss with that pesky `package.json` file in your projects an
 
 ## Installation
 
+Samoyed is published on [crates.io](https://crates.io/crates/samoyed):
+
 ```bash
 cargo install samoyed
 ```
