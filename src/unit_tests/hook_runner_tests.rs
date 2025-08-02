@@ -677,7 +677,7 @@ fn test_run_hook_samoyed_mode_0_exits_immediately() {
     assert!(result.is_err()); // Due to process::exit(0)
 }
 
-#[test] 
+#[test]
 fn test_load_hook_command_from_config_debug_output() {
     let fs = MockFileSystem::new().with_file(
         "samoyed.toml",
@@ -707,16 +707,11 @@ fn test_load_hook_command_from_config_no_debug() {
 fn test_execute_hook_command_debug_mode() {
     let env = MockEnvironment::new();
     let output = make_output(0, b"Command output", b"");
-    let runner = MockCommandRunner::new().with_response(
-        "sh",
-        &["-c", "echo hello"],
-        Ok(output),
-    );
+    let runner = MockCommandRunner::new().with_response("sh", &["-c", "echo hello"], Ok(output));
 
     // Test debug mode - covers lines 228-231, 249, 253, etc.
-    let result = std::panic::catch_unwind(|| {
-        execute_hook_command(&env, &runner, "echo hello", &[], true)
-    });
+    let result =
+        std::panic::catch_unwind(|| execute_hook_command(&env, &runner, "echo hello", &[], true));
     assert!(result.is_err()); // Due to process::exit(0)
 }
 
@@ -724,31 +719,31 @@ fn test_execute_hook_command_debug_mode() {
 fn test_execute_hook_command_with_args() {
     let env = MockEnvironment::new();
     let output = make_output(0, b"", b"");
-    let runner = MockCommandRunner::new().with_response(
-        "sh",
-        &["-c", "echo hello"],
-        Ok(output),
-    );
+    let runner = MockCommandRunner::new().with_response("sh", &["-c", "echo hello"], Ok(output));
 
     let args = vec!["arg1".to_string(), "arg2".to_string()];
-    let result = std::panic::catch_unwind(|| {
-        execute_hook_command(&env, &runner, "echo hello", &args, true)
-    });
+    let result =
+        std::panic::catch_unwind(|| execute_hook_command(&env, &runner, "echo hello", &args, true));
     assert!(result.is_err()); // Due to process::exit(0)
 }
 
 #[test]
 fn test_execute_hook_command_failure_exit_codes() {
     let test_cases = vec![1, 2, 127, 255];
-    
+
     for exit_code in test_cases {
         let env = MockEnvironment::new();
-        let output = make_output(exit_code, b"", if exit_code == 127 { b"command not found" } else { b"error" });
-        let runner = MockCommandRunner::new().with_response(
-            "sh",
-            &["-c", "failing_command"],
-            Ok(output),
+        let output = make_output(
+            exit_code,
+            b"",
+            if exit_code == 127 {
+                b"command not found"
+            } else {
+                b"error"
+            },
         );
+        let runner =
+            MockCommandRunner::new().with_response("sh", &["-c", "failing_command"], Ok(output));
 
         // Test different exit codes - covers lines 277-278, 281-284
         let result = std::panic::catch_unwind(|| {
@@ -762,16 +757,11 @@ fn test_execute_hook_command_failure_exit_codes() {
 fn test_execute_hook_command_with_output() {
     let env = MockEnvironment::new();
     let output = make_output(0, b"stdout content", b"stderr content");
-    let runner = MockCommandRunner::new().with_response(
-        "sh",
-        &["-c", "echo hello"],
-        Ok(output),
-    );
+    let runner = MockCommandRunner::new().with_response("sh", &["-c", "echo hello"], Ok(output));
 
     // Test command with stdout/stderr - covers lines 269-270, 272-273
-    let result = std::panic::catch_unwind(|| {
-        execute_hook_command(&env, &runner, "echo hello", &[], false)
-    });
+    let result =
+        std::panic::catch_unwind(|| execute_hook_command(&env, &runner, "echo hello", &[], false));
     assert!(result.is_err()); // Due to process::exit(0)
 }
 
@@ -780,17 +770,20 @@ fn test_run_hook_toml_config_with_init_script() {
     let env = MockEnvironment::new()
         .with_var("SAMOYED", "2") // Debug mode
         .with_var("HOME", "/home/test");
-    
+
     let output = make_output(0, b"success", b"");
-    let runner = MockCommandRunner::new().with_response(
-        "sh",
-        &["-c", "cargo fmt --check"],
-        Ok(output),
-    );
+    let runner =
+        MockCommandRunner::new().with_response("sh", &["-c", "cargo fmt --check"], Ok(output));
 
     let fs = MockFileSystem::new()
-        .with_file("samoyed.toml", "[hooks]\npre-commit = \"cargo fmt --check\"")
-        .with_file("/home/test/.config/samoyed/init.sh", "#!/bin/sh\nexport PATH=/custom:$PATH");
+        .with_file(
+            "samoyed.toml",
+            "[hooks]\npre-commit = \"cargo fmt --check\"",
+        )
+        .with_file(
+            "/home/test/.config/samoyed/init.sh",
+            "#!/bin/sh\nexport PATH=/custom:$PATH",
+        );
 
     let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
 
@@ -804,7 +797,7 @@ fn test_run_hook_toml_config_fallback_to_script() {
     let env = MockEnvironment::new()
         .with_var("SAMOYED", "2")
         .with_var("HOME", "/home/test");
-    
+
     let script_output = make_output(0, b"script executed", b"");
     let runner = MockCommandRunner::new().with_response(
         "sh",
@@ -814,7 +807,10 @@ fn test_run_hook_toml_config_fallback_to_script() {
 
     let fs = MockFileSystem::new()
         .with_file("samoyed.toml", "[hooks]\npre-push = \"cargo test\"") // Only pre-push, no pre-commit
-        .with_file(".samoyed/scripts/pre-commit", "#!/bin/sh\necho 'script executed'")
+        .with_file(
+            ".samoyed/scripts/pre-commit",
+            "#!/bin/sh\necho 'script executed'",
+        )
         .with_file("/home/test/.config/samoyed/init.sh", "#!/bin/sh\necho init");
 
     let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
@@ -846,7 +842,7 @@ fn test_determine_shell_execution_debug_mode() {
     let script_path = std::path::Path::new("/path/to/script.sh");
     let args = ["arg1", "arg2"];
 
-    // Test debug mode - covers lines 508-510 
+    // Test debug mode - covers lines 508-510
     let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, true);
     assert_eq!(shell, "sh");
     assert_eq!(shell_args, vec!["-e", "/path/to/script.sh", "arg1 arg2"]);
@@ -862,7 +858,10 @@ fn test_determine_shell_execution_windows_debug() {
     // Test Windows debug mode - covers lines 446, 463-464, 468
     let (shell, shell_args) = determine_shell_execution(&env, script_path, &args, true);
     assert_eq!(shell, "cmd");
-    assert_eq!(shell_args, vec!["/C", "C:\\path\\to\\script.bat", "arg1 arg2"]);
+    assert_eq!(
+        shell_args,
+        vec!["/C", "C:\\path\\to\\script.bat", "arg1 arg2"]
+    );
 }
 
 #[cfg(target_os = "windows")]
@@ -901,13 +900,9 @@ fn test_run_hook_debug_mode_comprehensive() {
     let env = MockEnvironment::new()
         .with_var("SAMOYED", "2") // Debug mode - ensures line 102-104
         .with_var("HOME", "/home/test");
-    
+
     let output = make_output(0, b"success", b"");
-    let runner = MockCommandRunner::new().with_response(
-        "sh",
-        &["-c", "echo test"],
-        Ok(output),
-    );
+    let runner = MockCommandRunner::new().with_response("sh", &["-c", "echo test"], Ok(output));
 
     let fs = MockFileSystem::new()
         .with_file("samoyed.toml", "[hooks]\npre-commit = \"echo test\"") // Config exists
@@ -930,7 +925,7 @@ fn test_run_hook_toml_not_found_fallback() {
     let env = MockEnvironment::new()
         .with_var("SAMOYED", "2") // Debug mode
         .with_var("HOME", "/home/test");
-    
+
     let script_output = make_output(0, b"script works", b"");
     let runner = MockCommandRunner::new().with_response(
         "sh",
@@ -940,7 +935,10 @@ fn test_run_hook_toml_not_found_fallback() {
 
     let fs = MockFileSystem::new()
         // No samoyed.toml file - will fail config loading
-        .with_file(".samoyed/scripts/pre-commit", "#!/bin/sh\necho 'script works'")
+        .with_file(
+            ".samoyed/scripts/pre-commit",
+            "#!/bin/sh\necho 'script works'",
+        )
         .with_file("/home/test/.config/samoyed/init.sh", "#!/bin/sh\necho init");
 
     let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
@@ -955,11 +953,11 @@ fn test_run_hook_no_script_exists() {
     let env = MockEnvironment::new()
         .with_var("SAMOYED", "2") // Debug mode
         .with_var("HOME", "/home/test");
-    
+
     let runner = MockCommandRunner::new();
     let fs = MockFileSystem::new()
         .with_file("/home/test/.config/samoyed/init.sh", "#!/bin/sh\necho init");
-        // No samoyed.toml, no script file
+    // No samoyed.toml, no script file
 
     let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
 
@@ -973,13 +971,10 @@ fn test_execute_hook_script_stderr_and_stdout() {
     let env = MockEnvironment::new()
         .with_var("HOME", "/home/test")
         .with_var("PATH", "/usr/bin:/bin");
-    
+
     let output = make_output(2, b"Some stdout", b"Some stderr");
-    let runner = MockCommandRunner::new().with_response(
-        "sh",
-        &["-e", "/path/to/script", ""],
-        Ok(output),
-    );
+    let runner =
+        MockCommandRunner::new().with_response("sh", &["-e", "/path/to/script", ""], Ok(output));
 
     let fs = MockFileSystem::new();
     let script_path = std::path::Path::new("/path/to/script");
@@ -996,7 +991,7 @@ fn test_execute_hook_script_command_not_found() {
     let env = MockEnvironment::new()
         .with_var("HOME", "/home/test")
         .with_var("PATH", "/usr/bin:/bin:/usr/local/bin");
-    
+
     let output = make_output(127, b"", b"command not found");
     let runner = MockCommandRunner::new().with_response(
         "sh",
@@ -1023,18 +1018,19 @@ fn test_load_init_script_windows_paths() {
         .with_var("USERPROFILE", "C:\\Users\\test")
         .with_var("APPDATA", "C:\\Users\\test\\AppData\\Roaming");
     let runner = MockCommandRunner::new();
-    let fs = MockFileSystem::new()
-        .with_file("C:\\Users\\test\\AppData\\Roaming\\samoyed\\init.cmd", "@echo off");
+    let fs = MockFileSystem::new().with_file(
+        "C:\\Users\\test\\AppData\\Roaming\\samoyed\\init.cmd",
+        "@echo off",
+    );
 
     let result = load_init_script(&env, &runner, &fs, true);
     assert!(result.is_ok());
 
     // Test fallback path - lines 368-370
-    let env2 = MockEnvironment::new()
-        .with_var("USERPROFILE", "C:\\Users\\test");
-        // No APPDATA
-    let fs2 = MockFileSystem::new()
-        .with_file("C:\\Users\\test\\.config\\samoyed\\init.cmd", "@echo off");
+    let env2 = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\test");
+    // No APPDATA
+    let fs2 =
+        MockFileSystem::new().with_file("C:\\Users\\test\\.config\\samoyed\\init.cmd", "@echo off");
 
     let result2 = load_init_script(&env2, &runner, &fs2, true);
     assert!(result2.is_ok());
@@ -1049,7 +1045,16 @@ fn test_determine_shell_execution_windows_comprehensive() {
     let ps1_path = std::path::Path::new("C:\\script.ps1");
     let (shell, args) = determine_shell_execution(&env, ps1_path, &["arg"], true);
     assert_eq!(shell, "powershell");
-    assert_eq!(args, vec!["-ExecutionPolicy", "Bypass", "-File", "C:\\script.ps1", "arg"]);
+    assert_eq!(
+        args,
+        vec![
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "C:\\script.ps1",
+            "arg"
+        ]
+    );
 
     // Test .cmd files - lines 470-479
     let cmd_path = std::path::Path::new("C:\\script.cmd");
@@ -1086,8 +1091,7 @@ fn test_is_windows_unix_environment_comprehensive() {
 
 #[test]
 fn test_load_init_script_missing_script_with_debug() {
-    let env = MockEnvironment::new()
-        .with_var("HOME", "/home/test");
+    let env = MockEnvironment::new().with_var("HOME", "/home/test");
     let runner = MockCommandRunner::new();
     let fs = MockFileSystem::new(); // No init script
 
@@ -1098,8 +1102,7 @@ fn test_load_init_script_missing_script_with_debug() {
 
 #[test]
 fn test_load_init_script_found_not_implemented() {
-    let env = MockEnvironment::new()
-        .with_var("HOME", "/home/test");
+    let env = MockEnvironment::new().with_var("HOME", "/home/test");
     let runner = MockCommandRunner::new();
     let fs = MockFileSystem::new()
         .with_file("/home/test/.config/samoyed/init.sh", "#!/bin/sh\necho test");
@@ -1117,7 +1120,7 @@ fn test_samoyed_mode_zero_detection() {
     let env = MockEnvironment::new().with_var("SAMOYED", "0");
     let result = env.get_var("SAMOYED");
     assert_eq!(result, Some("0".to_string()));
-    
+
     // Since we can't easily test process::exit(), test the condition
     let samoyed_mode = env.get_var("SAMOYED").unwrap_or_else(|| "1".to_string());
     assert_eq!(samoyed_mode, "0");
@@ -1143,10 +1146,10 @@ fn test_load_hook_command_config_parsing_debug() {
     // Test with debug mode to cover more lines (177, 182, 188, 203-204)
     let result1 = load_hook_command_from_config(&fs, "pre-commit", true);
     assert!(result1.is_ok());
-    
+
     let result2 = load_hook_command_from_config(&fs, "post-commit", true);
     assert!(result2.is_ok());
-    
+
     // Test hook not found with debug (213-214)
     let result3 = load_hook_command_from_config(&fs, "non-existent", true);
     assert!(result3.is_err());
@@ -1156,11 +1159,8 @@ fn test_load_hook_command_config_parsing_debug() {
 fn test_execute_hook_command_error_handling() {
     let env = MockEnvironment::new();
     let output = make_output(1, b"stdout data", b"stderr data");
-    let runner = MockCommandRunner::new().with_response(
-        "sh",
-        &["-c", "failing command"],
-        Ok(output),
-    );
+    let runner =
+        MockCommandRunner::new().with_response("sh", &["-c", "failing command"], Ok(output));
 
     // Test with stdout/stderr output and non-zero exit - lines 269-270, 272-273, 277-278
     let result = std::panic::catch_unwind(|| {
@@ -1173,11 +1173,7 @@ fn test_execute_hook_command_error_handling() {
 fn test_execute_hook_command_exit_code_127() {
     let env = MockEnvironment::new();
     let output = make_output(127, b"", b"bash: command not found");
-    let runner = MockCommandRunner::new().with_response(
-        "sh",
-        &["-c", "nonexistent"],
-        Ok(output),
-    );
+    let runner = MockCommandRunner::new().with_response("sh", &["-c", "nonexistent"], Ok(output));
 
     // Test command not found handling - lines 281-284
     let result = std::panic::catch_unwind(|| {
@@ -1191,13 +1187,9 @@ fn test_run_hook_toml_config_debug_comprehensive() {
     let env = MockEnvironment::new()
         .with_var("SAMOYED", "2") // Debug mode
         .with_var("HOME", "/home/test");
-    
+
     let output = make_output(0, b"", b"");
-    let runner = MockCommandRunner::new().with_response(
-        "sh",
-        &["-c", "test command"],
-        Ok(output),
-    );
+    let runner = MockCommandRunner::new().with_response("sh", &["-c", "test command"], Ok(output));
 
     let fs = MockFileSystem::new()
         .with_file("samoyed.toml", "[hooks]\npre-commit = \"test command\"")
@@ -1217,14 +1209,14 @@ fn test_run_hook_toml_config_debug_comprehensive() {
 fn test_hook_name_from_path() {
     // Test hook name extraction from various paths - lines 111-114
     use std::path::Path;
-    
+
     let test_cases = vec![
         ("pre-commit", "pre-commit"),
         ("/path/to/pre-commit", "pre-commit"),
         ("C:\\path\\to\\post-commit", "post-commit"),
         ("/usr/bin/pre-push", "pre-push"),
     ];
-    
+
     for (input, expected) in test_cases {
         let hook_name = Path::new(input)
             .file_name()
@@ -1240,19 +1232,18 @@ fn test_windows_shell_detection_comprehensive() {
     // Test Windows environment detection with various scenarios
     let env_git_bash = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
     assert!(is_windows_unix_environment(&env_git_bash, true));
-    
+
     let env_wsl = MockEnvironment::new().with_var("WSL_DISTRO_NAME", "Ubuntu");
     assert!(is_windows_unix_environment(&env_wsl, true));
-    
+
     let env_native = MockEnvironment::new();
     assert!(!is_windows_unix_environment(&env_native, true));
 }
 
 #[test]
 fn test_execute_hook_script_debug_output() {
-    let env = MockEnvironment::new()
-        .with_var("HOME", "/home/test");
-    
+    let env = MockEnvironment::new().with_var("HOME", "/home/test");
+
     let output = make_output(1, b"hook output", b"hook error");
     let runner = MockCommandRunner::new().with_response(
         "sh",
@@ -1273,15 +1264,11 @@ fn test_execute_hook_script_debug_output() {
 
 #[test]
 fn test_execute_hook_script_no_debug() {
-    let env = MockEnvironment::new()
-        .with_var("HOME", "/home/test");
-    
+    let env = MockEnvironment::new().with_var("HOME", "/home/test");
+
     let output = make_output(0, b"", b"");
-    let runner = MockCommandRunner::new().with_response(
-        "sh",
-        &["-e", "/test/script", ""],
-        Ok(output),
-    );
+    let runner =
+        MockCommandRunner::new().with_response("sh", &["-e", "/test/script", ""], Ok(output));
 
     let fs = MockFileSystem::new();
     let script_path = std::path::Path::new("/test/script");
@@ -1297,11 +1284,10 @@ fn test_execute_hook_script_no_debug() {
 #[test]
 fn test_load_init_script_windows_script_name() {
     // Test Windows script name selection - lines 374-379
-    let env = MockEnvironment::new()
-        .with_var("USERPROFILE", "C:\\Users\\test");
+    let env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\test");
     let runner = MockCommandRunner::new();
-    let fs = MockFileSystem::new()
-        .with_file("C:\\Users\\test\\.config\\samoyed\\init.cmd", "@echo off");
+    let fs =
+        MockFileSystem::new().with_file("C:\\Users\\test\\.config\\samoyed\\init.cmd", "@echo off");
 
     let result = load_init_script(&env, &runner, &fs, false);
     assert!(result.is_ok());
@@ -1314,16 +1300,14 @@ fn test_load_init_script_path_variations() {
         .with_var("HOME", "/home/user")
         .with_var("XDG_CONFIG_HOME", "/custom/config");
     let runner = MockCommandRunner::new();
-    let fs1 = MockFileSystem::new()
-        .with_file("/custom/config/samoyed/init.sh", "#!/bin/sh");
+    let fs1 = MockFileSystem::new().with_file("/custom/config/samoyed/init.sh", "#!/bin/sh");
 
     let result1 = load_init_script(&env1, &runner, &fs1, false);
     assert!(result1.is_ok());
 
     // Test fallback to HOME/.config when no XDG_CONFIG_HOME
     let env2 = MockEnvironment::new().with_var("HOME", "/home/user");
-    let fs2 = MockFileSystem::new()
-        .with_file("/home/user/.config/samoyed/init.sh", "#!/bin/sh");
+    let fs2 = MockFileSystem::new().with_file("/home/user/.config/samoyed/init.sh", "#!/bin/sh");
 
     let result2 = load_init_script(&env2, &runner, &fs2, false);
     assert!(result2.is_ok());
