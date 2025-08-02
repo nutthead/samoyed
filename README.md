@@ -200,8 +200,10 @@ cargo test --test windows_tests  # Windows only
 Generate coverage reports:
 
 ```bash
-cargo tarpaulin --out html --output-dir target/coverage
+cargo tarpaulin --verbose --bins --all-features
 ```
+
+Tarpaulin is configured in [.tarpaulin.toml](.tarpaulin.toml) to store reports in <target/tarpaulin/coverage/>.
 
 ## Contributing
 
