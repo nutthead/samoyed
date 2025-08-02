@@ -17,9 +17,9 @@ You don’t have to fuss with that pesky `package.json` file in your projects an
 - 🚀 **Fast**: Built with Rust for optimal performance
 - 🔒 **Secure**: Comprehensive path validation and security checks
 - 🛡️ **Robust**: Detailed error handling with actionable suggestions
-- 🧪 **Well-tested**: 100% test coverage with comprehensive integration tests
+- 🧪 **Well-tested**: Comprehensive test coverage with extensive integration tests
 - 🌍 **Cross-platform**: Supports Linux, macOS, and Windows
-- 📦 **Zero dependencies**: No runtime dependencies beyond Git
+- 📦 **Minimal dependencies**: Small set of essential Rust dependencies
 
 ## Installation
 
