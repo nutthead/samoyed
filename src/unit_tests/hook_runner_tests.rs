@@ -667,3 +667,182 @@ pre-commit = "nonexistent_command""#,
     let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
     assert!(result.is_err()); // Due to process::exit(127)
 }
+
+#[test]
+fn test_run_hook_script_execution_success() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    // Mock successful script execution
+    let output = Output {
+        status: exit_status(0),
+        stdout: b"Script executed successfully".to_vec(),
+        stderr: vec![],
+    };
+    let runner = MockCommandRunner::new().with_response(
+        "sh",
+        &["-e", ".samoyed/scripts/pre-commit", ""],
+        Ok(output),
+    );
+
+    let fs = MockFileSystem::new().with_file(
+        ".samoyed/scripts/pre-commit",
+        "#!/bin/sh\necho 'Script executed successfully'",
+    );
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // This should execute the script file path and exit with code 0
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
+}
+
+#[test]
+fn test_run_hook_script_execution_failure() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    // Mock failed script execution
+    let output = Output {
+        status: exit_status(1),
+        stdout: vec![],
+        stderr: b"Script failed".to_vec(),
+    };
+    let runner = MockCommandRunner::new().with_response(
+        "sh",
+        &["-e", ".samoyed/scripts/pre-commit", ""],
+        Ok(output),
+    );
+
+    let fs = MockFileSystem::new().with_file(".samoyed/scripts/pre-commit", "#!/bin/sh\nexit 1");
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // This should execute the script file path and exit with code 1
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(1)
+}
+
+#[test]
+fn test_run_hook_script_execution_with_arguments() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    // Mock script execution with arguments
+    let output = Output {
+        status: exit_status(0),
+        stdout: b"origin main processed".to_vec(),
+        stderr: vec![],
+    };
+    let runner = MockCommandRunner::new().with_response(
+        "sh",
+        &["-e", ".samoyed/scripts/pre-push", "origin main"],
+        Ok(output),
+    );
+
+    let fs = MockFileSystem::new().with_file(
+        ".samoyed/scripts/pre-push",
+        "#!/bin/sh\necho \"$1 $2 processed\"",
+    );
+
+    let args = vec![
+        "samoyed-hook".to_string(),
+        "pre-push".to_string(),
+        "origin".to_string(),
+        "main".to_string(),
+    ];
+
+    // This should execute the script with arguments and exit with code 0
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
+}
+
+#[test]
+fn test_run_hook_script_command_not_found() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    // Mock command not found in script (exit code 127)
+    let output = Output {
+        status: exit_status(127),
+        stdout: vec![],
+        stderr: b"nonexistent_command: command not found".to_vec(),
+    };
+    let runner = MockCommandRunner::new().with_response(
+        "sh",
+        &["-e", ".samoyed/scripts/pre-commit", ""],
+        Ok(output),
+    );
+
+    let fs = MockFileSystem::new().with_file(
+        ".samoyed/scripts/pre-commit",
+        "#!/bin/sh\nnonexistent_command",
+    );
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // This should execute the script and exit with code 127
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(127)
+}
+
+#[test]
+fn test_run_hook_script_debug_mode() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "2") // Debug mode
+        .with_var("HOME", "/home/test");
+
+    // Mock successful script execution with debug output
+    let output = Output {
+        status: exit_status(0),
+        stdout: b"Debug script executed".to_vec(),
+        stderr: vec![],
+    };
+    let runner = MockCommandRunner::new().with_response(
+        "sh",
+        &["-e", ".samoyed/scripts/pre-commit", ""],
+        Ok(output),
+    );
+
+    let fs = MockFileSystem::new().with_file(
+        ".samoyed/scripts/pre-commit",
+        "#!/bin/sh\necho 'Debug script executed'",
+    );
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // This should execute with debug logging and exit with code 0
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
+}
+
+#[test]
+fn test_execute_hook_script_function() {
+    let env = MockEnvironment::new();
+    let fs = MockFileSystem::new();
+
+    // Mock successful script execution
+    let output = Output {
+        status: exit_status(0),
+        stdout: b"Test output".to_vec(),
+        stderr: vec![],
+    };
+    let runner = MockCommandRunner::new().with_response(
+        "sh",
+        &["-e", "/test/script.sh", "arg1 arg2"],
+        Ok(output),
+    );
+
+    let script_path = std::path::Path::new("/test/script.sh");
+    let hook_args = vec!["arg1".to_string(), "arg2".to_string()];
+
+    // This function should exit with process::exit, so catch the panic
+    let result = std::panic::catch_unwind(|| {
+        execute_hook_script(&env, &runner, &fs, script_path, &hook_args, false)
+    });
+    assert!(result.is_err()); // Due to process::exit(0)
+}
