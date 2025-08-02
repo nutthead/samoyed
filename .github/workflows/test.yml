@@ -243,7 +243,7 @@ jobs:
       - name: 📊 Generate code coverage
         run: |
           # Run tarpaulin with configuration from .tarpaulin.toml
-          cargo tarpaulin --verbose --all-features --workspace --timeout 120
+          cargo tarpaulin --verbose --bins --all-features --timeout 120
 
           # The .tarpaulin.toml now generates all formats: Html, Xml, Json, Lcov
           # Files are automatically placed in target/tarpaulin/coverage/
@@ -525,7 +525,7 @@ jobs:
           echo "✅ **Windows Latest** (stable, PowerShell, Git Bash)" >> $GITHUB_STEP_SUMMARY
           echo "✅ **Cross-platform compatibility tests** (shell execution, environment detection)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Parallel Job Execution
           echo "## ⚡ Parallel Execution" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
