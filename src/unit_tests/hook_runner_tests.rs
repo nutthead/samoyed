@@ -17,6 +17,15 @@ fn exit_status(code: i32) -> ExitStatus {
     return ExitStatus::from_raw(code as u32);
 }
 
+// Helper function to create Output structs with consistent pattern
+fn make_output(status_code: i32, stdout: &[u8], stderr: &[u8]) -> Output {
+    Output {
+        status: exit_status(status_code),
+        stdout: stdout.to_vec(),
+        stderr: stderr.to_vec(),
+    }
+}
+
 #[test]
 fn test_run_hook_with_samoyed_0_skips_execution() {
     let env = MockEnvironment::new().with_var("SAMOYED", "0");
@@ -57,11 +66,7 @@ fn test_run_hook_executes_existing_script() {
         .with_var("HOME", "/home/test");
 
     // Mock successful hook execution
-    let output = Output {
-        status: exit_status(0),
-        stdout: b"Hook executed successfully".to_vec(),
-        stderr: vec![],
-    };
+    let output = make_output(0, b"Hook executed successfully", b"");
     let runner = MockCommandRunner::new().with_response(
         "sh",
         &["-e", ".samoyed/scripts/pre-commit", ""],
@@ -88,11 +93,7 @@ fn test_run_hook_handles_failed_script() {
         .with_var("HOME", "/home/test");
 
     // Mock failed hook execution
-    let output = Output {
-        status: exit_status(1),
-        stdout: vec![],
-        stderr: b"Hook failed".to_vec(),
-    };
+    let output = make_output(1, b"", b"Hook failed");
     let runner = MockCommandRunner::new().with_response(
         "sh",
         &["-e", ".samoyed/scripts/pre-commit", ""],
@@ -116,11 +117,7 @@ fn test_run_hook_command_not_found() {
         .with_var("HOME", "/home/test");
 
     // Mock command not found (exit code 127)
-    let output = Output {
-        status: exit_status(127),
-        stdout: vec![],
-        stderr: b"command not found".to_vec(),
-    };
+    let output = make_output(127, b"", b"command not found");
     let runner = MockCommandRunner::new().with_response(
         "sh",
         &["-e", ".samoyed/scripts/pre-commit", ""],
@@ -204,11 +201,7 @@ fn test_hook_with_arguments() {
         .with_var("SAMOYED", "1")
         .with_var("HOME", "/home/test");
 
-    let output = Output {
-        status: exit_status(0),
-        stdout: vec![],
-        stderr: vec![],
-    };
+    let output = make_output(0, b"", b"");
     let runner = MockCommandRunner::new().with_response(
         "sh",
         &["-e", ".samoyed/scripts/pre-push", "origin main"],
@@ -591,11 +584,7 @@ fn test_run_hook_with_toml_config_success() {
         .with_var("HOME", "/home/test");
 
     // Mock successful command execution
-    let output = Output {
-        status: exit_status(0),
-        stdout: b"Formatting complete".to_vec(),
-        stderr: vec![],
-    };
+    let output = make_output(0, b"Formatting complete", b"");
     let runner =
         MockCommandRunner::new().with_response("sh", &["-c", "cargo fmt --check"], Ok(output));
 
@@ -619,11 +608,7 @@ fn test_run_hook_with_toml_config_failure() {
         .with_var("HOME", "/home/test");
 
     // Mock failed command execution
-    let output = Output {
-        status: exit_status(1),
-        stdout: vec![],
-        stderr: b"Formatting failed".to_vec(),
-    };
+    let output = make_output(1, b"", b"Formatting failed");
     let runner =
         MockCommandRunner::new().with_response("sh", &["-c", "cargo fmt --check"], Ok(output));
 
@@ -647,11 +632,7 @@ fn test_run_hook_with_toml_config_command_not_found() {
         .with_var("HOME", "/home/test");
 
     // Mock command not found (exit code 127)
-    let output = Output {
-        status: exit_status(127),
-        stdout: vec![],
-        stderr: b"command not found".to_vec(),
-    };
+    let output = make_output(127, b"", b"command not found");
     let runner =
         MockCommandRunner::new().with_response("sh", &["-c", "nonexistent_command"], Ok(output));
 
@@ -675,11 +656,7 @@ fn test_run_hook_script_execution_success() {
         .with_var("HOME", "/home/test");
 
     // Mock successful script execution
-    let output = Output {
-        status: exit_status(0),
-        stdout: b"Script executed successfully".to_vec(),
-        stderr: vec![],
-    };
+    let output = make_output(0, b"Script executed successfully", b"");
     let runner = MockCommandRunner::new().with_response(
         "sh",
         &["-e", ".samoyed/scripts/pre-commit", ""],
@@ -705,11 +682,7 @@ fn test_run_hook_script_execution_failure() {
         .with_var("HOME", "/home/test");
 
     // Mock failed script execution
-    let output = Output {
-        status: exit_status(1),
-        stdout: vec![],
-        stderr: b"Script failed".to_vec(),
-    };
+    let output = make_output(1, b"", b"Script failed");
     let runner = MockCommandRunner::new().with_response(
         "sh",
         &["-e", ".samoyed/scripts/pre-commit", ""],
@@ -732,11 +705,7 @@ fn test_run_hook_script_execution_with_arguments() {
         .with_var("HOME", "/home/test");
 
     // Mock script execution with arguments
-    let output = Output {
-        status: exit_status(0),
-        stdout: b"origin main processed".to_vec(),
-        stderr: vec![],
-    };
+    let output = make_output(0, b"origin main processed", b"");
     let runner = MockCommandRunner::new().with_response(
         "sh",
         &["-e", ".samoyed/scripts/pre-push", "origin main"],
@@ -767,11 +736,7 @@ fn test_run_hook_script_command_not_found() {
         .with_var("HOME", "/home/test");
 
     // Mock command not found in script (exit code 127)
-    let output = Output {
-        status: exit_status(127),
-        stdout: vec![],
-        stderr: b"nonexistent_command: command not found".to_vec(),
-    };
+    let output = make_output(127, b"", b"nonexistent_command: command not found");
     let runner = MockCommandRunner::new().with_response(
         "sh",
         &["-e", ".samoyed/scripts/pre-commit", ""],
@@ -797,11 +762,7 @@ fn test_run_hook_script_debug_mode() {
         .with_var("HOME", "/home/test");
 
     // Mock successful script execution with debug output
-    let output = Output {
-        status: exit_status(0),
-        stdout: b"Debug script executed".to_vec(),
-        stderr: vec![],
-    };
+    let output = make_output(0, b"Debug script executed", b"");
     let runner = MockCommandRunner::new().with_response(
         "sh",
         &["-e", ".samoyed/scripts/pre-commit", ""],
@@ -826,11 +787,7 @@ fn test_execute_hook_script_function() {
     let fs = MockFileSystem::new();
 
     // Mock successful script execution
-    let output = Output {
-        status: exit_status(0),
-        stdout: b"Test output".to_vec(),
-        stderr: vec![],
-    };
+    let output = make_output(0, b"Test output", b"");
     let runner = MockCommandRunner::new().with_response(
         "sh",
         &["-e", "/test/script.sh", "arg1 arg2"],
@@ -912,11 +869,7 @@ fn test_run_hook_windows_cmd_execution() {
     #[cfg(target_os = "windows")]
     {
         // Mock Windows batch file execution
-        let output = Output {
-            status: exit_status(0),
-            stdout: b"Windows batch executed".to_vec(),
-            stderr: vec![],
-        };
+        let output = make_output(0, b"Windows batch executed", b"");
         let runner = MockCommandRunner::new().with_response(
             "cmd",
             &["/C", ".samoyed\\scripts\\pre-commit.bat", ""],
@@ -950,11 +903,7 @@ fn test_run_hook_windows_powershell_execution() {
     #[cfg(target_os = "windows")]
     {
         // Mock PowerShell script execution
-        let output = Output {
-            status: exit_status(0),
-            stdout: b"PowerShell script executed".to_vec(),
-            stderr: vec![],
-        };
+        let output = make_output(0, b"PowerShell script executed", b"");
         let runner = MockCommandRunner::new().with_response(
             "powershell",
             &[
@@ -1023,11 +972,7 @@ fn test_execute_hook_command_windows_shell() {
     #[cfg(target_os = "windows")]
     {
         // Mock Windows command execution
-        let output = Output {
-            status: exit_status(0),
-            stdout: b"Windows command executed".to_vec(),
-            stderr: vec![],
-        };
+        let output = make_output(0, b"Windows command executed", b"");
         let runner = MockCommandRunner::new().with_response("cmd", &["/C", "dir"], Ok(output));
 
         let hook_args = vec![];
@@ -1062,11 +1007,7 @@ fn test_run_hook_debug_mode_extensive_logging() {
         .with_var("HOME", "/home/test");
 
     // Mock successful script execution with debug output
-    let output = Output {
-        status: exit_status(0),
-        stdout: b"Debug command executed".to_vec(),
-        stderr: vec![],
-    };
+    let output = make_output(0, b"Debug command executed", b"");
     let runner = MockCommandRunner::new().with_response("sh", &["-c", "echo 'debug'"], Ok(output));
 
     let fs = MockFileSystem::new().with_file(
@@ -1172,11 +1113,7 @@ fn test_command_execution_with_stdout_stderr() {
         .with_var("HOME", "/home/test");
 
     // Mock command with both stdout and stderr
-    let output = Output {
-        status: exit_status(0),
-        stdout: b"Command output to stdout".to_vec(),
-        stderr: b"Command output to stderr".to_vec(),
-    };
+    let output = make_output(0, b"Command output to stdout", b"Command output to stderr");
     let runner = MockCommandRunner::new().with_response(
         "sh",
         &["-c", "echo 'test' && echo 'error' >&2"],
@@ -1203,11 +1140,7 @@ fn test_hook_execution_with_complex_arguments() {
         .with_var("HOME", "/home/test");
 
     // Mock script execution with complex arguments
-    let output = Output {
-        status: exit_status(0),
-        stdout: b"Complex args processed".to_vec(),
-        stderr: vec![],
-    };
+    let output = make_output(0, b"Complex args processed", b"");
     let runner = MockCommandRunner::new().with_response(
         "sh",
         &[
@@ -1243,11 +1176,11 @@ fn test_error_propagation_and_exit_codes() {
 
     // Test various exit codes
     for exit_code in [1, 2, 127, 255] {
-        let output = Output {
-            status: exit_status(exit_code),
-            stdout: vec![],
-            stderr: format!("Error with code {exit_code}").into_bytes(),
-        };
+        let output = make_output(
+            exit_code,
+            b"",
+            &format!("Error with code {exit_code}").into_bytes(),
+        );
         let runner = MockCommandRunner::new().with_response(
             "sh",
             &["-c", &format!("exit {exit_code}")],
