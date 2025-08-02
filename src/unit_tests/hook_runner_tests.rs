@@ -398,7 +398,6 @@ fn test_load_init_script() {
     assert!(result.is_ok(), "Should succeed when init script exists");
 }
 
-// Add comprehensive tests for missing coverage
 
 #[test]
 fn test_load_hook_command_from_config_success() {
