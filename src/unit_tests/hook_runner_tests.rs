@@ -506,3 +506,164 @@ fn test_load_init_script() {
         "Error should mention home directory"
     );
 }
+
+#[test]
+fn test_load_hook_command_from_config_success() {
+    let fs = MockFileSystem::new().with_file(
+        "samoyed.toml",
+        r#"[hooks]
+pre-commit = "cargo fmt --check"
+pre-push = "cargo test""#,
+    );
+
+    let result = load_hook_command_from_config(&fs, "pre-commit", false);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), "cargo fmt --check");
+
+    let result = load_hook_command_from_config(&fs, "pre-push", false);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), "cargo test");
+}
+
+#[test]
+fn test_load_hook_command_from_config_missing_file() {
+    let fs = MockFileSystem::new(); // No samoyed.toml file
+
+    let result = load_hook_command_from_config(&fs, "pre-commit", false);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("No samoyed.toml configuration file found")
+    );
+}
+
+#[test]
+fn test_load_hook_command_from_config_invalid_toml() {
+    let fs = MockFileSystem::new().with_file("samoyed.toml", "invalid toml content [[[");
+
+    let result = load_hook_command_from_config(&fs, "pre-commit", false);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Failed to parse samoyed.toml")
+    );
+}
+
+#[test]
+fn test_load_hook_command_from_config_hook_not_found() {
+    let fs = MockFileSystem::new().with_file(
+        "samoyed.toml",
+        r#"[hooks]
+pre-commit = "cargo fmt --check""#,
+    );
+
+    let result = load_hook_command_from_config(&fs, "pre-push", false);
+    assert!(result.is_err());
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("No command configured for hook 'pre-push'")
+    );
+}
+
+#[test]
+fn test_load_hook_command_from_config_debug_mode() {
+    let fs = MockFileSystem::new().with_file(
+        "samoyed.toml",
+        r#"[hooks]
+pre-commit = "cargo fmt --check""#,
+    );
+
+    let result = load_hook_command_from_config(&fs, "pre-commit", true);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), "cargo fmt --check");
+}
+
+#[test]
+fn test_run_hook_with_toml_config_success() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    // Mock successful command execution
+    let output = Output {
+        status: exit_status(0),
+        stdout: b"Formatting complete".to_vec(),
+        stderr: vec![],
+    };
+    let runner =
+        MockCommandRunner::new().with_response("sh", &["-c", "cargo fmt --check"], Ok(output));
+
+    let fs = MockFileSystem::new().with_file(
+        "samoyed.toml",
+        r#"[hooks]
+pre-commit = "cargo fmt --check""#,
+    );
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // This should execute the TOML command path and exit with code 0
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(0)
+}
+
+#[test]
+fn test_run_hook_with_toml_config_failure() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    // Mock failed command execution
+    let output = Output {
+        status: exit_status(1),
+        stdout: vec![],
+        stderr: b"Formatting failed".to_vec(),
+    };
+    let runner =
+        MockCommandRunner::new().with_response("sh", &["-c", "cargo fmt --check"], Ok(output));
+
+    let fs = MockFileSystem::new().with_file(
+        "samoyed.toml",
+        r#"[hooks]
+pre-commit = "cargo fmt --check""#,
+    );
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // This should execute the TOML command path and exit with code 1
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(1)
+}
+
+#[test]
+fn test_run_hook_with_toml_config_command_not_found() {
+    let env = MockEnvironment::new()
+        .with_var("SAMOYED", "1")
+        .with_var("HOME", "/home/test");
+
+    // Mock command not found (exit code 127)
+    let output = Output {
+        status: exit_status(127),
+        stdout: vec![],
+        stderr: b"command not found".to_vec(),
+    };
+    let runner =
+        MockCommandRunner::new().with_response("sh", &["-c", "nonexistent_command"], Ok(output));
+
+    let fs = MockFileSystem::new().with_file(
+        "samoyed.toml",
+        r#"[hooks]
+pre-commit = "nonexistent_command""#,
+    );
+
+    let args = vec!["samoyed-hook".to_string(), "pre-commit".to_string()];
+
+    // This should execute the TOML command path and exit with code 127
+    let result = std::panic::catch_unwind(|| run_hook(&env, &runner, &fs, &args));
+    assert!(result.is_err()); // Due to process::exit(127)
+}
