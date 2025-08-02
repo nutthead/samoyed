@@ -69,27 +69,27 @@ body:
       label: Acceptance Criteria
       description: List the specific requirements that must be met
       placeholder: |
-        - [ ] Requirement 1 (e.g., automated workflow triggers on push)
-        - [ ] Requirement 2 (e.g., build artifacts generated for all platforms)
-        - [ ] Requirement 3 (e.g., deployment completes in < 5 minutes)
+        - [ ] **AC X.1:** Requirement 1 (e.g., automated workflow triggers on push)
+        - [ ] **AC X.2:** Requirement 2 (e.g., build artifacts generated for all platforms)
+        - [ ] **AC X.3:** Requirement 3 (e.g., deployment completes in < 5 minutes)
     validations:
       required: true
 
-  - type: checkboxes
+  - type: textarea
     id: workflow-components
     attributes:
       label: Workflow Components (if applicable)
       description: Which workflow components are involved?
-      options:
-        - label: GitHub Actions workflows
-        - label: Build and compilation
-        - label: Testing and validation
-        - label: Code quality checks
-        - label: Security scanning
-        - label: Performance benchmarking
-        - label: Release creation
-        - label: Artifact publishing
-        - label: Dependency management
+      placeholder: |
+        ✔ GitHub Actions workflows
+        ✔ Build and compilation
+        ✗ Testing and validation
+        ✗ Code quality checks
+        ✗ Security scanning
+        ✗ Performance benchmarking
+        ✔ Release creation
+        ✔ Artifact publishing
+        ✗ Dependency management
 
   - type: dropdown
     id: priority
@@ -150,17 +150,17 @@ body:
         - **Requires**: External service/tool setup
         - **Blocks**: #issue_number (Description)
 
-  - type: checkboxes
+  - type: textarea
     id: environments
     attributes:
       label: Target Environments
       description: Which environments will be affected?
-      options:
-        - label: Development (local)
-        - label: CI/CD (GitHub Actions)
-        - label: Testing/Staging
-        - label: Production/Release
-        - label: Documentation/Website
+      placeholder: |
+        ✔ Development (local)
+        ✔ CI/CD (GitHub Actions)
+        ✗ Testing/Staging
+        ✔ Production/Release
+        ✗ Documentation/Website
 
   - type: textarea
     id: risks-mitigation

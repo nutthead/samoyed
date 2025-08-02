@@ -25,9 +25,9 @@ body:
       label: Acceptance Criteria
       description: List the specific requirements that must be met for this feature to be considered complete
       placeholder: |
-        - [ ] Requirement 1
-        - [ ] Requirement 2  
-        - [ ] Requirement 3
+        - [ ] **AC X.1:** Requirement 1
+        - [ ] **AC X.2:** Requirement 2  
+        - [ ] **AC X.3:** Requirement 3
     validations:
       required: true
 

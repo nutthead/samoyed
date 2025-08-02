@@ -84,26 +84,26 @@ body:
       label: Acceptance Criteria
       description: List specific, testable requirements for completion
       placeholder: |
-        - [ ] Package manifest/formula created and validated
-        - [ ] Automated publishing workflow implemented
-        - [ ] Installation tested on target platforms
-        - [ ] Documentation updated with installation instructions
-        - [ ] Package properly handles updates/uninstallation
+        - [ ] **AC X.1:** Package manifest/formula created and validated
+        - [ ] **AC X.2:** Automated publishing workflow implemented
+        - [ ] **AC X.3:** Installation tested on target platforms
+        - [ ] **AC X.4:** Documentation updated with installation instructions
+        - [ ] **AC X.5:** Package properly handles updates/uninstallation
     validations:
       required: true
 
-  - type: checkboxes
+  - type: textarea
     id: platform-support
     attributes:
       label: Target Platforms
       description: Which platforms will be supported?
-      options:
-        - label: macOS (Intel x64)
-        - label: macOS (Apple Silicon ARM64)
-        - label: Linux (x86_64)
-        - label: Linux (ARM64)
-        - label: Windows (x64)
-        - label: Windows (x86/32-bit)
+      placeholder: |
+        ✔ macOS (Intel x64)
+        ✔ macOS (Apple Silicon ARM64)
+        ✔ Linux (x86_64)
+        ✗ Linux (ARM64)
+        ✔ Windows (x64)
+        ✗ Windows (x86/32-bit)
 
   - type: textarea
     id: package-manifest
