@@ -58,15 +58,15 @@ body:
     validations:
       required: false
 
-  - type: checkboxes
+  - type: textarea
     id: openup-phase
     attributes:
       label: OpenUP Phase (if applicable)
       description: Which OpenUP phases might be relevant?
-      options:
-        - label: 📐 Elaboration - Architecture design and risk mitigation
-        - label: 🔨 Construction - Implementation and development
-        - label: 🏁 Transition - Deployment and production readiness
+      placeholder: |
+        ✔ 📐 Elaboration - Architecture design and risk mitigation
+        ✗ 🔨 Construction - Implementation and development
+        ✗ 🏁 Transition - Deployment and production readiness
 
   - type: textarea
     id: acceptance-criteria
@@ -74,9 +74,9 @@ body:
       label: Acceptance Criteria (if applicable)
       description: If this requires specific deliverables, list the criteria
       placeholder: |
-        - [ ] Criterion 1
-        - [ ] Criterion 2
-        - [ ] Criterion 3
+        - [ ] **AC X.1:** Criterion 1
+        - [ ] **AC X.2:** Criterion 2
+        - [ ] **AC X.3:** Criterion 3
 
   - type: textarea
     id: dependencies

@@ -63,17 +63,17 @@ body:
     validations:
       required: true
 
-  - type: checkboxes
+  - type: textarea
     id: platform
     attributes:
       label: Platform
       description: Which platforms are affected?
-      options:
-        - label: Linux
-        - label: macOS
-        - label: Windows
-        - label: WSL (Windows Subsystem for Linux)
-        - label: Git Bash
+      placeholder: |
+        ✔ Linux
+        ✗ macOS
+        ✔ Windows
+        ✗ WSL (Windows Subsystem for Linux)
+        ✗ Git Bash
 
   - type: textarea
     id: environment
@@ -107,14 +107,14 @@ body:
         Output from SAMOYED=2 samoyed command...
       render: text
 
-  - type: checkboxes
+  - type: textarea
     id: workaround
     attributes:
       label: Workaround
       description: Do you have a workaround for this issue?
-      options:
-        - label: Yes, I have a workaround (please describe below)
-        - label: No workaround available
+      placeholder: |
+        ✔ Yes, I have a workaround (please describe below)
+        ✗ No workaround available
 
   - type: textarea
     id: additional-context

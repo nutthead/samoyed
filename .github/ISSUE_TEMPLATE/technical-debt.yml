@@ -76,20 +76,20 @@ body:
     validations:
       required: true
 
-  - type: checkboxes
+  - type: textarea
     id: cleanup-scope
     attributes:
       label: Cleanup Scope
       description: What areas of the project will be affected?
-      options:
-        - label: Source code
-        - label: Documentation
-        - label: Tests
-        - label: Build configuration
-        - label: CI/CD workflows
-        - label: Dependencies
-        - label: Configuration files
-        - label: Examples/samples
+      placeholder: |
+        ✔ Source code
+        ✔ Documentation  
+        ✔ Tests
+        ✔ Build configuration
+        ✗ CI/CD workflows
+        ✔ Dependencies
+        ✔ Configuration files
+        ✗ Examples/samples
 
   - type: dropdown
     id: priority
@@ -118,15 +118,15 @@ body:
     validations:
       required: true
 
-  - type: checkboxes
+  - type: textarea
     id: breaking-changes
     attributes:
       label: Breaking Changes
       description: Will this cleanup introduce breaking changes?
-      options:
-        - label: Yes, this will introduce breaking changes
-        - label: No, this is backwards compatible
-        - label: Unsure, needs investigation
+      placeholder: |
+        ✔ Yes, this will introduce breaking changes
+        ✗ No, this is backwards compatible
+        ✗ Unsure, needs investigation
 
   - type: textarea
     id: migration-plan
@@ -145,11 +145,11 @@ body:
       label: Acceptance Criteria
       description: List the specific criteria that define when this cleanup is complete
       placeholder: |
-        - [ ] Feature/code removed completely
-        - [ ] Documentation updated
-        - [ ] Tests updated or removed
-        - [ ] No regressions introduced
-        - [ ] Migration guide created (if needed)
+        - [ ] **AC X.1:** Feature/code removed completely
+        - [ ] **AC X.2:** Documentation updated
+        - [ ] **AC X.3:** Tests updated or removed
+        - [ ] **AC X.4:** No regressions introduced
+        - [ ] **AC X.5:** Migration guide created (if needed)
     validations:
       required: true
 

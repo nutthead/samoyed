@@ -66,10 +66,10 @@ body:
       label: Acceptance Criteria
       description: List measurable criteria that define when this enhancement is complete
       placeholder: |
-        - [ ] Performance metric: [specific target, e.g., < 50ms execution time]
-        - [ ] Reliability metric: [specific target, e.g., >99% success rate]
-        - [ ] Test coverage: [specific target, e.g., >90% code coverage]
-        - [ ] Other criteria...
+        - [ ] **AC X.1:** Performance metric: [specific target, e.g., < 50ms execution time]
+        - [ ] **AC X.2:** Reliability metric: [specific target, e.g., >99% success rate]
+        - [ ] **AC X.3:** Test coverage: [specific target, e.g., >90% code coverage]
+        - [ ] **AC X.4:** Other criteria...
     validations:
       required: true
 
@@ -127,19 +127,19 @@ body:
         - **Blocks**: #issue_number (Description)
         - **Relates to**: #issue_number (Description)
 
-  - type: checkboxes
+  - type: textarea
     id: impact
     attributes:
       label: Impact Areas
       description: Which areas of the codebase will be affected?
-      options:
-        - label: Core installation system
-        - label: CLI interface
-        - label: Hook execution runtime
-        - label: Test infrastructure
-        - label: CI/CD pipeline
-        - label: Documentation
-        - label: Build system
+      placeholder: |
+        ✔ Core installation system
+        ✔ CLI interface
+        ✗ Hook execution runtime
+        ✔ Test infrastructure
+        ✗ CI/CD pipeline
+        ✔ Documentation
+        ✗ Build system
 
   - type: textarea
     id: additional-context
