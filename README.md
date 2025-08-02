@@ -59,12 +59,97 @@ samoyed init --hooks-dir custom-hooks
 
 ## Architecture
 
-Samoyed uses a dual-binary architecture:
+Samoyed uses a three-layer architecture that provides both flexibility and performance:
+
+### Binary Components
 
 - **`samoyed`**: CLI interface for initialization and management
 - **`samoyed-hook`**: Lightweight hook runner executed by Git
 
-This separation ensures minimal overhead during Git operations while providing rich functionality for setup and management.
+### Execution Flow
+
+```mermaid
+sequenceDiagram
+    participant Git as Git
+    participant Hook as .samoyed/_/pre-commit
+    participant Runner as samoyed-hook
+    participant Config as samoyed.toml
+    participant Script as .samoyed/scripts/pre-commit
+    participant Shell as Shell
+
+    Git->>Hook: git commit triggers
+    Hook->>Runner: exec samoyed-hook "pre-commit" "$@"
+
+    Runner->>Config: 1. Check for [hooks] pre-commit
+
+    alt Command found in samoyed.toml
+        Config-->>Runner: "cargo fmt --check && cargo clippy"
+        Runner->>Shell: Execute command via shell
+        Shell-->>Runner: Exit code
+    else No command in samoyed.toml
+        Runner->>Script: 2. Look for .samoyed/scripts/pre-commit
+        alt Script exists
+            Runner->>Script: Execute script file
+            Script-->>Runner: Exit code
+        else No script found
+            Runner-->>Git: Exit silently (0)
+        end
+    end
+
+    Runner-->>Git: Propagate exit code
+```
+
+### Directory Structure
+
+When you run `samoyed init`, three key components are created:
+
+#### 1. `samoyed.toml` - Primary Configuration
+**Raison d'être**: The primary configuration mechanism where you define commands for each hook.
+
+```toml
+[hooks]
+pre-commit = "cargo fmt --check && cargo clippy -- -D warnings"
+pre-push = "cargo test --release"
+```
+
+#### 2. `.samoyed/_/` - Git Hook Delegation Layer
+**Raison d'être**: Git integration. These files tell Git "when you want to run a hook, call samoyed-hook instead."
+
+All files contain identical delegation code:
+```bash
+#!/usr/bin/env sh
+exec samoyed-hook "$(basename "$0")" "$@"
+```
+
+Git's `core.hooksPath=.samoyed/_` points here, so `git commit` → `.samoyed/_/pre-commit` → `samoyed-hook`.
+
+#### 3. `.samoyed/scripts/` - Fallback & Examples
+**Raison d'être**: Fallback mechanism for complex scenarios and examples for users who prefer script files.
+
+### Two-Tier Lookup System
+
+The hook runner implements a sophisticated two-tier lookup:
+
+1. **Primary**: Check `samoyed.toml` for a command string
+2. **Fallback**: Look for executable script in `.samoyed/scripts/`
+
+This provides maximum flexibility:
+- **Simple cases**: Use TOML configuration for straightforward commands
+- **Complex cases**: Use full script files for multi-line logic or complex workflows
+
+### Environment Variables
+
+- `SAMOYED=0` - Skip all hook execution (useful for CI/deployment)
+- `SAMOYED=1` - Normal execution mode (default)
+- `SAMOYED=2` - Enable debug mode with detailed script tracing
+
+### Performance Design
+
+This architecture ensures minimal overhead:
+- Git only spawns one process: `samoyed-hook`
+- No file system scanning during execution
+- Direct command execution via shell when possible
+- Graceful fallback with silent exit when no hooks are defined
 
 ## Development
 
