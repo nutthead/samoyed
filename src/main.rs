@@ -22,7 +22,7 @@ use exit_codes::{EX_USAGE, determine_exit_code};
 #[derive(Parser)]
 #[command(name = "samoyed")]
 #[command(about = "Modern native Git hooks manager")]
-#[command(version = "0.1.7")]
+#[command(version = env!("CARGO_PKG_VERSION"))]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
