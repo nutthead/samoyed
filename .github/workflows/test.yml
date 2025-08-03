@@ -141,9 +141,11 @@ jobs:
           # Format: OS-toolname-rustversion-lockfilehash
           key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('Cargo.lock') }}
           # Fallback keys if exact match not found (in priority order)
+          # Priority 1: Same OS + Rust version
+          # Priority 2: Same OS, any Rust version
           restore-keys: |
-            ${{ runner.os }}-cargo-${{ matrix.rust }}-  # Same OS + Rust version
-            ${{ runner.os }}-cargo-                     # Same OS, any Rust version
+            ${{ runner.os }}-cargo-${{ matrix.rust }}-
+            ${{ runner.os }}-cargo-
 
       - name: 🔧 Configure working directory
         run: |
