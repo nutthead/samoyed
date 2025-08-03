@@ -1,4 +1,4 @@
-# yaml-language-server: https://www.schemastore.org/github-issue-forms.json 
+# yaml-language-server: $schema=https://www.schemastore.org/github-issue-forms.json 
 name: 🔧 Infrastructure & Process
 description: Issues related to CI/CD, release management, build systems, and development processes
 title: "[Infrastructure]: "

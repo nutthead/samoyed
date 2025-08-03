@@ -1,4 +1,4 @@
-# yaml-language-server: https://www.schemastore.org/github-issue-forms.json 
+# yaml-language-server: $schema=https://www.schemastore.org/github-issue-forms.json 
 name: 🚀 Feature Request
 description: Request a new feature or functional requirement
 title: "[Feature]: "

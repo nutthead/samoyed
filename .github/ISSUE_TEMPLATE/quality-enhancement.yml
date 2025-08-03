@@ -1,4 +1,4 @@
-# yaml-language-server: https://www.schemastore.org/github-issue-forms.json 
+# yaml-language-server: $schema=https://www.schemastore.org/github-issue-forms.json 
 name: ⚡ Quality Enhancement
 description: Request improvements to performance, testing, reliability, or other quality attributes
 title: "[Quality]: "

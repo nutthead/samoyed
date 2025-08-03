@@ -1,4 +1,4 @@
-# yaml-language-server: https://www.schemastore.org/github-issue-forms.json 
+# yaml-language-server: $schema=https://www.schemastore.org/github-issue-forms.json 
 name: 🐛 Bug Report
 description: Report a bug or defect in Samoid
 title: "[Bug]: "
