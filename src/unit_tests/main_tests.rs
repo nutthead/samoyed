@@ -11,7 +11,10 @@ fn test_cli_struct_parsing() {
 
     let parsed = cli.unwrap();
     match parsed.command {
-        Some(Commands::Init { project_type }) => {
+        Some(Commands::Init {
+            project_type,
+            force: _,
+        }) => {
             assert!(project_type.is_none());
         }
         _ => panic!("Expected Init command"),
@@ -24,7 +27,10 @@ fn test_cli_struct_parsing() {
 
     let parsed = cli.unwrap();
     match parsed.command {
-        Some(Commands::Init { project_type }) => {
+        Some(Commands::Init {
+            project_type,
+            force: _,
+        }) => {
             assert_eq!(project_type, Some("rust".to_string()));
         }
         _ => panic!("Expected Init command"),
@@ -37,7 +43,10 @@ fn test_cli_struct_parsing() {
 
     let parsed = cli.unwrap();
     match parsed.command {
-        Some(Commands::Init { project_type }) => {
+        Some(Commands::Init {
+            project_type,
+            force: _,
+        }) => {
             assert_eq!(project_type, Some("go".to_string()));
         }
         _ => panic!("Expected Init command"),

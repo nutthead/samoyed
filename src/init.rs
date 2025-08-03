@@ -26,6 +26,7 @@ use crate::project::ProjectType;
 /// * `runner` - Command runner for executing system commands
 /// * `fs` - Filesystem abstraction for file operations
 /// * `project_type_hint` - Optional project type hint (e.g., "rust", "node")
+/// * `force` - Optional force regeneration parameter (e.g., "_" to force hook regeneration)
 ///
 /// # Returns
 ///
@@ -43,6 +44,7 @@ pub fn init_command(
     runner: &dyn CommandRunner,
     fs: &dyn FileSystem,
     project_type_hint: Option<String>,
+    _force: Option<String>,
 ) -> Result<()> {
     // Check if we're in a Git repository
     if !fs.exists(Path::new(".git")) {

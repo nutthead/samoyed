@@ -67,7 +67,7 @@ fn test_complete_installation_flow() {
         .read_to_string(std::path::Path::new(".samoyed/_/pre-commit"))
         .unwrap();
     assert!(pre_commit_content.starts_with("#!/usr/bin/env sh"));
-    assert!(pre_commit_content.contains("exec samoyed-hook"));
+    assert!(pre_commit_content.contains("exec samoyed hook"));
 
     // Verify all standard Git hooks were created (use the actual STANDARD_HOOKS constant)
     let standard_hooks = [
