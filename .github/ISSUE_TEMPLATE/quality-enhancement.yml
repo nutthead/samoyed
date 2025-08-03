@@ -1,9 +1,10 @@
+# yaml-language-server: https://www.schemastore.org/github-issue-forms.json 
 name: ⚡ Quality Enhancement
 description: Request improvements to performance, testing, reliability, or other quality attributes
 title: "[Quality]: "
 labels: ["🎯 type: nonfunctional", "⚡ priority: medium", "🔨 phase: construction"]
 projects: []
-assignees: []
+assignees: ["behrangsa"]
 body:
   - type: markdown
     attributes:

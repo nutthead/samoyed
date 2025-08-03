@@ -1,9 +1,10 @@
+# yaml-language-server: https://www.schemastore.org/github-issue-forms.json 
 name: 📦 Distribution & Packaging
 description: Package manager integration, distribution channels, and installation methods
 title: "[Distribution]: "
 labels: ["🚀 deployment", "🏁 phase: transition", "🎯 type: nonfunctional"]
 projects: []
-assignees: []
+assignees: ["behrangsa"]
 body:
   - type: markdown
     attributes:

@@ -1,9 +1,10 @@
+# yaml-language-server: https://www.schemastore.org/github-issue-forms.json 
 name: 📝 General Issue
 description: General issue that doesn't fit other categories
 title: "[General]: "
 labels: []
 projects: []
-assignees: []
+assignees: ["behrangsa"]
 body:
   - type: markdown
     attributes:

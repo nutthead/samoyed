@@ -1,9 +1,10 @@
+# yaml-language-server: https://www.schemastore.org/github-issue-forms.json 
 name: 🐛 Bug Report
 description: Report a bug or defect in Samoid
 title: "[Bug]: "
 labels: ["🐛 bug", "🔥 priority: high"]
 projects: []
-assignees: []
+assignees: ["behrangsa"]
 body:
   - type: markdown
     attributes:

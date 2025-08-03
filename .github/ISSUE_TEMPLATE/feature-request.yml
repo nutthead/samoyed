@@ -1,9 +1,10 @@
+# yaml-language-server: https://www.schemastore.org/github-issue-forms.json 
 name: 🚀 Feature Request
 description: Request a new feature or functional requirement
 title: "[Feature]: "
 labels: ["✨ enhancement", "🛠️ type: functional", "🔨 phase: construction"]
 projects: []
-assignees: []
+assignees: ["behrangsa"]
 body:
   - type: markdown
     attributes:
