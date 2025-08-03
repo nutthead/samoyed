@@ -1,9 +1,10 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-issue-forms.json 
 name: 🧹 Technical Debt & Cleanup
 description: Address technical debt, remove unnecessary features, or clean up codebase
 title: "[Cleanup]: "
 labels: ["🧹 cleanup", "📐 phase: elaboration"]
 projects: []
-assignees: []
+assignees: ["behrangsa"]
 body:
   - type: markdown
     attributes:

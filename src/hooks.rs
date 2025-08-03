@@ -240,14 +240,14 @@ pub fn create_example_hook_scripts(
 #                      │  │              TWO-TIER LOOKUP SYSTEM                         │  │
 #                      │  └─────────────────────────────────────────────────────────────┘  │
 #                      │                                                                   │
-#                      │  1: PRIMARY: Check samoyed.toml                                   │
+#                      │  1 PRIMARY: Check samoyed.toml                                    │
 #                      │     ┌─────────────────┐                                           │
 #                      │     │ samoyed.toml    │  ✓ Found: Execute command via shell       │
 #                      │     │ [hooks]         │  ✕ Not found: Continue to fallback        │
 #                      │     │ pre-commit = …  │                                           │
 #                      │     └─────────────────┘                                           │
 #                      │                                                                   │
-#                      │  2: FALLBACK: Execute this script file                            │
+#                      │  2 FALLBACK: Execute this script file                             │
 #                      │     ┌─────────────────┐                                           │
 #                      │     │ .samoyed/       │  ✓ Found: Execute script file             │
 #                      │     │   scripts/      │  ✕ Not found: Exit silently (success)     │
@@ -255,7 +255,7 @@ pub fn create_example_hook_scripts(
 #                      │     └─────────────────┘                                           │
 #                      └───────────────────────────────────────────────────────────────────┘
 #
-# 🖭 WHEN IS THIS SCRIPT EXECUTED?
+# ⚡ WHEN IS THIS SCRIPT EXECUTED?
 # This script runs when:
 # - No command is defined for 'pre-commit' in samoyed.toml, OR
 # - You prefer using script files for complex multi-line logic
@@ -268,7 +268,7 @@ pub fn create_example_hook_scripts(
 # Option 2 - This script file (For complex workflows):
 #   Customize the script below for advanced logic, conditionals, or multi-step processes
 #
-# 🖳 ENVIRONMENT VARIABLES:
+# 🖥️ ENVIRONMENT VARIABLES:
 # - SAMOYED=0  Skip all hook execution
 # - SAMOYED=1  Normal execution (default)
 # - SAMOYED=2  Debug mode with detailed tracing
@@ -307,14 +307,14 @@ echo "Pre-commit checks passed!"
 #                      │  │              TWO-TIER LOOKUP SYSTEM                         │  │
 #                      │  └─────────────────────────────────────────────────────────────┘  │
 #                      │                                                                   │
-#                      │  1: PRIMARY: Check samoyed.toml                                   │
+#                      │  1 PRIMARY: Check samoyed.toml                                    │
 #                      │     ┌─────────────────┐                                           │
 #                      │     │ samoyed.toml    │  ✓ Found: Execute command via shell       │
 #                      │     │ [hooks]         │  ✕ Not found: Continue to fallback        │
 #                      │     │ pre-push = …    │                                           │
 #                      │     └─────────────────┘                                           │
 #                      │                                                                   │
-#                      │  2: FALLBACK: Execute this script file                            │
+#                      │  2 FALLBACK: Execute this script file                             │
 #                      │     ┌─────────────────┐                                           │
 #                      │     │ .samoyed/       │  ✓ Found: Execute script file             │
 #                      │     │   scripts/      │  ✕ Not found: Exit silently (success)     │
@@ -322,7 +322,7 @@ echo "Pre-commit checks passed!"
 #                      │     └─────────────────┘                                           │
 #                      └───────────────────────────────────────────────────────────────────┘
 #
-# 🖭 WHEN IS THIS SCRIPT EXECUTED?
+# ⚡ WHEN IS THIS SCRIPT EXECUTED?
 # This script runs when:
 # - No command is defined for 'pre-push' in samoyed.toml, OR
 # - You prefer using script files for complex multi-line logic
@@ -335,7 +335,7 @@ echo "Pre-commit checks passed!"
 # Option 2 - This script file (For complex workflows):
 #   Customize the script below for advanced logic, conditionals, or multi-step processes
 #
-# 🖳 ENVIRONMENT VARIABLES:
+# 🖥️ ENVIRONMENT VARIABLES:
 # - SAMOYED=0  Skip all hook execution
 # - SAMOYED=1  Normal execution (default)
 # - SAMOYED=2  Debug mode with detailed tracing
