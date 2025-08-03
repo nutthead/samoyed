@@ -1,78 +1,133 @@
-# 🚀 Release Workflow for Samoyed
+# =============================================================================
+# SAMOYED RELEASE AUTOMATION WORKFLOW
+# =============================================================================
 #
-# This workflow automates the release process for Samoyed, implementing:
-# - AC11.10: Automated binary builds and GitHub releases
-# - AC11.11: Changelog generation
-# - AC11.12: Publishing to crates.io
+# WHAT: Fully automated release pipeline for Samoyed git hooks manager
+# WHY: Ensures consistent, reliable releases across multiple platforms
+# FEATURES:
+#   - Cross-platform binary builds (Linux, macOS, Windows)
+#   - Automated changelog generation from conventional commits
+#   - GitHub release creation with artifacts
+#   - Conditional crates.io publishing (stable releases only)
+#   - Post-release automation (issue notifications, summaries)
 #
-# Triggered by:
-# - Push of version tags (e.g., v0.1.0, v1.0.0-beta.1)
-# - Manual workflow dispatch for testing
+# TRIGGER CONDITIONS:
+#   - Version tags: v1.0.0, v1.0.0-beta.1, etc. (semantic versioning)
+#   - Manual dispatch: For testing and emergency releases
 #
-# Release Process:
-# 1. Validate version tag format
-# 2. Build release binaries for all platforms
-# 3. Generate changelog from git history
-# 4. Create GitHub release with artifacts
-# 5. Publish to crates.io (if not a pre-release)
+# RELEASE PIPELINE:
+#   1. Validate version consistency between tag and Cargo.toml
+#   2. Build optimized binaries for all supported platforms
+#   3. Generate structured changelog from git commit history
+#   4. Create GitHub release with downloadable artifacts
+#   5. Publish to crates.io registry (stable releases only)
+#   6. Execute post-release tasks (notifications, summaries)
 
 name: 🚀 Release
 
+# =============================================================================
+# WORKFLOW PERMISSIONS
+# =============================================================================
+# WHAT: GitHub token permissions required for release operations
+# WHY: Principle of least privilege - only request necessary permissions
+# CONTENTS: write - Create releases, upload artifacts
+# PULL-REQUESTS: write - Comment on PRs related to releases
+# ISSUES: write - Comment on issues resolved in releases
 permissions:
   contents: write
   pull-requests: write
   issues: write
 
+# =============================================================================
+# WORKFLOW TRIGGER CONFIGURATION
+# =============================================================================
+# WHAT: Defines when this release workflow executes
+# WHY: Enables both automated (tag-based) and manual releases
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+*'  # Matches v0.1.0, v1.0.0-beta.1, etc.
+      # SYNTAX: Regex pattern for semantic version tags
+      # MATCHES: v1.0.0, v2.1.3, v1.0.0-beta.1, v2.0.0-rc.1
+      # FORMAT: v{major}.{minor}.{patch}[-{prerelease}]
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+  
+  # WHAT: Manual workflow trigger with configurable inputs
+  # WHY: Allows testing releases, emergency releases, or custom versions
   workflow_dispatch:
     inputs:
       version:
         description: 'Version to release (e.g., 0.1.0)'
         required: true
-        type: string
+        type: string  # GitHub Actions input type for text
       dry_run:
         description: 'Dry run (skip publishing)'
         required: false
-        type: boolean
+        type: boolean  # GitHub Actions input type for checkboxes
         default: false
 
+# =============================================================================
+# GLOBAL ENVIRONMENT VARIABLES
+# =============================================================================
+# WHAT: Environment variables available to all jobs in this workflow
+# WHY: Consistent configuration for optimal debugging and output
 env:
-  CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always  # Force colored Cargo output in CI logs
+  RUST_BACKTRACE: 1         # Enable detailed stack traces on panics
 
 jobs:
-  # Validate version and prepare release
+  # =============================================================================
+  # JOB 1: RELEASE PREPARATION AND VALIDATION
+  # =============================================================================
+  # WHAT: Validates version consistency and prepares release metadata
+  # WHY: Prevents releases with mismatched versions or invalid tags
+  # OUTPUTS: Provides version info and prerelease status to dependent jobs
   prepare:
     name: 🔍 Prepare Release
     runs-on: ubuntu-latest
+    # Job outputs that other jobs can reference via needs.prepare.outputs.*
+    # These values determine release behavior (crates.io publishing, GitHub release type)
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      version: ${{ steps.version.outputs.version }}           # Semantic version (e.g., "1.0.0")
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }} # Boolean string indicating pre-release
       
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for changelog generation
+          # WHAT: fetch-depth: 0 downloads complete git history
+          # WHY: Required for changelog generation (git log, tag comparison)
+          # DEFAULT: fetch-depth: 1 (shallow clone) insufficient for releases
+          fetch-depth: 0
 
       - name: 🏷️ Determine version
-        id: version
+        id: version  # Step ID for referencing outputs in other steps
         run: |
+          # =================================================================
+          # VERSION EXTRACTION LOGIC
+          # =================================================================
+          # WHAT: Extract version from trigger source (tag or manual input)
+          # WHY: Support both automated tag-based and manual releases
+          # SYNTAX: github.event_name is built-in context variable
+          
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Manual trigger: use provided version input
             VERSION="${{ github.event.inputs.version }}"
-            TAG="v${VERSION}"
+            TAG="v${VERSION}"  # Prefix with 'v' for consistency
           else
-            TAG="${{ github.ref_name }}"
-            VERSION="${TAG#v}"
+            # Tag trigger: extract version from tag name
+            TAG="${{ github.ref_name }}"  # github.ref_name contains tag name
+            VERSION="${TAG#v}"           # Remove 'v' prefix using bash parameter expansion
           fi
           
+          # WHAT: Set step outputs for use in other jobs
+          # SYNTAX: >> $GITHUB_OUTPUT is GitHub Actions method to set outputs
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
           
-          # Check if pre-release (contains -, e.g., 1.0.0-beta.1)
+          # WHAT: Determine if this is a pre-release version
+          # WHY: Pre-releases skip crates.io publishing and use different GitHub release flags
+          # LOGIC: Semantic version with hyphen indicates pre-release (e.g., 1.0.0-beta.1)
+          # SYNTAX: [[ "$VERSION" =~ "-" ]] is bash regex matching
           if [[ "$VERSION" =~ "-" ]]; then
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
             echo "📦 Pre-release version detected: ${VERSION}"
@@ -83,16 +138,29 @@ jobs:
 
       - name: 🔍 Validate Cargo.toml version
         run: |
+          # =================================================================
+          # VERSION CONSISTENCY VALIDATION
+          # =================================================================
+          # WHAT: Ensure Cargo.toml version matches release tag
+          # WHY: Prevents publishing releases with incorrect version metadata
+          # CRITICAL: Cargo publish uses Cargo.toml version, must match tag
+          
+          # SYNTAX: Pipeline of commands to extract version from Cargo.toml
+          # grep -E "^version" - Find lines starting with "version"
+          # head -1 - Take first match (main package version)
+          # cut -d'"' -f2 - Split on quotes, take second field (version string)
           CARGO_VERSION=$(grep -E "^version" Cargo.toml | head -1 | cut -d'"' -f2)
           EXPECTED_VERSION="${{ steps.version.outputs.version }}"
           
+          # WHAT: Compare versions and fail if mismatch
+          # WHY: Version mismatch would cause publish failures or incorrect releases
           if [[ "$CARGO_VERSION" != "$EXPECTED_VERSION" ]]; then
             echo "❌ Version mismatch!"
             echo "Cargo.toml version: ${CARGO_VERSION}"
             echo "Release version: ${EXPECTED_VERSION}"
             echo ""
             echo "Please update Cargo.toml version to match the release tag."
-            exit 1
+            exit 1  # Fail the workflow with error exit code
           fi
           
           echo "✅ Version validated: ${CARGO_VERSION}"

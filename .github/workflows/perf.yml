@@ -1,94 +1,155 @@
-# ⚡ Performance Testing Pipeline
+# =============================================================================
+# SAMOYED PERFORMANCE TESTING PIPELINE
+# =============================================================================
 #
-# Comprehensive performance testing workflow for Samoyed Git hooks manager.
-# This workflow implements AC8.7 (Dedicated performance testing pipeline) and AC8.8
-# (Benchmark results tracking and comparison system) from Issue #8.
+# WHAT: Comprehensive performance validation and regression detection system
+# WHY: Ensures Samoyed maintains excellent performance characteristics across
+#      all changes, preventing performance regressions that affect user experience
 #
 # ARCHITECTURE OVERVIEW:
-# =====================
-# This pipeline runs SEPARATELY from functional tests (test.yml) to provide:
-# - Non-blocking performance validation (functional tests don't wait for perf results)
-# - Consistent performance measurement environment
-# - Dedicated performance artifact storage and historical tracking
-# - Specialized performance regression detection and alerting
+# ======================
+# SEPARATION: Runs independently from functional tests (test.yml)
+# BENEFITS:
+#   - Non-blocking performance validation (functional tests don't wait)
+#   - Consistent measurement environment without functional test interference
+#   - Dedicated performance artifact storage and historical tracking
+#   - Specialized regression detection and alerting capabilities
 #
-# PERFORMANCE CRITERIA VALIDATED:
-# ==============================
-# - AC8.1: Hook execution overhead < 50ms (critical for developer experience)
-# - AC8.2: Binary size < 10MB (affects distribution and startup time)
-# - AC8.3: Memory usage < 50MB (system resource efficiency)
-# - AC8.4: Startup time < 100ms (CLI responsiveness)
-# - AC8.5: Efficient filesystem operations (installation performance)
-# - AC8.6: Minimal dependencies (validated separately via cargo tree)
+# PERFORMANCE ACCEPTANCE CRITERIA:
+# ===============================
+# AC8.1: Hook execution overhead < 50ms (critical for developer experience)
+# AC8.2: Binary size < 10MB (affects distribution and startup time)
+# AC8.3: Memory usage < 50MB (system resource efficiency)
+# AC8.4: Startup time < 100ms (CLI responsiveness)
+# AC8.5: Efficient filesystem operations (installation performance)
+# AC8.6: Minimal dependencies (validated separately via cargo tree)
 #
-# WORKFLOW STAGES:
-# ===============
-# 1. Build release binaries (optimized for production performance)
-# 2. Measure binary sizes with compliance checking
-# 3. Measure memory usage during actual operations
-# 4. Execute comprehensive benchmark suite
-# 5. Generate structured performance metrics
+# WORKFLOW EXECUTION STAGES:
+# =========================
+# 1. Build optimized release binaries (production performance profile)
+# 2. Measure and validate binary sizes against acceptance criteria
+# 3. Measure memory usage during realistic operations
+# 4. Execute comprehensive benchmark suite with statistical analysis
+# 5. Generate structured performance metrics in JSON format
 # 6. Compare against historical baseline with regression detection
-# 7. Generate human-readable performance reports
-# 8. Store results for long-term performance tracking
+# 7. Generate human-readable performance reports for stakeholders
+# 8. Store results for long-term performance trend analysis
 # 9. Update performance baseline for future comparisons (master only)
 #
-# INTELLIGENT FEATURES:
-# ====================
+# INTELLIGENT AUTOMATION FEATURES:
+# ================================
 # - Automated PR comments with performance impact analysis
 # - Regression detection with configurable thresholds (10%/20% warning/critical)
-# - Historical baseline comparison using master branch data
+# - Historical baseline comparison using master branch performance data
 # - Performance trend tracking with 90-day artifact retention
 # - Cross-platform performance measurement capabilities
-# - Manual execution support for ad-hoc performance testing
+# - Manual execution support for ad-hoc performance testing scenarios
 
 name: ⚡ Performance Testing
 
+# =============================================================================
+# WORKFLOW PERMISSIONS
+# =============================================================================
+# WHAT: GitHub token permissions required for performance testing operations
+# WHY: Principle of least privilege - only request necessary permissions
+# CONTENTS: read - Access repository code and artifacts
+# ISSUES: write - Comment on issues with performance impact
+# PULL-REQUESTS: write - Comment on PRs with performance analysis
+# CHECKS: write - Create status checks for performance validation
 permissions:
   contents: read
   issues: write
   pull-requests: write
   checks: write
 
+# =============================================================================
+# WORKFLOW TRIGGER CONFIGURATION
+# =============================================================================
+# WHAT: Defines when performance testing should execute
+# WHY: Balance between thorough validation and CI resource efficiency
 on:
-  # Automatic triggers for performance validation
+  # =============================================================
+  # PUSH TRIGGERS: Baseline Performance Validation
+  # =============================================================
   push:
-    branches: [master, develop] # Only test main branches to avoid noise
+    # WHAT: Only test main development branches
+    # WHY: Avoid CI noise from feature branches, focus on integration points
+    branches: [master, develop]
+    # WHAT: Path-based filtering for performance-relevant changes
+    # WHY: Skip performance tests when only docs/config files change
     paths:
-      - "src/**" # Rust source code changes
-      - "tests/**" # Test and benchmark changes
-      - "Cargo.toml" # Dependencies changes
-      - ".github/workflows/perf.yml" # Pipeline changes themselves
+      - "src/**"                          # Rust source code changes
+      - "tests/**"                        # Test and benchmark changes
+      - "Cargo.toml"                      # Dependencies changes
+      - ".github/workflows/perf.yml"      # Pipeline changes themselves
+  
+  # =============================================================
+  # PULL REQUEST TRIGGERS: Performance Impact Analysis
+  # =============================================================
   pull_request:
-    branches: [master, develop] # Performance impact analysis for PRs
+    # WHAT: Analyze performance impact for PRs targeting main branches
+    # WHY: Catch performance regressions before they're merged
+    branches: [master, develop]
+    # WHAT: Same path filtering as push triggers
+    # WHY: Consistent behavior between push and PR validation
     paths:
-      - "src/**" # Only run if code actually changed
-      - "tests/**" # Test and benchmark changes
-      - "Cargo.toml" # Dependencies changes
-      - ".github/workflows/perf.yml" # Test pipeline changes
+      - "src/**"                          # Only run if code actually changed
+      - "tests/**"                        # Test and benchmark changes
+      - "Cargo.toml"                      # Dependencies changes
+      - ".github/workflows/perf.yml"      # Test pipeline changes
+  
+  # =============================================================
+  # SCHEDULED TRIGGERS: Continuous Performance Monitoring
+  # =============================================================
   schedule:
-    # Nightly performance monitoring at 2 AM UTC (low GitHub Actions usage time)
-    # Provides regular baseline measurements and catches gradual performance drift
+    # WHAT: Nightly performance monitoring at 2 AM UTC
+    # WHY: Low GitHub Actions usage time, regular baseline measurements
+    # PURPOSE: Catches gradual performance drift over time
+    # SYNTAX: Cron format "minute hour day month weekday"
     - cron: "0 2 * * *"
+  
+  # =============================================================
+  # MANUAL TRIGGERS: Ad-hoc Performance Testing
+  # =============================================================
   workflow_dispatch:
-    # Manual execution capability for ad-hoc performance testing
-    # Enables on-demand performance analysis and debugging
+    # WHAT: Manual execution capability for on-demand testing
+    # WHY: Enables performance analysis and debugging outside normal triggers
+    # USE CASES: Performance investigation, baseline establishment, testing
 
-# Concurrency control prevents multiple performance tests from interfering with each other
-# Each branch gets its own concurrency group, and new runs cancel old ones for efficiency
+# =============================================================================
+# CONCURRENCY CONTROL
+# =============================================================================
+# WHAT: Prevents multiple performance tests from interfering with each other
+# WHY: Performance measurements require consistent, isolated environment
+# STRATEGY: Each branch gets its own concurrency group
+# BEHAVIOR: New runs cancel old ones for resource efficiency
+# SYNTAX: group key combines workflow name + git ref (branch/tag/PR number)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Environment variables for consistent Rust toolchain behavior
+# =============================================================================
+# GLOBAL ENVIRONMENT VARIABLES
+# =============================================================================
+# WHAT: Environment variables for consistent Rust toolchain behavior
+# WHY: Reproducible performance measurements across all runs
 env:
-  CARGO_TERM_COLOR: always # Colorized output for better CI log readability
-  RUST_BACKTRACE: 1 # Full backtraces for debugging if benchmarks fail
+  CARGO_TERM_COLOR: always  # Force colorized output for better CI log readability
+  RUST_BACKTRACE: 1         # Enable full backtraces for debugging if benchmarks fail
 
 jobs:
+  # =============================================================================
+  # JOB 1: COMPREHENSIVE PERFORMANCE BENCHMARKING
+  # =============================================================================
+  # WHAT: Executes complete performance validation suite
+  # WHY: Single job ensures consistent environment and measurement sequence
+  # SCOPE: Binary size, memory usage, execution performance, compliance validation
   performance:
     name: Performance Benchmarks
-    runs-on: ubuntu-latest # Consistent runner for reliable performance measurements
+    # WHAT: Use consistent runner for reliable performance measurements
+    # WHY: Same hardware/OS ensures reproducible benchmark results
+    # CHOICE: ubuntu-latest provides stable, well-characterized environment
+    runs-on: ubuntu-latest
 
     steps:
       - name: 📥 Checkout repository
@@ -100,17 +161,30 @@ jobs:
           components: rustfmt, clippy
 
       - name: 📊 Install cargo-criterion for JSON output
-        run: cargo install cargo-criterion
+        run: |
+          # WHAT: Install enhanced Criterion benchmarking tool
+          # WHY: Provides structured JSON output for programmatic analysis
+          # FEATURE: Statistical analysis, regression detection, trend tracking
+          cargo install cargo-criterion
 
       - name: 📦 Cache Rust dependencies
         uses: actions/cache@v4
         with:
+          # WHAT: Directories to cache for faster performance test builds
+          # WHY: Reduce benchmark setup time while preserving measurement accuracy
           path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
+            ~/.cargo/registry/index/     # Cargo registry index
+            ~/.cargo/registry/cache/     # Downloaded crate sources
+            ~/.cargo/git/db/            # Git dependencies
+            target/                     # Compiled artifacts
+          
+          # WHAT: Cache key strategy for performance builds
+          # SYNTAX: Includes 'perf' identifier to separate from other build caches
+          # WHY: Performance builds may have different optimization profiles
           key: ${{ runner.os }}-cargo-perf-${{ hashFiles('Cargo.lock') }}
+          
+          # WHAT: Fallback cache keys if exact match not found
+          # PRIORITY: Performance-specific cache first, then general Cargo cache
           restore-keys: |
             ${{ runner.os }}-cargo-perf-
             ${{ runner.os }}-cargo-
@@ -122,6 +196,10 @@ jobs:
 
       - name: 🏗️ Build release binaries
         run: |
+          # WHAT: Compile optimized binaries for performance testing
+          # WHY: Release profile provides production-equivalent performance
+          # OPTIMIZATIONS: Link-time optimization, dead code elimination, inlining
+          # IMPORTANCE: Performance measurements must reflect real-world usage
           cargo build --release --verbose
 
       - name: 📏 Measure binary sizes
