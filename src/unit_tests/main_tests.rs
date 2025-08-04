@@ -1,6 +1,6 @@
 use super::*;
-use clap::Parser;
 use crate::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSystem};
+use clap::Parser;
 
 #[test]
 fn test_cli_struct_parsing() {
@@ -114,10 +114,8 @@ fn test_hook_command_basic_functionality() {
     let args = vec!["samoyed".to_string(), "pre-commit".to_string()];
 
     // Should exit silently when no script exists (tested via process::exit in the actual code)
-    let result = std::panic::catch_unwind(|| {
-        hook_command(&env, &runner, &fs, &args)
-    });
-    
+    let result = std::panic::catch_unwind(|| hook_command(&env, &runner, &fs, &args));
+
     // The function calls process::exit(0) when no script exists, which panics in tests
     assert!(result.is_err());
 }
@@ -129,12 +127,10 @@ fn test_hook_command_with_samoyed_zero() {
     let fs = MockFileSystem::new();
 
     let args = vec!["samoyed".to_string(), "pre-commit".to_string()];
-    
+
     // Should exit immediately when SAMOYED=0 (tested via process::exit in the actual code)
-    let result = std::panic::catch_unwind(|| {
-        hook_command(&env, &runner, &fs, &args)
-    });
-    
+    let result = std::panic::catch_unwind(|| hook_command(&env, &runner, &fs, &args));
+
     // The function calls process::exit(0) when SAMOYED=0, which panics in tests
     assert!(result.is_err());
 }
@@ -146,7 +142,7 @@ fn test_load_hook_command_from_config_success() {
 [hooks]
 pre-commit = "cargo fmt --check"
 "#;
-    
+
     let fs = MockFileSystem::new().with_file("samoyed.toml", config_content);
 
     let result = load_hook_command_from_config(&fs, "pre-commit", false);
@@ -160,7 +156,12 @@ fn test_load_hook_command_from_config_missing_file() {
 
     let result = load_hook_command_from_config(&fs, "pre-commit", false);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("No samoyed.toml configuration file found"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("No samoyed.toml configuration file found")
+    );
 }
 
 #[test]
@@ -170,12 +171,17 @@ fn test_load_hook_command_from_config_missing_hook() {
 [hooks]
 pre-push = "cargo test"
 "#;
-    
+
     let fs = MockFileSystem::new().with_file("samoyed.toml", config_content);
 
     let result = load_hook_command_from_config(&fs, "pre-commit", false);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("No command configured for hook 'pre-commit'"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("No command configured for hook 'pre-commit'")
+    );
 }
 
 #[test]
@@ -183,21 +189,21 @@ fn test_is_windows_unix_environment() {
     // Test MSYSTEM detection (Git Bash / MSYS2)
     let env = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
     assert!(is_windows_unix_environment(&env, false));
-    
+
     let env = MockEnvironment::new().with_var("MSYSTEM", "MSYS");
     assert!(is_windows_unix_environment(&env, false));
-    
+
     // Test Cygwin detection
     let env = MockEnvironment::new().with_var("CYGWIN", "nodosfilewarning");
     assert!(is_windows_unix_environment(&env, false));
-    
+
     // Test WSL detection
     let env = MockEnvironment::new().with_var("WSL_DISTRO_NAME", "Ubuntu");
     assert!(is_windows_unix_environment(&env, false));
-    
+
     let env = MockEnvironment::new().with_var("WSL_INTEROP", "/run/WSL/interop");
     assert!(is_windows_unix_environment(&env, false));
-    
+
     // Test native Windows (no Unix environment vars)
     let env = MockEnvironment::new();
     assert!(!is_windows_unix_environment(&env, false));
