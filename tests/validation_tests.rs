@@ -98,7 +98,7 @@ fn test_hook_content_validation() {
         .read_to_string(pre_commit_path)
         .expect("pre-commit hook should exist");
     assert!(pre_commit_content.starts_with("#!/usr/bin/env sh"));
-    assert!(pre_commit_content.contains("samoyed-hook"));
+    assert!(pre_commit_content.contains("samoyed hook"));
 
     // Verify gitignore
     let gitignore_path = std::path::Path::new(".samoyed/_/.gitignore");
@@ -121,10 +121,10 @@ fn test_hook_content_validation() {
             "Hook {hook} should start with proper shebang"
         );
 
-        // Verify it references the samoyed-hook runner
+        // Verify it references the samoyed hook command
         assert!(
-            hook_content.contains("exec samoyed-hook"),
-            "Hook {hook} should exec the samoyed-hook binary"
+            hook_content.contains("exec samoyed hook"),
+            "Hook {hook} should exec the samoyed hook command"
         );
     }
 }

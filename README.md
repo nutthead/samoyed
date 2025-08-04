@@ -54,11 +54,6 @@ samoyed init
 samoyed init --hooks-dir custom-hooks
 ```
 
-### Environment Variables
-
-- `SAMOYED=0` - Skip hook installation entirely
-- `SAMOYED_DEBUG=1` - Enable debug logging
-
 ## Architecture
 
 Samoyed uses a three-layer architecture that provides both flexibility and performance:
@@ -213,7 +208,7 @@ Tarpaulin is configured in [.tarpaulin.toml](.tarpaulin.toml) to store reports i
 4. Make your changes
 5. Add tests for new functionality
 6. Ensure all tests pass
-6. Submit a pull request
+7. Submit a pull request
 
 ## License
 

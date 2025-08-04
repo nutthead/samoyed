@@ -46,7 +46,7 @@ fn test_init_command_creates_directories() {
     let fs = MockFileSystem::new().with_directory(".git");
 
     // Should succeed
-    let result = init_command(&env, &runner, &fs, None);
+    let result = init_command(&env, &runner, &fs, None, None);
     assert!(result.is_ok());
 }
 
@@ -58,7 +58,7 @@ fn test_init_command_fails_without_git() {
     let fs = MockFileSystem::new(); // No .git directory
 
     // Should fail without .git
-    let result = init_command(&env, &runner, &fs, None);
+    let result = init_command(&env, &runner, &fs, None, None);
     assert!(result.is_err());
     assert!(
         result
@@ -97,7 +97,7 @@ fn test_init_command_with_project_type_hint() {
     let fs = MockFileSystem::new().with_directory(".git");
 
     // Should succeed with project type hint
-    let result = init_command(&env, &runner, &fs, Some("rust".to_string()));
+    let result = init_command(&env, &runner, &fs, Some("rust".to_string()), None);
     assert!(result.is_ok());
 }
 
@@ -130,7 +130,7 @@ fn test_init_command_git_config_failure() {
     let fs = MockFileSystem::new().with_directory(".git");
 
     // Should fail when git config fails
-    let result = init_command(&env, &runner, &fs, None);
+    let result = init_command(&env, &runner, &fs, None, None);
     assert!(result.is_err());
     let error_msg = result.unwrap_err().to_string();
     assert!(error_msg.contains("Git configuration failed"));
@@ -165,7 +165,7 @@ fn test_init_command_with_existing_config() {
         .with_directory(".git")
         .with_file("samoyed.toml", "[hooks]\npre-commit = \"echo test\"");
 
-    let result = init_command(&env, &runner, &fs, None);
+    let result = init_command(&env, &runner, &fs, None, None);
     assert!(result.is_ok());
 }
 
@@ -197,7 +197,7 @@ fn test_init_command_with_invalid_project_type_hint() {
     let fs = MockFileSystem::new().with_directory(".git");
 
     // Should succeed even with invalid hint, falling back to auto-detect
-    let result = init_command(&env, &runner, &fs, Some("invalid-type".to_string()));
+    let result = init_command(&env, &runner, &fs, Some("invalid-type".to_string()), None);
     assert!(result.is_ok());
 }
 
@@ -230,7 +230,7 @@ fn test_init_command_all_project_types() {
 
         let fs = MockFileSystem::new().with_directory(".git");
 
-        let result = init_command(&env, &runner, &fs, Some(project_type.to_string()));
+        let result = init_command(&env, &runner, &fs, Some(project_type.to_string()), None);
         assert!(result.is_ok(), "Failed for project type: {project_type}");
     }
 }
@@ -264,7 +264,7 @@ fn test_init_command_with_various_scenarios() {
         .with_file("Cargo.toml", "[package]\nname = \"test\"");
 
     // Should detect Rust project and succeed
-    let result = init_command(&env, &runner, &fs, None);
+    let result = init_command(&env, &runner, &fs, None, None);
     assert!(result.is_ok());
 }
 
@@ -300,11 +300,17 @@ fn test_project_type_detection_fallback() {
         .with_file("requirements.txt", "");
 
     // Test with invalid hint - should fallback to auto-detection
-    let result = init_command(&env, &runner, &fs, Some("invalid-language".to_string()));
+    let result = init_command(
+        &env,
+        &runner,
+        &fs,
+        Some("invalid-language".to_string()),
+        None,
+    );
     assert!(result.is_ok());
 
     // Test with empty hint
-    let result = init_command(&env, &runner, &fs, Some("".to_string()));
+    let result = init_command(&env, &runner, &fs, Some("".to_string()), None);
     assert!(result.is_ok());
 }
 
@@ -334,7 +340,7 @@ fn test_verbose_output_with_environment_variable() {
     let fs = MockFileSystem::new().with_directory(".git");
 
     // Should succeed with verbose environment variable set
-    let result = init_command(&env, &runner, &fs, None);
+    let result = init_command(&env, &runner, &fs, None, None);
     assert!(result.is_ok());
 
     // Test with existing config and verbose mode
@@ -342,7 +348,7 @@ fn test_verbose_output_with_environment_variable() {
         .with_directory(".git")
         .with_file("samoyed.toml", "[hooks]\npre-commit = \"test\"");
 
-    let result = init_command(&env, &runner, &fs_with_config, None);
+    let result = init_command(&env, &runner, &fs_with_config, None, None);
     assert!(result.is_ok());
 }
 
@@ -371,15 +377,15 @@ fn test_environment_variable_not_set() {
 
     let fs = MockFileSystem::new().with_directory(".git");
 
-    let result = init_command(&env, &runner, &fs, None);
+    let result = init_command(&env, &runner, &fs, None, None);
     assert!(result.is_ok());
 
     // Test with SAMOYED_VERBOSE set to something other than "1"
     let env_other = MockEnvironment::new().with_var("SAMOYED_VERBOSE", "0");
-    let result = init_command(&env_other, &runner, &fs, None);
+    let result = init_command(&env_other, &runner, &fs, None, None);
     assert!(result.is_ok());
 
     let env_false = MockEnvironment::new().with_var("SAMOYED_VERBOSE", "false");
-    let result = init_command(&env_false, &runner, &fs, None);
+    let result = init_command(&env_false, &runner, &fs, None, None);
     assert!(result.is_ok());
 }

@@ -150,8 +150,8 @@ pub fn create_hook_directory(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<()
 /// Creates all standard Git hook files
 ///
 /// This function creates a hook file for each standard Git hook. Each hook
-/// file is a simple shell script that delegates to the `samoyed-hook` binary
-/// runner. All hook files are made executable (mode 0755).
+/// file is a simple shell script that delegates to the `samoyed hook` command.
+/// All hook files are made executable (mode 0755).
 ///
 /// # Arguments
 ///
@@ -168,13 +168,13 @@ pub fn create_hook_directory(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<()
 /// Each hook file contains:
 /// ```bash
 /// #!/usr/bin/env sh
-/// exec samoyed-hook "$(basename "$0")" "$@"
+/// exec samoyed hook "$(basename "$0")" "$@"
 /// ```
 ///
-/// This delegates to the `samoyed-hook` binary, passing the hook name and all arguments.
+/// This delegates to the `samoyed hook` command, passing the hook name and all arguments.
 pub fn create_hook_files(fs: &dyn FileSystem, hooks_dir: &Path) -> Result<(), HookError> {
     let hook_content = r#"#!/usr/bin/env sh
-exec samoyed-hook "$(basename "$0")" "$@""#;
+exec samoyed hook "$(basename "$0")" "$@""#;
 
     // Normalize line endings to LF for cross-platform compatibility
     let normalized_content = normalize_line_endings(hook_content);
