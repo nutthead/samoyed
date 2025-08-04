@@ -29,6 +29,58 @@ Samoyed is published on [crates.io](https://crates.io/crates/samoyed):
 cargo install samoyed
 ```
 
+## Migration Guide
+
+### Upgrading from Dual-Binary Versions (v0.1.x)
+
+⚠️ **Important**: Samoyed has migrated from a dual-binary architecture (`samoyed` + `samoyed-hook`) to a unified single binary (`samoyed` with `hook` subcommand).
+
+#### What Changed
+
+- **Before**: `exec samoyed-hook "pre-commit" "$@"`
+- **After**: `exec samoyed hook "pre-commit" "$@"`
+
+#### Migration Steps
+
+1. **Update Samoyed**: Install the latest version
+   ```bash
+   cargo install samoyed
+   ```
+
+2. **Re-initialize Your Hooks**: This updates your `.samoyed/_/*` files to use the new unified binary
+   ```bash
+   # Option 1: Standard re-initialization (recommended)
+   # Safe to run multiple times, updates hooks only if needed
+   samoyed init
+   
+   # Option 2: Force re-initialization (explicit migration)
+   # Explicitly overwrites all hook files to ensure complete migration
+   samoyed init -f _
+   ```
+   
+   **When to use each option:**
+   - Use `samoyed init` for normal migration (safe, non-destructive)
+   - Use `samoyed init -f _` if you want to force complete re-creation of all hook files
+
+3. **Verify Migration**: Check that your hook files now reference `samoyed hook`
+   ```bash
+   cat .samoyed/_/pre-commit
+   # Should show: exec samoyed hook "$(basename "$0")" "$@"
+   ```
+
+#### Deprecation Timeline
+
+- **Now**: `samoyed-hook` binary still works but shows deprecation warnings
+- **September 1, 2025**: `samoyed-hook` binary will be removed entirely
+- **Recommended**: Migrate immediately to avoid future issues
+
+#### Troubleshooting
+
+If you encounter issues:
+- Ensure you have the latest version: `samoyed --version`
+- Re-run `samoyed init` to refresh all hook files
+- Check that `samoyed hook --help` works
+
 ## Quick Start
 
 Initialize Git hooks in your repository:
