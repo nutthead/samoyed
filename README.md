@@ -49,11 +49,18 @@ cargo install samoyed
 
 2. **Re-initialize Your Hooks**: This updates your `.samoyed/_/*` files to use the new unified binary
    ```bash
-   # In your project directory
+   # Option 1: Standard re-initialization (recommended)
+   # Safe to run multiple times, updates hooks only if needed
    samoyed init
+   
+   # Option 2: Force re-initialization (explicit migration)
+   # Explicitly overwrites all hook files to ensure complete migration
+   samoyed init -f _
    ```
    
-   This command is safe to run multiple times and will update your existing hook files.
+   **When to use each option:**
+   - Use `samoyed init` for normal migration (safe, non-destructive)
+   - Use `samoyed init -f _` if you want to force complete re-creation of all hook files
 
 3. **Verify Migration**: Check that your hook files now reference `samoyed hook`
    ```bash
