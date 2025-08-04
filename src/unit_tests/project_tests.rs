@@ -3,7 +3,7 @@ use std::fs;
 use tempfile::TempDir;
 
 #[test]
-fn test_detect_rust_project() {
+fn detect_rust_project() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(
         temp_dir.path().join("Cargo.toml"),
@@ -18,7 +18,7 @@ fn test_detect_rust_project() {
 }
 
 #[test]
-fn test_detect_go_project() {
+fn detect_go_project() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(temp_dir.path().join("go.mod"), "module test").unwrap();
 
@@ -29,7 +29,7 @@ fn test_detect_go_project() {
 }
 
 #[test]
-fn test_detect_node_project() {
+fn detect_node_project() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(temp_dir.path().join("package.json"), "{}").unwrap();
 
@@ -40,7 +40,7 @@ fn test_detect_node_project() {
 }
 
 #[test]
-fn test_detect_python_project() {
+fn detect_python_project() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(temp_dir.path().join("requirements.txt"), "").unwrap();
 
@@ -51,7 +51,7 @@ fn test_detect_python_project() {
 }
 
 #[test]
-fn test_detect_python_project_pyproject() {
+fn detect_python_project_pyproject() {
     let temp_dir = TempDir::new().unwrap();
     fs::write(temp_dir.path().join("pyproject.toml"), "").unwrap();
 
@@ -62,7 +62,7 @@ fn test_detect_python_project_pyproject() {
 }
 
 #[test]
-fn test_detect_unknown_project() {
+fn detect_unknown_project() {
     let temp_dir = TempDir::new().unwrap();
 
     assert_eq!(
@@ -72,7 +72,7 @@ fn test_detect_unknown_project() {
 }
 
 #[test]
-fn test_from_string() {
+fn from_string() {
     assert_eq!(ProjectType::from_string("rust"), Some(ProjectType::Rust));
     assert_eq!(ProjectType::from_string("RUST"), Some(ProjectType::Rust));
     assert_eq!(ProjectType::from_string("rs"), Some(ProjectType::Rust));
@@ -101,7 +101,7 @@ fn test_from_string() {
 }
 
 #[test]
-fn test_project_type_names() {
+fn project_type_names() {
     assert_eq!(ProjectType::Rust.name(), "Rust");
     assert_eq!(ProjectType::Go.name(), "Go");
     assert_eq!(ProjectType::Node.name(), "Node.js");
@@ -110,7 +110,7 @@ fn test_project_type_names() {
 }
 
 #[test]
-fn test_default_commands() {
+fn default_commands() {
     assert!(
         ProjectType::Rust
             .default_pre_commit_command()
@@ -161,7 +161,7 @@ fn test_default_commands() {
 }
 
 #[test]
-fn test_priority_detection() {
+fn priority_detection() {
     // Test that Rust takes priority when multiple project files exist
     let temp_dir = TempDir::new().unwrap();
     fs::write(
@@ -179,7 +179,7 @@ fn test_priority_detection() {
 }
 
 #[test]
-fn test_all_default_pre_commit_commands() {
+fn all_default_pre_commit_commands() {
     // Test all project types to ensure coverage of default_pre_commit_command
     let rust_cmd = ProjectType::Rust.default_pre_commit_command();
     assert!(rust_cmd.contains("cargo fmt"));
@@ -202,7 +202,7 @@ fn test_all_default_pre_commit_commands() {
 }
 
 #[test]
-fn test_all_default_pre_push_commands() {
+fn all_default_pre_push_commands() {
     // Test all project types to ensure coverage of default_pre_push_command
     let rust_cmd = ProjectType::Rust.default_pre_push_command();
     assert!(rust_cmd.is_some());
@@ -225,7 +225,7 @@ fn test_all_default_pre_push_commands() {
 }
 
 #[test]
-fn test_auto_detect_with_current_directory() {
+fn auto_detect_with_current_directory() {
     // Test the auto_detect method (which calls auto_detect_in_path with ".")
     // This ensures line coverage for the auto_detect method
     let result = ProjectType::auto_detect();

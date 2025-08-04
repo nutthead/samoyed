@@ -2,7 +2,7 @@ use super::*;
 use crate::environment::mocks::MockFileSystem;
 
 #[test]
-fn test_create_hook_directory() {
+fn creates_hook_directory() {
     let fs = MockFileSystem::new();
     let hooks_dir = std::path::Path::new(".samoyed/_");
 
@@ -15,7 +15,7 @@ fn test_create_hook_directory() {
 }
 
 #[test]
-fn test_create_hook_files() {
+fn creates_hook_files() {
     let fs = MockFileSystem::new();
     let hooks_dir = std::path::Path::new(".samoyed/_");
 
@@ -29,7 +29,7 @@ fn test_create_hook_files() {
 }
 
 #[test]
-fn test_create_example_hook_scripts() {
+fn creates_example_hook_scripts() {
     let fs = MockFileSystem::new();
     let hooks_base_dir = std::path::Path::new(".samoyed");
 
@@ -42,7 +42,7 @@ fn test_create_example_hook_scripts() {
 }
 
 #[test]
-fn test_create_example_hook_scripts_no_overwrite() {
+fn creates_example_hook_scripts_no_overwrite() {
     let fs = MockFileSystem::new().with_file(
         ".samoyed/scripts/pre-commit",
         "#!/bin/sh\n# User's existing script",
@@ -59,21 +59,21 @@ fn test_create_example_hook_scripts_no_overwrite() {
 }
 
 #[test]
-fn test_hook_error_display() {
+fn hook_error_display() {
     let io_error = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Permission denied");
     let hook_error = HookError::IoError(io_error);
     assert!(hook_error.to_string().contains("Permission denied"));
 }
 
 #[test]
-fn test_hook_error_from_io_error() {
+fn hook_error_from_io_error() {
     let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
     let hook_error: HookError = io_error.into();
     assert!(matches!(hook_error, HookError::IoError(_)));
 }
 
 #[test]
-fn test_hook_error_variants_coverage() {
+fn hook_error_formats() {
     // Test all HookError variants for coverage
     let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
     let error1 = HookError::IoError(io_error);
@@ -84,7 +84,7 @@ fn test_hook_error_variants_coverage() {
 }
 
 #[test]
-fn test_standard_hooks_constant() {
+fn standard_hooks_constant() {
     // Test that STANDARD_HOOKS contains expected hooks
     assert!(STANDARD_HOOKS.contains(&"pre-commit"));
     assert!(STANDARD_HOOKS.contains(&"post-commit"));
@@ -93,7 +93,7 @@ fn test_standard_hooks_constant() {
 }
 
 #[test]
-fn test_create_example_hook_scripts_multiple_calls() {
+fn creates_example_hook_scripts_multiple_calls() {
     let fs = MockFileSystem::new();
     let hooks_base_dir = std::path::Path::new(".samoyed");
 
@@ -111,7 +111,7 @@ fn test_create_example_hook_scripts_multiple_calls() {
 }
 
 #[test]
-fn test_create_hook_files_with_multiple_directories() {
+fn creates_hook_files_with_multiple_directories() {
     let fs = MockFileSystem::new();
 
     // Test with different hook directories
@@ -131,7 +131,7 @@ fn test_create_hook_files_with_multiple_directories() {
 }
 
 #[test]
-fn test_create_hook_directory_with_multiple_paths() {
+fn creates_hook_directory_with_multiple_paths() {
     let fs = MockFileSystem::new();
 
     // Test creating hook directories with different paths
@@ -150,7 +150,7 @@ fn test_create_hook_directory_with_multiple_paths() {
 }
 
 #[test]
-fn test_create_example_hook_scripts_different_directories() {
+fn creates_example_hook_scripts_different_directories() {
     let fs = MockFileSystem::new();
 
     let hooks_base_dir1 = std::path::Path::new(".hooks1");
@@ -175,7 +175,7 @@ fn test_create_example_hook_scripts_different_directories() {
 }
 
 #[test]
-fn test_hook_error_error_trait() {
+fn hook_error_error_trait() {
     let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
     let hook_error = HookError::IoError(io_error);
 
@@ -185,21 +185,21 @@ fn test_hook_error_error_trait() {
 }
 
 #[test]
-fn test_normalize_line_endings_crlf() {
+fn normalize_line_endings_crlf() {
     let windows_content = "#!/bin/sh\r\necho 'hello'\r\necho 'world'\r\n";
     let normalized = normalize_line_endings(windows_content);
     assert_eq!(normalized, "#!/bin/sh\necho 'hello'\necho 'world'\n");
 }
 
 #[test]
-fn test_normalize_line_endings_cr() {
+fn normalize_line_endings_cr() {
     let mac_classic_content = "#!/bin/sh\recho 'hello'\recho 'world'\r";
     let normalized = normalize_line_endings(mac_classic_content);
     assert_eq!(normalized, "#!/bin/sh\necho 'hello'\necho 'world'\n");
 }
 
 #[test]
-fn test_normalize_line_endings_mixed() {
+fn normalize_line_endings_mixed() {
     let mixed_content = "#!/bin/sh\r\necho 'hello'\recho 'world'\necho 'end'";
     let normalized = normalize_line_endings(mixed_content);
     assert_eq!(
@@ -209,21 +209,21 @@ fn test_normalize_line_endings_mixed() {
 }
 
 #[test]
-fn test_normalize_line_endings_already_lf() {
+fn normalize_line_endings_already_lf() {
     let unix_content = "#!/bin/sh\necho 'hello'\necho 'world'\n";
     let normalized = normalize_line_endings(unix_content);
     assert_eq!(normalized, unix_content); // Should be unchanged
 }
 
 #[test]
-fn test_normalize_line_endings_empty() {
+fn normalize_line_endings_empty() {
     let empty_content = "";
     let normalized = normalize_line_endings(empty_content);
     assert_eq!(normalized, "");
 }
 
 #[test]
-fn test_hook_files_content_uses_samoyed_hook_command() {
+fn hook_files_content_uses_samoyed_hook_command() {
     let fs = MockFileSystem::new();
     let hooks_dir = std::path::Path::new(".samoyed/_");
 

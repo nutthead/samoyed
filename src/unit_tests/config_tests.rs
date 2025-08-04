@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn test_default_config_rust() {
+fn default_config_rust() {
     let config = SamoyedConfig::default_for_project_type(&ProjectType::Rust);
     assert!(config.hooks.contains_key("pre-commit"));
     assert!(config.hooks["pre-commit"].contains("cargo"));
@@ -9,7 +9,7 @@ fn test_default_config_rust() {
 }
 
 #[test]
-fn test_default_config_go() {
+fn default_config_go() {
     let config = SamoyedConfig::default_for_project_type(&ProjectType::Go);
     assert!(config.hooks.contains_key("pre-commit"));
     assert!(config.hooks["pre-commit"].contains("go fmt"));
@@ -17,7 +17,7 @@ fn test_default_config_go() {
 }
 
 #[test]
-fn test_default_config_node() {
+fn default_config_node() {
     let config = SamoyedConfig::default_for_project_type(&ProjectType::Node);
     assert!(config.hooks.contains_key("pre-commit"));
     assert!(config.hooks["pre-commit"].contains("npm"));
@@ -25,7 +25,7 @@ fn test_default_config_node() {
 }
 
 #[test]
-fn test_default_config_python() {
+fn default_config_python() {
     let config = SamoyedConfig::default_for_project_type(&ProjectType::Python);
     assert!(config.hooks.contains_key("pre-commit"));
     assert!(config.hooks["pre-commit"].contains("black"));
@@ -33,7 +33,7 @@ fn test_default_config_python() {
 }
 
 #[test]
-fn test_validation_empty_hooks() {
+fn validation_rejects_empty_hooks() {
     let config = SamoyedConfig {
         hooks: HashMap::new(),
         settings: SamoyedSettings::default(),
@@ -42,7 +42,7 @@ fn test_validation_empty_hooks() {
 }
 
 #[test]
-fn test_validation_invalid_hook_name() {
+fn validation_rejects_invalid_hook_names() {
     let mut hooks = HashMap::new();
     hooks.insert("invalid-hook".to_string(), "echo test".to_string());
 
@@ -54,7 +54,7 @@ fn test_validation_invalid_hook_name() {
 }
 
 #[test]
-fn test_validation_empty_command() {
+fn validation_rejects_empty_commands() {
     let mut hooks = HashMap::new();
     hooks.insert("pre-commit".to_string(), "".to_string());
 
@@ -66,7 +66,7 @@ fn test_validation_empty_command() {
 }
 
 #[test]
-fn test_validation_invalid_hook_directory() {
+fn validation_rejects_invalid_hook_directory() {
     let mut hooks = HashMap::new();
     hooks.insert("pre-commit".to_string(), "echo test".to_string());
 
@@ -81,7 +81,7 @@ fn test_validation_invalid_hook_directory() {
 }
 
 #[test]
-fn test_valid_git_hook_names() {
+fn valid_git_hook_names() {
     // Test all valid Git hook names
     assert!(is_valid_git_hook("pre-commit"));
     assert!(is_valid_git_hook("pre-merge-commit"));
@@ -106,7 +106,7 @@ fn test_valid_git_hook_names() {
 }
 
 #[test]
-fn test_settings_default() {
+fn settings_default() {
     let settings = SamoyedSettings::default();
     assert_eq!(settings.hook_directory, ".samoyed");
     assert!(!settings.debug);
@@ -115,7 +115,7 @@ fn test_settings_default() {
 }
 
 #[test]
-fn test_settings_is_default() {
+fn settings_is_default() {
     let default_settings = SamoyedSettings::default();
     assert!(default_settings.is_default());
 
@@ -127,7 +127,7 @@ fn test_settings_is_default() {
 }
 
 #[test]
-fn test_toml_serialization() {
+fn toml_serialization() {
     let config = SamoyedConfig::default_for_project_type(&ProjectType::Rust);
     let toml_str = toml::to_string_pretty(&config).unwrap();
 
@@ -142,7 +142,7 @@ fn test_toml_serialization() {
 }
 
 #[test]
-fn test_toml_deserialization() {
+fn toml_deserialization() {
     let toml_content = r#"
 [hooks]
 pre-commit = "cargo fmt --check"
@@ -161,7 +161,7 @@ fail_fast = false
 }
 
 #[test]
-fn test_validate_method_coverage() {
+fn config_validation_accepts_valid_configurations() {
     // Test various validation scenarios to ensure complete coverage
     let mut config = SamoyedConfig::default_for_project_type(&ProjectType::Rust);
 
@@ -180,7 +180,7 @@ fn test_validate_method_coverage() {
 }
 
 #[test]
-fn test_comprehensive_validation_coverage() {
+fn config_validation_handles_all_hook_types() {
     // Test all validation code paths to ensure 100% coverage
     let mut config = SamoyedConfig {
         hooks: std::collections::HashMap::new(),
@@ -240,7 +240,7 @@ fn test_comprehensive_validation_coverage() {
 }
 
 #[test]
-fn test_settings_validation_edge_cases() {
+fn settings_validation_edge_cases() {
     // Test edge cases in settings validation
     let mut config = SamoyedConfig::default_for_project_type(&ProjectType::Rust);
 
@@ -267,7 +267,7 @@ fn test_settings_validation_edge_cases() {
 }
 
 #[test]
-fn test_default_functions_coverage() {
+fn config_defaults_return_expected_values() {
     // Test the default functions to ensure they're covered
     let default_dir = super::default_hook_directory();
     assert_eq!(default_dir, ".samoyed");
@@ -287,7 +287,7 @@ fn test_default_functions_coverage() {
 }
 
 #[test]
-fn test_all_project_type_configs() {
+fn all_project_type_configs() {
     // Test that all project types can generate configs and validate successfully
     for project_type in [
         ProjectType::Rust,

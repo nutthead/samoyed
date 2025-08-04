@@ -18,7 +18,7 @@ fn exit_status(code: i32) -> ExitStatus {
 }
 
 #[test]
-fn test_install_hooks_skip_when_samoyed_0() {
+fn install_hooks_skips_when_samoyed_0() {
     let env = MockEnvironment::new().with_var("SAMOYED", "0");
     let runner = MockCommandRunner::new();
     let fs = MockFileSystem::new();
@@ -29,7 +29,7 @@ fn test_install_hooks_skip_when_samoyed_0() {
 }
 
 #[test]
-fn test_install_hooks_invalid_path_with_dotdot() {
+fn install_hooks_rejects_invalid_path_with_dotdot() {
     let env = MockEnvironment::new();
     let runner = MockCommandRunner::new();
     let fs = MockFileSystem::new();
@@ -45,7 +45,7 @@ fn test_install_hooks_invalid_path_with_dotdot() {
 }
 
 #[test]
-fn test_install_hooks_no_git_repository() {
+fn install_hooks_handles_no_git_repository() {
     let env = MockEnvironment::new();
     let runner = MockCommandRunner::new();
     let fs = MockFileSystem::new(); // No .git directory
@@ -61,7 +61,7 @@ fn test_install_hooks_no_git_repository() {
 }
 
 #[test]
-fn test_install_hooks_success() {
+fn install_hooks_success() {
     let env = MockEnvironment::new();
 
     // Mock git --version first
@@ -93,7 +93,7 @@ fn test_install_hooks_success() {
 }
 
 #[test]
-fn test_install_hooks_with_custom_dir() {
+fn install_hooks_with_custom_dir() {
     let env = MockEnvironment::new();
 
     // Mock git --version first
@@ -124,7 +124,7 @@ fn test_install_hooks_with_custom_dir() {
 }
 
 #[test]
-fn test_install_error_display() {
+fn install_error_display() {
     let git_error = git::GitError::CommandNotFound { os_hint: None };
     let install_error = InstallError::Git(git_error);
     assert!(install_error.to_string().contains("Git command not found"));
@@ -148,7 +148,7 @@ fn test_install_error_display() {
 }
 
 #[test]
-fn test_install_error_from_git_error() {
+fn install_error_from_git_error() {
     let git_error = git::GitError::NotGitRepository {
         checked_path: "/tmp".to_string(),
         suggest_init: true,
@@ -158,7 +158,7 @@ fn test_install_error_from_git_error() {
 }
 
 #[test]
-fn test_install_error_from_hook_error() {
+fn install_error_from_hook_error() {
     let hook_error = hooks::HookError::IoError(std::io::Error::new(
         std::io::ErrorKind::PermissionDenied,
         "test",
@@ -168,7 +168,7 @@ fn test_install_error_from_hook_error() {
 }
 
 #[test]
-fn test_install_hooks_git_command_error() {
+fn install_hooks_handles_git_command_error() {
     let env = MockEnvironment::new();
     let runner = MockCommandRunner::new(); // No responses configured
     let fs = MockFileSystem::new().with_directory(".git");
@@ -179,7 +179,7 @@ fn test_install_hooks_git_command_error() {
 }
 
 #[test]
-fn test_install_hooks_filesystem_error() {
+fn install_hooks_handles_filesystem_error() {
     let env = MockEnvironment::new();
 
     let version_output = Output {
@@ -209,7 +209,7 @@ fn test_install_hooks_filesystem_error() {
 }
 
 #[test]
-fn test_install_error_variants_coverage() {
+fn install_error_formats() {
     // Test all InstallError variants for coverage
     let git_error = git::GitError::CommandNotFound {
         os_hint: Some("linux".to_string()),
@@ -238,7 +238,7 @@ fn test_install_error_variants_coverage() {
 }
 
 #[test]
-fn test_install_hooks_different_custom_dirs() {
+fn install_hooks_handles_different_custom_dirs() {
     let env = MockEnvironment::new();
 
     let version_output1 = Output {
@@ -288,7 +288,7 @@ fn test_install_hooks_different_custom_dirs() {
 }
 
 #[test]
-fn test_install_hooks_edge_case_paths() {
+fn install_hooks_handles_edge_case_paths() {
     let env = MockEnvironment::new();
     let version_output = Output {
         status: exit_status(0),
@@ -327,7 +327,7 @@ fn test_install_hooks_edge_case_paths() {
 }
 
 #[test]
-fn test_install_hooks_empty_environment_variable() {
+fn install_hooks_handles_empty_environment_variable() {
     // Test when SAMOID is set to empty string (should not skip)
     let env = MockEnvironment::new().with_var("SAMOYED", "");
     let version_output = Output {
@@ -355,7 +355,7 @@ fn test_install_hooks_empty_environment_variable() {
 }
 
 #[test]
-fn test_install_hooks_other_environment_values() {
+fn install_hooks_handles_other_environment_values() {
     // Test various SAMOID environment variable values
     let test_values = ["1", "true", "false", "disabled", "anything"];
 
@@ -387,7 +387,7 @@ fn test_install_hooks_other_environment_values() {
 }
 
 #[test]
-fn test_path_validation_directory_traversal() {
+fn path_validation_prevents_directory_traversal() {
     // Test various directory traversal attempts
     let invalid_paths = [
         "../invalid",
@@ -411,7 +411,7 @@ fn test_path_validation_directory_traversal() {
 }
 
 #[test]
-fn test_path_validation_absolute_paths() {
+fn path_validation_rejects_absolute_paths() {
     let invalid_paths = [
         "/absolute/path",
         "/usr/local/hooks",
@@ -435,7 +435,7 @@ fn test_path_validation_absolute_paths() {
 }
 
 #[test]
-fn test_path_validation_invalid_characters() {
+fn path_validation_rejects_invalid_characters() {
     let invalid_paths = [
         "hooks*invalid",
         "hooks?query",
@@ -460,7 +460,7 @@ fn test_path_validation_invalid_characters() {
 }
 
 #[test]
-fn test_path_validation_empty_paths() {
+fn path_validation_rejects_empty_paths() {
     let empty_paths = ["", "   ", "\t", "\n"];
 
     for path in &empty_paths {
@@ -477,7 +477,7 @@ fn test_path_validation_empty_paths() {
 }
 
 #[test]
-fn test_path_validation_too_long() {
+fn path_validation_rejects_too_long() {
     let long_path = "a".repeat(256); // Exceeds 255 character limit
 
     let result = validate_hooks_directory_path(&long_path);
@@ -492,7 +492,7 @@ fn test_path_validation_too_long() {
 }
 
 #[test]
-fn test_path_validation_valid_paths() {
+fn path_validation_accepts_valid_paths() {
     let valid_paths = [
         ".samoyed",
         "hooks",
@@ -512,7 +512,7 @@ fn test_path_validation_valid_paths() {
 }
 
 #[test]
-fn test_path_validation_error_messages() {
+fn path_validation_error_messages() {
     // Test that error messages are informative
     let result = validate_hooks_directory_path("../invalid");
     let error_msg = result.unwrap_err().to_string();

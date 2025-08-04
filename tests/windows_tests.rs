@@ -18,7 +18,7 @@ mod windows_tests {
     }
 
     #[test]
-    fn test_windows_path_handling() {
+    fn windows_path_handling() {
         let env = MockEnvironment::new()
             .with_var("USERPROFILE", "C:\\Users\\user")
             .with_var("USERNAME", "testuser");
@@ -74,7 +74,7 @@ mod windows_tests {
     }
 
     #[test]
-    fn test_windows_git_installations() {
+    fn windows_git_installations() {
         // Test that samoyed works with various Git for Windows installations
         // Note: samoyed always uses "git" command regardless of where Git is installed
         let git_installations = vec![
@@ -112,7 +112,7 @@ mod windows_tests {
     }
 
     #[test]
-    fn test_windows_environment_variables() {
+    fn windows_environment_variables() {
         // Test Windows-specific environment variables
         let env = MockEnvironment::new()
             .with_var("USERPROFILE", "C:\\Users\\user")
@@ -148,7 +148,7 @@ mod windows_tests {
     }
 
     #[test]
-    fn test_windows_line_endings() {
+    fn windows_line_endings() {
         // Test handling of Windows CRLF line endings
         let env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\user");
 
@@ -180,7 +180,7 @@ mod windows_tests {
     }
 
     #[test]
-    fn test_windows_shells() {
+    fn windows_shells() {
         // Test various Windows shells
         let shells = vec![
             ("cmd.exe", "Command Prompt"),
@@ -219,7 +219,7 @@ mod windows_tests {
     }
 
     #[test]
-    fn test_windows_path_separators() {
+    fn windows_path_separators() {
         // Test mixed path separators
         let env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\user");
 

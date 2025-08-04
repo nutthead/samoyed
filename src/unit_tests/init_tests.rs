@@ -18,7 +18,7 @@ fn exit_status(code: i32) -> ExitStatus {
 }
 
 #[test]
-fn test_init_command_creates_directories() {
+fn init_command_creates_directories() {
     // Set up mocks
     let env = MockEnvironment::new();
 
@@ -51,7 +51,7 @@ fn test_init_command_creates_directories() {
 }
 
 #[test]
-fn test_init_command_fails_without_git() {
+fn init_command_fails_without_git() {
     // Set up mocks
     let env = MockEnvironment::new();
     let runner = MockCommandRunner::new();
@@ -69,7 +69,7 @@ fn test_init_command_fails_without_git() {
 }
 
 #[test]
-fn test_init_command_with_project_type_hint() {
+fn init_command_with_project_type_hint() {
     // Set up mocks
     let env = MockEnvironment::new();
 
@@ -102,7 +102,7 @@ fn test_init_command_with_project_type_hint() {
 }
 
 #[test]
-fn test_init_command_git_config_failure() {
+fn init_command_handles_git_config_failure() {
     // Set up mocks
     let env = MockEnvironment::new();
 
@@ -137,7 +137,7 @@ fn test_init_command_git_config_failure() {
 }
 
 #[test]
-fn test_init_command_with_existing_config() {
+fn init_command_with_existing_config() {
     // Test when samoyed.toml already exists
     let env = MockEnvironment::new();
 
@@ -170,7 +170,7 @@ fn test_init_command_with_existing_config() {
 }
 
 #[test]
-fn test_init_command_with_invalid_project_type_hint() {
+fn init_command_rejects_invalid_project_type_hint() {
     // Test with invalid project type hint that falls back to auto-detection
     let env = MockEnvironment::new();
 
@@ -202,7 +202,7 @@ fn test_init_command_with_invalid_project_type_hint() {
 }
 
 #[test]
-fn test_init_command_all_project_types() {
+fn init_command_all_project_types() {
     // Test init command with all supported project type hints
     let env = MockEnvironment::new();
 
@@ -236,7 +236,7 @@ fn test_init_command_all_project_types() {
 }
 
 #[test]
-fn test_init_command_with_various_scenarios() {
+fn init_command_handles_various_scenarios() {
     // Test more edge cases to improve coverage
     let env = MockEnvironment::new();
 
@@ -269,7 +269,7 @@ fn test_init_command_with_various_scenarios() {
 }
 
 #[test]
-fn test_project_type_detection_fallback() {
+fn project_type_detection_fallback() {
     // Test the fallback logic when project type hint is invalid
     let env = MockEnvironment::new();
 
@@ -315,7 +315,7 @@ fn test_project_type_detection_fallback() {
 }
 
 #[test]
-fn test_verbose_output_with_environment_variable() {
+fn verbose_output_with_environment_variable() {
     // Test that the SAMOYED_VERBOSE environment variable affects output
     let env = MockEnvironment::new().with_var("SAMOYED_VERBOSE", "1");
 
@@ -353,7 +353,7 @@ fn test_verbose_output_with_environment_variable() {
 }
 
 #[test]
-fn test_environment_variable_not_set() {
+fn environment_variable_not_set() {
     // Test that when SAMOYED_VERBOSE is not set or not "1", verbose mode is disabled
     let env = MockEnvironment::new(); // No environment variables set
 

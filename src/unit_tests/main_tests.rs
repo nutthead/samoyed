@@ -3,7 +3,7 @@ use crate::environment::mocks::{MockCommandRunner, MockEnvironment, MockFileSyst
 use clap::Parser;
 
 #[test]
-fn test_cli_struct_parsing() {
+fn cli_struct_parsing() {
     // Test CLI struct can be created and parsed correctly
     // Test valid arguments
     let args = vec!["samoyed", "init"];
@@ -55,7 +55,7 @@ fn test_cli_struct_parsing() {
 }
 
 #[test]
-fn test_cli_no_command() {
+fn cli_handles_no_command() {
     // Test CLI with no command (None case)
     let args = vec!["samoyed"];
     let cli = Cli::try_parse_from(args);
@@ -66,7 +66,7 @@ fn test_cli_no_command() {
 }
 
 #[test]
-fn test_cli_invalid_arguments() {
+fn cli_rejects_invalid_arguments() {
     // Test CLI with invalid arguments
     let args = vec!["samoyed", "invalid-command"];
     let cli = Cli::try_parse_from(args);
@@ -74,7 +74,7 @@ fn test_cli_invalid_arguments() {
 }
 
 #[test]
-fn test_cli_hook_command_parsing() {
+fn cli_hook_command_parsing() {
     // Test Hook command parsing
     let args = vec!["samoyed", "hook", "pre-commit"];
     let cli = Cli::try_parse_from(args);
@@ -105,7 +105,7 @@ fn test_cli_hook_command_parsing() {
 }
 
 #[test]
-fn test_hook_command_basic_functionality() {
+fn hook_command_basic_functionality() {
     let env = MockEnvironment::new().with_var("SAMOYED", "1");
     let runner = MockCommandRunner::new();
     let fs = MockFileSystem::new(); // Default has no files/directories
@@ -121,7 +121,7 @@ fn test_hook_command_basic_functionality() {
 }
 
 #[test]
-fn test_hook_command_with_samoyed_zero() {
+fn hook_command_respects_samoyed_zero() {
     let env = MockEnvironment::new().with_var("SAMOYED", "0");
     let runner = MockCommandRunner::new();
     let fs = MockFileSystem::new();
@@ -136,7 +136,7 @@ fn test_hook_command_with_samoyed_zero() {
 }
 
 #[test]
-fn test_load_hook_command_from_config_success() {
+fn load_hook_command_from_config_success() {
     // Create a mock samoyed.toml file
     let config_content = r#"
 [hooks]
@@ -151,7 +151,7 @@ pre-commit = "cargo fmt --check"
 }
 
 #[test]
-fn test_load_hook_command_from_config_missing_file() {
+fn load_hook_command_handles_missing_file() {
     let fs = MockFileSystem::new(); // No files by default
 
     let result = load_hook_command_from_config(&fs, "pre-commit", false);
@@ -165,7 +165,7 @@ fn test_load_hook_command_from_config_missing_file() {
 }
 
 #[test]
-fn test_load_hook_command_from_config_missing_hook() {
+fn load_hook_command_handles_missing_hook() {
     // Create a mock samoyed.toml file without the requested hook
     let config_content = r#"
 [hooks]
@@ -185,7 +185,7 @@ pre-push = "cargo test"
 }
 
 #[test]
-fn test_is_windows_unix_environment() {
+fn detects_windows_unix_environment() {
     // Test MSYSTEM detection (Git Bash / MSYS2)
     let env = MockEnvironment::new().with_var("MSYSTEM", "MINGW64");
     assert!(is_windows_unix_environment(&env, false));

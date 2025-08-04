@@ -18,7 +18,7 @@ mod macos_tests {
     }
 
     #[test]
-    fn test_macos_path_handling() {
+    fn macos_path_handling() {
         let env = MockEnvironment::new()
             .with_var("HOME", "/Users/user")
             .with_var("USER", "testuser");
@@ -75,7 +75,7 @@ mod macos_tests {
     }
 
     #[test]
-    fn test_homebrew_git_paths() {
+    fn homebrew_git_paths() {
         // Test common Homebrew git installation paths
         let homebrew_paths = vec![
             ("/opt/homebrew/bin/git", "Apple Silicon Homebrew"),
@@ -113,7 +113,7 @@ mod macos_tests {
     }
 
     #[test]
-    fn test_macos_shell_environments() {
+    fn macos_shell_environments() {
         // Test macOS default shells
         let shells = vec![
             ("/bin/zsh", "macOS default (Catalina+)"),
@@ -155,7 +155,7 @@ mod macos_tests {
     }
 
     #[test]
-    fn test_macos_case_sensitivity() {
+    fn macos_case_sensitivity() {
         // macOS file systems can be case-insensitive
         let env = MockEnvironment::new().with_var("HOME", "/Users/user");
 
@@ -189,7 +189,7 @@ mod macos_tests {
     }
 
     #[test]
-    fn test_macos_extended_attributes() {
+    fn macos_extended_attributes() {
         // Test handling of macOS extended attributes and metadata
         let env = MockEnvironment::new()
             .with_var("HOME", "/Users/user")

@@ -1,14 +1,14 @@
 use super::DEPRECATION_REMOVAL_DATE;
 
 #[test]
-fn test_deprecation_constant_defined() {
+fn deprecation_constant_defined() {
     // Test that the deprecation constant is properly defined
     assert!(!DEPRECATION_REMOVAL_DATE.is_empty());
     assert!(DEPRECATION_REMOVAL_DATE.contains("2025"));
 }
 
 #[test]
-fn test_deprecation_constant_format() {
+fn deprecation_constant_format() {
     // Test that the deprecation date follows expected format
     assert!(DEPRECATION_REMOVAL_DATE.len() > 10); // Should be more than just "2025"
     assert!(DEPRECATION_REMOVAL_DATE.contains("September") || 

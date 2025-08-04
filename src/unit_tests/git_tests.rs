@@ -18,7 +18,7 @@ fn exit_status(code: i32) -> ExitStatus {
 }
 
 #[test]
-fn test_check_git_repository_exists() {
+fn check_git_repository_exists() {
     // Create a mock filesystem with .git directory
     let fs = MockFileSystem::new().with_directory(".git");
 
@@ -27,7 +27,7 @@ fn test_check_git_repository_exists() {
 }
 
 #[test]
-fn test_check_git_repository_missing() {
+fn check_git_repository_missing() {
     // Create a mock filesystem without .git directory
     let fs = MockFileSystem::new();
 
@@ -36,7 +36,7 @@ fn test_check_git_repository_missing() {
 }
 
 #[test]
-fn test_git_error_display() {
+fn git_error_display() {
     let error = GitError::CommandNotFound { os_hint: None };
     assert!(error.to_string().contains("Git command not found in PATH"));
 
@@ -56,7 +56,7 @@ fn test_git_error_display() {
 }
 
 #[test]
-fn test_set_hooks_path_success() {
+fn set_hooks_path_success() {
     // Mock successful git --version first
     let version_output = Output {
         status: exit_status(0),
@@ -84,7 +84,7 @@ fn test_set_hooks_path_success() {
 }
 
 #[test]
-fn test_set_hooks_path_command_not_found() {
+fn set_hooks_path_handles_command_not_found() {
     let runner = MockCommandRunner::new();
     // No response configured, so it will return command not found
 
@@ -93,7 +93,7 @@ fn test_set_hooks_path_command_not_found() {
 }
 
 #[test]
-fn test_set_hooks_path_configuration_failed() {
+fn set_hooks_path_handles_configuration_failure() {
     // Mock successful git --version first
     let version_output = Output {
         status: exit_status(0),
@@ -121,7 +121,7 @@ fn test_set_hooks_path_configuration_failed() {
 }
 
 #[test]
-fn test_git_error_variants_coverage() {
+fn git_error_formats() {
     // Test all GitError variants for coverage
     let error1 = GitError::CommandNotFound {
         os_hint: Some("linux".to_string()),
@@ -151,7 +151,7 @@ fn test_git_error_variants_coverage() {
 }
 
 #[test]
-fn test_set_hooks_path_with_different_paths() {
+fn set_hooks_path_handles_different_paths() {
     // Mock successful git --version responses
     let version_output1 = Output {
         status: exit_status(0),
@@ -198,7 +198,7 @@ fn test_set_hooks_path_with_different_paths() {
 }
 
 #[test]
-fn test_check_git_repository_with_different_filesystems() {
+fn check_git_repository_handles_different_filesystems() {
     // Test with filesystem that has .git directory
     let fs_with_git = MockFileSystem::new().with_directory(".git");
     let result1 = check_git_repository(&fs_with_git);
@@ -217,7 +217,7 @@ fn test_check_git_repository_with_different_filesystems() {
 }
 
 #[test]
-fn test_set_hooks_path_with_io_error() {
+fn set_hooks_path_handles_io_error() {
     let runner = MockCommandRunner::new().with_response(
         "git",
         &["--version"],
@@ -232,7 +232,7 @@ fn test_set_hooks_path_with_io_error() {
 }
 
 #[test]
-fn test_set_hooks_path_permission_denied() {
+fn set_hooks_path_handles_permission_denied() {
     // Mock successful git --version first
     let version_output = Output {
         status: exit_status(0),
@@ -260,7 +260,7 @@ fn test_set_hooks_path_permission_denied() {
 }
 
 #[test]
-fn test_check_git_repository_permission_denied() {
+fn check_git_repository_handles_permission_denied() {
     // Create a filesystem where .git exists but can't be read
     let fs = MockFileSystem::new()
         .with_directory(".git")
@@ -274,7 +274,7 @@ fn test_check_git_repository_permission_denied() {
 }
 
 #[test]
-fn test_error_suggestion_analysis() {
+fn error_suggestion_analysis() {
     // Test various error message suggestions
     let suggestion1 = analyze_git_config_error("error: could not lock config file");
     assert!(suggestion1.is_some());
@@ -293,7 +293,7 @@ fn test_error_suggestion_analysis() {
 }
 
 #[test]
-fn test_os_detection() {
+fn os_detection() {
     let os = detect_os();
     assert!(os.is_some());
     // The actual OS will depend on the test environment
@@ -302,7 +302,7 @@ fn test_os_detection() {
 }
 
 #[test]
-fn test_git_error_os_specific_messages() {
+fn git_error_os_specific_messages() {
     let error_linux = GitError::CommandNotFound {
         os_hint: Some("linux".to_string()),
     };
@@ -323,7 +323,7 @@ fn test_git_error_os_specific_messages() {
 }
 
 #[test]
-fn test_git_version_check_failure() {
+fn git_version_check_failure() {
     // Mock git --version failure
     let version_output = Output {
         status: exit_status(1),
