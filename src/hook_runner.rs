@@ -18,12 +18,13 @@
 use std::env;
 use std::process::{self, Command};
 
+/// Deprecation timeline for samoyed-hook binary
+const DEPRECATION_REMOVAL_DATE: &str = "September 1, 2025";
+
 #[cfg(not(tarpaulin_include))]
 fn main() {
     // Print deprecation warning to stderr
-    eprintln!(
-        "⚠️  WARNING: samoyed-hook is deprecated and will be removed after September 1, 2025."
-    );
+    eprintln!("⚠️  WARNING: samoyed-hook is deprecated and will be removed after {DEPRECATION_REMOVAL_DATE}.");
     eprintln!("   To migrate, run: samoyed init -f _");
     eprintln!("   This will update your hook files to use the new 'samoyed hook' command.");
     eprintln!();
