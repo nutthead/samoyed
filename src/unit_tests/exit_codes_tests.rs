@@ -2,7 +2,7 @@ use super::*;
 use anyhow::anyhow;
 
 #[test]
-fn test_determine_exit_code() {
+fn determines_exit_code() {
     // Test various error messages map to correct exit codes
     let git_not_found = anyhow!("Git command not found in PATH");
     assert_eq!(determine_exit_code(&git_not_found), EX_UNAVAILABLE);

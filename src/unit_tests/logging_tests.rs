@@ -3,7 +3,7 @@ use crate::environment::mocks::MockEnvironment;
 use std::path::Path;
 
 #[test]
-fn test_sanitize_path_home_directory() {
+fn sanitize_path_replaces_home_directory() {
     // Mock HOME environment variable
     let env = MockEnvironment::new().with_var("HOME", "/home/testuser");
 
@@ -12,19 +12,19 @@ fn test_sanitize_path_home_directory() {
 }
 
 #[test]
-fn test_sanitize_path_relative() {
+fn sanitize_path_preserves_relative_paths() {
     let result = sanitize_path(".samoyed/scripts/pre-commit");
     assert_eq!(result, ".samoyed/scripts/pre-commit");
 }
 
 #[test]
-fn test_sanitize_path_sensitive() {
+fn sanitize_path_redacts_sensitive_paths() {
     let result = sanitize_path("/home/user/.ssh/id_rsa");
     assert_eq!(result, "[REDACTED_SENSITIVE_PATH]");
 }
 
 #[test]
-fn test_sanitize_args_passwords() {
+fn sanitize_args_redacts_passwords() {
     let args = vec![
         "git".to_string(),
         "clone".to_string(),
@@ -39,7 +39,7 @@ fn test_sanitize_args_passwords() {
 }
 
 #[test]
-fn test_sanitize_args_tokens() {
+fn sanitize_args_redacts_tokens() {
     let args = vec![
         "curl".to_string(),
         "-H".to_string(),
@@ -51,25 +51,25 @@ fn test_sanitize_args_tokens() {
 }
 
 #[test]
-fn test_sanitize_env_var_sensitive() {
+fn sanitize_env_var_hides_sensitive() {
     let result = sanitize_env_var("API_SECRET", "secret123");
     assert_eq!(result, None);
 }
 
 #[test]
-fn test_sanitize_env_var_semi_sensitive() {
+fn sanitize_env_var_redacts_semi_sensitive() {
     let result = sanitize_env_var("HOME", "/home/user");
     assert_eq!(result, Some("[REDACTED_HOME_VALUE]".to_string()));
 }
 
 #[test]
-fn test_sanitize_env_var_safe() {
+fn sanitize_env_var_preserves_safe() {
     let result = sanitize_env_var("SAMOYED_DEBUG", "1");
     assert_eq!(result, Some("1".to_string()));
 }
 
 #[test]
-fn test_log_file_operation_with_env_debug_mode() {
+fn log_file_operation_with_env_respects_debug_mode() {
     let env = MockEnvironment::new().with_var("HOME", "/home/testuser");
     let path = Path::new("/home/testuser/.config/samoyed/config.toml");
 
@@ -82,7 +82,7 @@ fn test_log_file_operation_with_env_debug_mode() {
 }
 
 #[test]
-fn test_log_file_operation_with_env_different_paths() {
+fn log_file_operation_with_env_handles_all_path_types() {
     let env = MockEnvironment::new().with_var("HOME", "/home/testuser");
 
     // Test with absolute path
@@ -99,7 +99,7 @@ fn test_log_file_operation_with_env_different_paths() {
 }
 
 #[test]
-fn test_log_file_operation_debug_modes() {
+fn log_file_operation_respects_debug_mode() {
     let path = Path::new(".samoyed/config.toml");
 
     // Test with debug mode enabled
@@ -110,7 +110,7 @@ fn test_log_file_operation_debug_modes() {
 }
 
 #[test]
-fn test_log_file_operation_different_operations() {
+fn log_file_operation_handles_all_operation_types() {
     let path = Path::new("/tmp/samoyed-test.txt");
 
     // Test different operation types
@@ -121,7 +121,7 @@ fn test_log_file_operation_different_operations() {
 }
 
 #[test]
-fn test_log_command_execution_debug_modes() {
+fn log_command_execution_respects_debug_mode() {
     let args = vec!["--version".to_string()];
 
     // Test with debug mode enabled
@@ -132,7 +132,7 @@ fn test_log_command_execution_debug_modes() {
 }
 
 #[test]
-fn test_log_command_execution_with_sensitive_args() {
+fn log_command_execution_redacts_sensitive_args() {
     // Test with sensitive arguments that should be redacted
     let sensitive_args = vec![
         "clone".to_string(),
@@ -144,7 +144,7 @@ fn test_log_command_execution_with_sensitive_args() {
 }
 
 #[test]
-fn test_log_command_execution_with_tokens() {
+fn log_command_execution_redacts_tokens() {
     // Test with token-like arguments
     let token_args = vec![
         "-H".to_string(),
@@ -156,14 +156,14 @@ fn test_log_command_execution_with_tokens() {
 }
 
 #[test]
-fn test_log_command_execution_empty_args() {
+fn log_command_execution_handles_empty_args() {
     // Test with no arguments
     let empty_args: Vec<String> = vec![];
     log_command_execution(true, "samoyed", &empty_args);
 }
 
 #[test]
-fn test_log_command_execution_complex_command() {
+fn log_command_execution_handles_complex_commands() {
     // Test with complex command and multiple arguments
     let complex_args = vec![
         "fmt".to_string(),

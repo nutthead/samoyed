@@ -26,7 +26,7 @@ fn exit_status(code: i32) -> ExitStatus {
 }
 
 #[test]
-fn test_cross_platform_hook_execution_unix() {
+fn cross_platform_hook_execution_unix() {
     // Test Unix-like system execution with sh
     let _env = MockEnvironment::new().with_var("HOME", "/home/test");
 
@@ -53,7 +53,7 @@ fn test_cross_platform_hook_execution_unix() {
 }
 
 #[test]
-fn test_cross_platform_hook_execution_windows_git_bash() {
+fn cross_platform_hook_execution_windows_git_bash() {
     // Test Windows with Git Bash detected via MSYSTEM
     let _env = MockEnvironment::new()
         .with_var("HOME", "/c/Users/test")
@@ -81,7 +81,7 @@ fn test_cross_platform_hook_execution_windows_git_bash() {
 }
 
 #[test]
-fn test_cross_platform_hook_execution_windows_cmd() {
+fn cross_platform_hook_execution_windows_cmd() {
     // Test native Windows with batch file
     let _env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\test");
 
@@ -107,7 +107,7 @@ fn test_cross_platform_hook_execution_windows_cmd() {
 }
 
 #[test]
-fn test_cross_platform_hook_execution_windows_powershell() {
+fn cross_platform_hook_execution_windows_powershell() {
     // Test native Windows with PowerShell script
     let _env = MockEnvironment::new().with_var("USERPROFILE", "C:\\Users\\test");
 
@@ -139,7 +139,7 @@ fn test_cross_platform_hook_execution_windows_powershell() {
 }
 
 #[test]
-fn test_cross_platform_path_separator_handling() {
+fn cross_platform_path_separator_handling() {
     // Test that PATH environment variable is handled with correct separators
     let unix_path = "/usr/bin:/usr/local/bin:/home/user/.local/bin";
     let windows_path = "C:\\Windows\\System32;C:\\Windows;C:\\Program Files\\Git\\bin";

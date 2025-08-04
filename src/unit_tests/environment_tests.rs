@@ -17,7 +17,7 @@ fn exit_status(code: i32) -> std::process::ExitStatus {
 }
 
 #[test]
-fn test_system_environment_basic_operations() {
+fn system_environment_basic_operations() {
     let env = SystemEnvironment;
 
     // Test getting environment variable that likely exists
@@ -30,7 +30,7 @@ fn test_system_environment_basic_operations() {
 }
 
 #[test]
-fn test_system_command_runner() {
+fn system_command_runner() {
     let runner = SystemCommandRunner;
 
     // Test with a basic command that should exist on most systems
@@ -44,7 +44,7 @@ fn test_system_command_runner() {
 }
 
 #[test]
-fn test_system_command_runner_failure() {
+fn system_command_runner_failure() {
     let runner = SystemCommandRunner;
 
     // Test with a command that should fail
@@ -53,7 +53,7 @@ fn test_system_command_runner_failure() {
 }
 
 #[test]
-fn test_system_file_system_operations() {
+fn system_file_system_operations() {
     let fs = SystemFileSystem;
 
     // Test exists with a path that should exist
@@ -64,7 +64,7 @@ fn test_system_file_system_operations() {
 }
 
 #[test]
-fn test_system_file_system_write_and_read() {
+fn system_file_system_write_and_read() {
     let fs = SystemFileSystem;
     let test_path = std::path::Path::new("/tmp/samoyed_test_file");
 
@@ -82,7 +82,7 @@ fn test_system_file_system_write_and_read() {
 }
 
 #[test]
-fn test_system_file_system_create_dir_all() {
+fn system_file_system_create_dir_all() {
     let fs = SystemFileSystem;
     let test_dir = std::path::Path::new("/tmp/samoyed_test_dir/nested/path");
 
@@ -98,7 +98,7 @@ fn test_system_file_system_create_dir_all() {
 }
 
 #[test]
-fn test_system_file_system_set_permissions() {
+fn system_file_system_set_permissions() {
     let fs = SystemFileSystem;
     let test_path = std::path::Path::new("/tmp/samoyed_test_permissions");
 
@@ -114,7 +114,7 @@ fn test_system_file_system_set_permissions() {
 }
 
 #[test]
-fn test_system_file_system_read_nonexistent() {
+fn system_file_system_read_nonexistent() {
     let fs = SystemFileSystem;
     let nonexistent_path = std::path::Path::new("/tmp/samoyed_nonexistent_file_12345");
 
@@ -124,7 +124,7 @@ fn test_system_file_system_read_nonexistent() {
 }
 
 #[test]
-fn test_system_file_system_set_permissions_nonexistent() {
+fn system_file_system_set_permissions_nonexistent() {
     let fs = SystemFileSystem;
     let nonexistent_path = std::path::Path::new("/tmp/samoyed_nonexistent_file_12345");
 
@@ -134,7 +134,7 @@ fn test_system_file_system_set_permissions_nonexistent() {
 }
 
 #[test]
-fn test_mock_environment_operations() {
+fn mock_environment_operations() {
     let env = MockEnvironment::new().with_var("TEST_VAR", "test_value");
 
     // Test getting existing variable
@@ -145,7 +145,7 @@ fn test_mock_environment_operations() {
 }
 
 #[test]
-fn test_mock_command_runner_operations() {
+fn mock_command_runner_operations() {
     let output = std::process::Output {
         status: exit_status(0),
         stdout: b"success".to_vec(),
@@ -167,7 +167,7 @@ fn test_mock_command_runner_operations() {
 }
 
 #[test]
-fn test_mock_command_runner_error_response() {
+fn mock_command_runner_error_response() {
     let error = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Access denied");
     let runner = MockCommandRunner::new().with_response("fail_cmd", &[], Err(error));
 
@@ -180,7 +180,7 @@ fn test_mock_command_runner_error_response() {
 }
 
 #[test]
-fn test_mock_command_runner_multiple_responses() {
+fn mock_command_runner_multiple_responses() {
     let output1 = std::process::Output {
         status: exit_status(0),
         stdout: b"first".to_vec(),
@@ -212,7 +212,7 @@ fn test_mock_command_runner_multiple_responses() {
 }
 
 #[test]
-fn test_mock_filesystem_operations() {
+fn mock_filesystem_operations() {
     let fs = MockFileSystem::new()
         .with_file("/test/file.txt", "test content")
         .with_directory("/test/dir");
@@ -249,7 +249,7 @@ fn test_mock_filesystem_operations() {
 }
 
 #[test]
-fn test_mock_filesystem_path_matching() {
+fn mock_filesystem_path_matching() {
     let fs = MockFileSystem::new()
         .with_directory("/root")
         .with_file("/root/child/file.txt", "content");
@@ -269,7 +269,7 @@ fn test_mock_filesystem_path_matching() {
 }
 
 #[test]
-fn test_mock_filesystem_empty() {
+fn mock_filesystem_empty() {
     let fs = MockFileSystem::new();
 
     // Test operations on empty filesystem
@@ -287,7 +287,7 @@ fn test_mock_filesystem_empty() {
 }
 
 #[test]
-fn test_mock_filesystem_overwrite() {
+fn mock_filesystem_overwrite() {
     let fs = MockFileSystem::new().with_file("/test.txt", "original");
 
     // Verify original content

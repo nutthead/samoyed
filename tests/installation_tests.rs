@@ -24,7 +24,7 @@ fn exit_status(code: i32) -> ExitStatus {
 }
 
 #[test]
-fn test_complete_installation_flow() {
+fn complete_installation_flow() {
     let env = MockEnvironment::new();
 
     // Mock git --version first
@@ -94,7 +94,7 @@ fn test_complete_installation_flow() {
 }
 
 #[test]
-fn test_installation_with_multiple_custom_directories() {
+fn installation_with_multiple_custom_directories() {
     // Test multiple custom directory scenarios
     let test_cases = vec![
         ("hooks", "hooks/_"),
@@ -142,7 +142,7 @@ fn test_installation_with_multiple_custom_directories() {
 }
 
 #[test]
-fn test_reinstallation_idempotency() {
+fn reinstallation_idempotency() {
     // Test that reinstalling multiple times is safe
     let env = MockEnvironment::new();
     let version_output = Output {
@@ -189,7 +189,7 @@ fn test_reinstallation_idempotency() {
 }
 
 #[test]
-fn test_directory_structure_validation() {
+fn directory_structure_validation() {
     let env = MockEnvironment::new();
     let version_output = Output {
         status: exit_status(0),

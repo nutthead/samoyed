@@ -18,7 +18,7 @@ mod linux_tests {
     }
 
     #[test]
-    fn test_linux_path_handling() {
+    fn linux_path_handling() {
         let env = MockEnvironment::new()
             .with_var("HOME", "/home/user")
             .with_var("USER", "testuser");
@@ -64,7 +64,7 @@ mod linux_tests {
     }
 
     #[test]
-    fn test_xdg_config_home_handling() {
+    fn xdg_config_home_handling() {
         // Test XDG Base Directory specification compliance
         let env_with_xdg = MockEnvironment::new()
             .with_var("HOME", "/home/user")
@@ -107,7 +107,7 @@ mod linux_tests {
     }
 
     #[test]
-    fn test_file_permissions_linux() {
+    fn file_permissions_linux() {
         let env = MockEnvironment::new().with_var("HOME", "/home/user");
         let output = Output {
             status: exit_status(0),
@@ -137,7 +137,7 @@ mod linux_tests {
     }
 
     #[test]
-    fn test_linux_shell_compatibility() {
+    fn linux_shell_compatibility() {
         // Test shell-specific behavior
         let shells = vec![
             ("SHELL", "/bin/bash"),
@@ -176,7 +176,7 @@ mod linux_tests {
     }
 
     #[test]
-    fn test_linux_git_variations() {
+    fn linux_git_variations() {
         // Test different git installations common on Linux
         let git_paths = vec![
             "/usr/bin/git",

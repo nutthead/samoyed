@@ -23,7 +23,7 @@ fn exit_status(code: i32) -> ExitStatus {
 }
 
 #[test]
-fn test_git_command_failure_scenarios() {
+fn git_command_failure_scenarios() {
     // Test various Git command failure scenarios
     let env = MockEnvironment::new();
 
@@ -65,7 +65,7 @@ fn test_git_command_failure_scenarios() {
 }
 
 #[test]
-fn test_filesystem_error_scenarios() {
+fn filesystem_error_scenarios() {
     let env = MockEnvironment::new();
     let version_output = Output {
         status: exit_status(0),
@@ -98,7 +98,7 @@ fn test_filesystem_error_scenarios() {
 }
 
 #[test]
-fn test_edge_case_paths() {
+fn edge_case_paths() {
     // Test various edge case paths
     let edge_cases = vec![
         ("..", "Directory traversal"),
@@ -154,7 +154,7 @@ fn test_edge_case_paths() {
 }
 
 #[test]
-fn test_error_message_quality() {
+fn error_message_quality() {
     // Test that error messages are helpful and specific
     let test_cases = vec![
         (
@@ -213,7 +213,7 @@ fn test_error_message_quality() {
 }
 
 #[test]
-fn test_concurrent_installation_simulation() {
+fn concurrent_installation_simulation() {
     // Simulate concurrent installation attempts
     let env = MockEnvironment::new();
     let version_output = Output {

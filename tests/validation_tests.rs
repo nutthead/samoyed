@@ -24,7 +24,7 @@ fn exit_status(code: i32) -> ExitStatus {
 }
 
 #[test]
-fn test_environment_variable_scenarios() {
+fn environment_variable_scenarios() {
     // Test various environment variable configurations
     let test_scenarios = vec![
         (vec![("SAMOYED", "0")], "skip mode"),
@@ -68,7 +68,7 @@ fn test_environment_variable_scenarios() {
 }
 
 #[test]
-fn test_hook_content_validation() {
+fn hook_content_validation() {
     let env = MockEnvironment::new();
     let version_output = Output {
         status: exit_status(0),
@@ -130,7 +130,7 @@ fn test_hook_content_validation() {
 }
 
 #[test]
-fn test_comprehensive_hook_coverage() {
+fn comprehensive_hook_coverage() {
     // Ensure all Git hooks are created
     let env = MockEnvironment::new();
     let version_output = Output {
@@ -186,7 +186,7 @@ fn test_comprehensive_hook_coverage() {
 }
 
 #[test]
-fn test_large_number_of_files_simulation() {
+fn large_number_of_files_simulation() {
     // Test with many pre-existing files to ensure performance
     let env = MockEnvironment::new();
     let version_output = Output {
