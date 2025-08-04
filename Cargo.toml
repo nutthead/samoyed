@@ -1,9 +1,17 @@
 [package]
 name = "samoyed"
-version = "0.1.8"
+version = "0.1.9"
+authors = ["Behrang Saeedzadeh <hello@behrang.org>"]
 edition = "2024"
-description = "A modern native Git hooks manager implemented in Rust"
+rust-version = "1.88.0"
+readme = "README.md"
+homepage = "https://github.com/nutthead/samoyed"
+repository = "https://github.com/nutthead/samoyed"
 license = "MIT"
+license-file = "LICENSE"
+description = "A modern native Git hooks manager implemented in Rust"
+keywords = ["git", "git-hooks", "git-hooks-manager", "husky"]
+exclude = [".samoyed/", "samoyed.toml", "docs/", ".claude/", "CLAUDE.md"]
 
 [[bin]]
 name = "samoyed"
