@@ -36,5 +36,14 @@ name = "benchmark"
 harness = false
 path = "tests/benchmark_tests/benchmark.rs"
 
+[profile.release]
+opt-level = 3          # Maximum optimization (performance)
+lto = true             # Link-time optimization (performance + size)
+codegen-units = 1      # Single codegen unit (better optimization)
+strip = true           # Remove debug symbols (size)
+
+[profile.release.package."*"]
+opt-level = "s"        # Optimize for size over speed for dependencies
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
