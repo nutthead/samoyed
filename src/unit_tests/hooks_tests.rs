@@ -236,11 +236,7 @@ fn test_hook_files_content_uses_samoyed_hook_command() {
     // Check a few representative hooks
     for &hook_name in &["pre-commit", "post-commit", "pre-push"] {
         let hook_path = hooks_dir.join(hook_name);
-        assert!(
-            fs.exists(&hook_path),
-            "Hook file {} should exist",
-            hook_name
-        );
+        assert!(fs.exists(&hook_path), "Hook file {hook_name} should exist");
 
         // Read the content and verify it uses 'samoyed hook' instead of 'samoyed-hook'
         let content = fs
@@ -248,22 +244,19 @@ fn test_hook_files_content_uses_samoyed_hook_command() {
             .expect("Should be able to read hook file");
         assert_eq!(
             content, expected_content,
-            "Hook file {} should contain correct samoyed hook command",
-            hook_name
+            "Hook file {hook_name} should contain correct samoyed hook command"
         );
 
         // Ensure it does NOT contain the old samoyed-hook command
         assert!(
             !content.contains("samoyed-hook"),
-            "Hook file {} should not reference deprecated samoyed-hook binary",
-            hook_name
+            "Hook file {hook_name} should not reference deprecated samoyed-hook binary"
         );
 
         // Verify it contains the new unified command
         assert!(
             content.contains("samoyed hook"),
-            "Hook file {} should use the new samoyed hook subcommand",
-            hook_name
+            "Hook file {hook_name} should use the new samoyed hook subcommand"
         );
     }
 }
