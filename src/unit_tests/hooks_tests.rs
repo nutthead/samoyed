@@ -221,3 +221,42 @@ fn test_normalize_line_endings_empty() {
     let normalized = normalize_line_endings(empty_content);
     assert_eq!(normalized, "");
 }
+
+#[test]
+fn test_hook_files_content_uses_samoyed_hook_command() {
+    let fs = MockFileSystem::new();
+    let hooks_dir = std::path::Path::new(".samoyed/_");
+
+    let result = create_hook_files(&fs, hooks_dir);
+    assert!(result.is_ok());
+
+    // Verify hook files contain the correct command (issue #75)
+    let expected_content = "#!/usr/bin/env sh\nexec samoyed hook \"$(basename \"$0\")\" \"$@\"";
+
+    // Check a few representative hooks
+    for &hook_name in &["pre-commit", "post-commit", "pre-push"] {
+        let hook_path = hooks_dir.join(hook_name);
+        assert!(fs.exists(&hook_path), "Hook file {hook_name} should exist");
+
+        // Read the content and verify it uses 'samoyed hook' instead of 'samoyed-hook'
+        let content = fs
+            .read_to_string(&hook_path)
+            .expect("Should be able to read hook file");
+        assert_eq!(
+            content, expected_content,
+            "Hook file {hook_name} should contain correct samoyed hook command"
+        );
+
+        // Ensure it does NOT contain the old samoyed-hook command
+        assert!(
+            !content.contains("samoyed-hook"),
+            "Hook file {hook_name} should not reference deprecated samoyed-hook binary"
+        );
+
+        // Verify it contains the new unified command
+        assert!(
+            content.contains("samoyed hook"),
+            "Hook file {hook_name} should use the new samoyed hook subcommand"
+        );
+    }
+}
