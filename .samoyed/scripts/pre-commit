@@ -7,8 +7,8 @@
 # This script represents the FALLBACK mechanism in Samoyed's two-tier lookup:
 #
 # ┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-# │ Git Commit  │────▶│ .samoyed/_/      │────▶│ samoyed-hook    │
-# └─────────────┘     │   pre-commit     │     │   binary        │
+# │ Git Commit  │────▶│ .samoyed/_/      │────▶│ samoyed hook    │
+# └─────────────┘     │   pre-commit     │     │   subcommand    │
 #                     └──────────────────┘     └─────────────────┘
 #                                                        │
 #                      ┌─────────────────────────────────┼─────────────────────────────────┐

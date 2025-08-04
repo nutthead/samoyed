@@ -4,7 +4,7 @@
 //!
 //! This module serves as the central orchestrator for the Samoid Git hooks installation process.
 //! It provides a comprehensive, robust, and secure way to set up Git hooks that delegate to
-//! the `samoyed-hook` binary runner, following modern Git hooks management patterns.
+//! the `samoyed hook` subcommand, following modern Git hooks management patterns.
 //!
 //! ## Raison d'être
 //!
@@ -41,7 +41,7 @@
 //! 3. **Repository Validation**: Confirm we're operating within a Git repository
 //! 4. **Git Configuration**: Set core.hooksPath to point to our hooks directory
 //! 5. **Directory Creation**: Establish the hooks directory structure with proper permissions
-//! 6. **Hook Installation**: Create individual hook files that delegate to samoyed-hook binary
+//! 6. **Hook Installation**: Create individual hook files that delegate to samoyed hook subcommand
 //! 7. **Verification**: Ensure all components are properly installed and accessible
 //!
 //! ## Error Handling Strategy
