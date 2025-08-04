@@ -40,7 +40,7 @@ samoyed init
 This will:
 1. Configure Git to use `.samoyed/_` as the hooks directory
 2. Create the hooks directory structure
-3. Install hook files that delegate to the `samoyed-hook` runner
+3. Install hook files that delegate to the `samoyed` binary
 
 ## Usage
 
@@ -58,10 +58,9 @@ samoyed init --hooks-dir custom-hooks
 
 Samoyed uses a three-layer architecture that provides both flexibility and performance:
 
-### Binary Components
+### Binary Component
 
-- **`samoyed`**: CLI interface for initialization and management
-- **`samoyed-hook`**: Lightweight hook runner executed by Git
+- **`samoyed`**: Unified binary for both CLI interface and hook execution
 
 ### Execution Flow
 
@@ -69,13 +68,13 @@ Samoyed uses a three-layer architecture that provides both flexibility and perfo
 sequenceDiagram
     participant Git as Git
     participant Hook as .samoyed/_/pre-commit
-    participant Runner as samoyed-hook
+    participant Runner as samoyed hook
     participant Config as samoyed.toml
     participant Script as .samoyed/scripts/pre-commit
     participant Shell as Shell
 
     Git->>Hook: git commit triggers
-    Hook->>Runner: exec samoyed-hook "pre-commit" "$@"
+    Hook->>Runner: exec samoyed hook "pre-commit" "$@"
 
     Runner->>Config: 1. Check for [hooks] pre-commit
 
@@ -110,15 +109,15 @@ pre-push = "cargo test --release"
 ```
 
 #### 2. `.samoyed/_/` - Git Hook Delegation Layer
-**Raison d'être**: Git integration. These files tell Git "when you want to run a hook, call samoyed-hook instead."
+**Raison d'être**: Git integration. These files tell Git "when you want to run a hook, call samoyed hook instead."
 
 All files contain identical delegation code:
 ```bash
 #!/usr/bin/env sh
-exec samoyed-hook "$(basename "$0")" "$@"
+exec samoyed hook "$(basename "$0")" "$@"
 ```
 
-Git's `core.hooksPath=.samoyed/_` points here, so `git commit` → `.samoyed/_/pre-commit` → `samoyed-hook`.
+Git's `core.hooksPath=.samoyed/_` points here, so `git commit` → `.samoyed/_/pre-commit` → `samoyed hook`.
 
 #### 3. `.samoyed/scripts/` - Fallback & Examples
 **Raison d'être**: Fallback mechanism for complex scenarios and examples for users who prefer script files.
@@ -143,7 +142,7 @@ This provides maximum flexibility:
 ### Performance Design
 
 This architecture ensures minimal overhead:
-- Git only spawns one process: `samoyed-hook`
+- Git only spawns one process: `samoyed hook`
 - No file system scanning during execution
 - Direct command execution via shell when possible
 - Graceful fallback with silent exit when no hooks are defined

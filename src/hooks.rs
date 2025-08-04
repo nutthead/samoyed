@@ -230,8 +230,8 @@ pub fn create_example_hook_scripts(
 # This script represents the FALLBACK mechanism in Samoyed's two-tier lookup:
 #
 # ┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-# │ Git Commit  │────▶│ .samoyed/_/      │────▶│ samoyed-hook    │
-# └─────────────┘     │   pre-commit     │     │   binary        │
+# │ Git Commit  │────▶│ .samoyed/_/      │────▶│ samoyed hook    │
+# └─────────────┘     │   pre-commit     │     │   subcommand    │
 #                     └──────────────────┘     └─────────────────┘
 #                                                        │
 #                      ┌─────────────────────────────────┼─────────────────────────────────┐
@@ -297,8 +297,8 @@ echo "Pre-commit checks passed!"
 # This script represents the FALLBACK mechanism in Samoyed's two-tier lookup:
 #
 # ┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-# │ Git Push    │────▶│ .samoyed/_/      │────▶│ samoyed-hook    │
-# └─────────────┘     │   pre-push       │     │   binary        │
+# │ Git Push    │────▶│ .samoyed/_/      │────▶│ samoyed hook    │
+# └─────────────┘     │   pre-push       │     │   subcommand    │
 #                     └──────────────────┘     └─────────────────┘
 #                                                        │
 #                      ┌─────────────────────────────────┼─────────────────────────────────┐
