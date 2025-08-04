@@ -361,8 +361,17 @@ jobs:
             
             # Contributors
             echo "### 👥 Contributors"
-            git log ${RANGE} --pretty=format:"%an" | sort | uniq | while read -r author; do
-              echo "- @${author}"
+            git log ${RANGE} --pretty=format:"%an|%ae" | sort | uniq | while IFS='|' read -r author email; do
+              # Map author names/emails to GitHub usernames
+              case "$email" in
+                "hello@behrang.org"|"behrangsa@gmail.com")
+                  echo "- @behrangsa"
+                  ;;
+                *)
+                  # For unknown contributors, use author name without @ prefix to avoid incorrect mentions
+                  echo "- ${author}"
+                  ;;
+              esac
             done
             echo ""
             

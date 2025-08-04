@@ -1,6 +1,6 @@
 [package]
 name = "samoyed"
-version = "0.1.9"
+version = "0.1.10"
 authors = ["Behrang Saeedzadeh <hello@behrang.org>"]
 edition = "2024"
 rust-version = "1.88.0"
@@ -35,6 +35,15 @@ criterion = "0.7"
 name = "benchmark"
 harness = false
 path = "tests/benchmark_tests/benchmark.rs"
+
+[profile.release]
+opt-level = "z"        # Optimize for size over speed
+lto = true             # Link-time optimization (performance + size)
+codegen-units = 1      # Single codegen unit (better optimization)
+strip = true           # Remove debug symbols (size)
+
+[profile.release.package."*"]
+opt-level = "z"        # Optimize for size over speed for dependencies
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
