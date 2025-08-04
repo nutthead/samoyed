@@ -8,7 +8,6 @@ readme = "README.md"
 homepage = "https://github.com/nutthead/samoyed"
 repository = "https://github.com/nutthead/samoyed"
 license = "MIT"
-license-file = "LICENSE"
 description = "A modern native Git hooks manager implemented in Rust"
 keywords = ["git", "git-hooks", "git-hooks-manager", "husky"]
 exclude = [".samoyed/", "samoyed.toml", "docs/", ".claude/", "CLAUDE.md"]
