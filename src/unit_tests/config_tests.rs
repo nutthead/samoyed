@@ -161,7 +161,7 @@ fail_fast = false
 }
 
 #[test]
-fn validate_method_coverage() {
+fn config_validation_accepts_valid_configurations() {
     // Test various validation scenarios to ensure complete coverage
     let mut config = SamoyedConfig::default_for_project_type(&ProjectType::Rust);
 
@@ -180,7 +180,7 @@ fn validate_method_coverage() {
 }
 
 #[test]
-fn comprehensive_validation_coverage() {
+fn config_validation_handles_all_hook_types() {
     // Test all validation code paths to ensure 100% coverage
     let mut config = SamoyedConfig {
         hooks: std::collections::HashMap::new(),
@@ -267,7 +267,7 @@ fn settings_validation_edge_cases() {
 }
 
 #[test]
-fn default_functions_coverage() {
+fn config_defaults_return_expected_values() {
     // Test the default functions to ensure they're covered
     let default_dir = super::default_hook_directory();
     assert_eq!(default_dir, ".samoyed");

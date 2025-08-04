@@ -130,7 +130,7 @@ fn hook_content_validation() {
 }
 
 #[test]
-fn comprehensive_hook_coverage() {
+fn install_creates_all_standard_hooks() {
     // Ensure all Git hooks are created
     let env = MockEnvironment::new();
     let version_output = Output {

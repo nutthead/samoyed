@@ -73,7 +73,7 @@ fn hook_error_from_io_error() {
 }
 
 #[test]
-fn hook_error_variants_coverage() {
+fn hook_error_formats() {
     // Test all HookError variants for coverage
     let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
     let error1 = HookError::IoError(io_error);

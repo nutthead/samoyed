@@ -209,7 +209,7 @@ fn install_hooks_handles_filesystem_error() {
 }
 
 #[test]
-fn install_error_variants_coverage() {
+fn install_error_formats() {
     // Test all InstallError variants for coverage
     let git_error = git::GitError::CommandNotFound {
         os_hint: Some("linux".to_string()),

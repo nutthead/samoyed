@@ -121,7 +121,7 @@ fn set_hooks_path_handles_configuration_failure() {
 }
 
 #[test]
-fn git_error_variants_coverage() {
+fn git_error_formats() {
     // Test all GitError variants for coverage
     let error1 = GitError::CommandNotFound {
         os_hint: Some("linux".to_string()),
