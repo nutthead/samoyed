@@ -5,8 +5,6 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process;
@@ -21,36 +19,13 @@ mod installer;
 mod logging;
 mod project;
 
+use config::SamoyedConfig;
 use environment::{
     CommandRunner, Environment, FileSystem, SystemCommandRunner, SystemEnvironment,
     SystemFileSystem,
 };
 use exit_codes::{EX_USAGE, determine_exit_code};
 use logging::{log_command_execution, log_file_operation_with_env, sanitize_args, sanitize_path};
-
-/// Simplified configuration structure for hook runner
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct SamoyedConfig {
-    /// Hook definitions (required)
-    pub hooks: HashMap<String, String>,
-
-    /// Optional settings (with defaults)
-    #[serde(default)]
-    pub settings: SamoyedSettings,
-}
-
-/// Settings structure with defaults
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-struct SamoyedSettings {
-    #[serde(default)]
-    pub hook_directory: Option<String>,
-    #[serde(default)]
-    pub debug: bool,
-    #[serde(default)]
-    pub fail_fast: Option<bool>,
-    #[serde(default)]
-    pub skip_hooks: bool,
-}
 
 #[derive(Parser)]
 #[command(name = "samoyed")]
