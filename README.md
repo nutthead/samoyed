@@ -15,7 +15,7 @@ You don’t have to fuss with that pesky `package.json` file in your projects an
 ## Features
 
 - 🚀 **Fast**: Built with Rust for optimal performance
-- 🔒 **Secure**: Comprehensive path validation and security checks
+- 🔒 **Secure**: Comprehensive path validation, security checks, and cryptographically signed releases
 - 🛡️ **Robust**: Detailed error handling with actionable suggestions
 - 🧪 **Well-tested**: Comprehensive test coverage with extensive integration tests
 - 🌍 **Cross-platform**: Supports Linux, macOS, and Windows
@@ -28,6 +28,55 @@ Samoyed is published on [crates.io](https://crates.io/crates/samoyed):
 ```bash
 cargo install samoyed
 ```
+
+### Download Pre-built Binaries
+
+Pre-built binaries are available for multiple platforms from the [GitHub Releases](https://github.com/nutthead/samoyed/releases) page:
+
+- Linux (x86_64, aarch64)
+- macOS (x86_64, aarch64)
+- Windows (x86_64, i686)
+
+### Signature Verification
+
+All release binaries are cryptographically signed with GPG for security and authenticity verification.
+
+#### 1. Import the Public Key
+
+```bash
+# Download the Samoyed signing key
+curl -fsSL -o behrangsa.gpg https://github.com/behrangsa.gpg
+
+# Show the fingerprint and verify it matches the expected value below
+gpg --show-keys --with-fingerprint behrangsa.gpg
+
+# Expected fingerprint: E505 76E4 801F 8E92 8F06  127D B4CF 0E46 5DC4 0E7B
+# (Replace with the actual fingerprint of the key)
+
+# If the fingerprint matches, import the key
+gpg --import behrangsa.gpg
+```
+
+#### 2. Verify Signatures
+
+Download both the binary archive and its corresponding `.asc` signature file, then verify:
+
+```bash
+# Example for Linux x86_64
+wget https://github.com/nutthead/samoyed/releases/download/v0.2.0/samoyed-0.2.0-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/nutthead/samoyed/releases/download/v0.2.0/samoyed-0.2.0-x86_64-unknown-linux-gnu.tar.gz.asc
+
+# Verify the signature
+gpg --verify samoyed-0.2.0-x86_64-unknown-linux-gnu.tar.gz.asc samoyed-0.2.0-x86_64-unknown-linux-gnu.tar.gz
+```
+
+**Expected output:**
+```
+gpg: Signature made [DATE] using RSA key B4CF0E465DC40E7B
+gpg: Good signature from "Behrang Saeedzadeh <hello@behrang.org>" [unknown]
+```
+
+**⚠️ Security Note**: The warning about "unknown" trust is normal unless you've explicitly trusted the key. The important part is seeing "Good signature" which confirms the file hasn't been tampered with.
 
 ## Migration Guide
 
@@ -52,12 +101,12 @@ cargo install samoyed
    # Option 1: Standard re-initialization (recommended)
    # Safe to run multiple times, updates hooks only if needed
    samoyed init
-   
+
    # Option 2: Force re-initialization (explicit migration)
    # Explicitly overwrites all hook files to ensure complete migration
    samoyed init -f _
    ```
-   
+
    **When to use each option:**
    - Use `samoyed init` for normal migration (safe, non-destructive)
    - Use `samoyed init -f _` if you want to force complete re-creation of all hook files
