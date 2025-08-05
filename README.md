@@ -50,7 +50,7 @@ curl -fsSL -o behrangsa.gpg https://github.com/behrangsa.gpg
 # Show the fingerprint and verify it matches the expected value below
 gpg --show-keys --with-fingerprint behrangsa.gpg
 
-# Expected fingerprint: 2B8C 4D8B 6B6A 8B6A 2B8C  4D8B 6B6A 8B6A 2B8C 4D8B
+# Expected fingerprint: E505 76E4 801F 8E92 8F06  127D B4CF 0E46 5DC4 0E7B
 # (Replace with the actual fingerprint of the key)
 
 # If the fingerprint matches, import the key
