@@ -283,8 +283,12 @@ jobs:
 
       - name: 🔐 Setup GPG signing
         run: |
-          # Import GPG private key from secrets
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          # Import GPG private key from secrets using a secure temporary file
+          GPG_KEY_FILE=$(mktemp)
+          chmod 600 "$GPG_KEY_FILE"
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" > "$GPG_KEY_FILE"
+          gpg --batch --import "$GPG_KEY_FILE"
+          shred -u "$GPG_KEY_FILE"
           
           # List imported keys for verification
           gpg --list-secret-keys --keyid-format LONG
