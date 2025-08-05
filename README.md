@@ -44,8 +44,17 @@ All release binaries are cryptographically signed with GPG for security and auth
 #### 1. Import the Public Key
 
 ```bash
-# Import the Samoyed signing key
-curl -fsSL https://github.com/behrangsa.gpg | gpg --import
+# Download the Samoyed signing key
+curl -fsSL -o behrangsa.gpg https://github.com/behrangsa.gpg
+
+# Show the fingerprint and verify it matches the expected value below
+gpg --show-keys --with-fingerprint behrangsa.gpg
+
+# Expected fingerprint: 2B8C 4D8B 6B6A 8B6A 2B8C  4D8B 6B6A 8B6A 2B8C 4D8B
+# (Replace with the actual fingerprint of the key)
+
+# If the fingerprint matches, import the key
+gpg --import behrangsa.gpg
 ```
 
 #### 2. Verify Signatures
