@@ -281,11 +281,37 @@ jobs:
           cd ../../../
           echo "ASSET=${ASSET_NAME}" >> $GITHUB_ENV
 
+      - name: 🔐 Setup GPG signing
+        run: |
+          # Import GPG private key from secrets
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          
+          # List imported keys for verification
+          gpg --list-secret-keys --keyid-format LONG
+          
+          # Get key ID for signing
+          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | head -1 | cut -d'/' -f2 | cut -d' ' -f1)
+          echo "GPG_KEY_ID=${GPG_KEY_ID}" >> $GITHUB_ENV
+          echo "🔑 Using GPG key: ${GPG_KEY_ID}"
+
+      - name: 🔏 Sign release artifact
+        run: |
+          # Sign the archive with GPG
+          gpg --batch --yes --detach-sign --armor --local-user "${{ env.GPG_KEY_ID }}" "${{ env.ASSET }}"
+          
+          # Verify the signature was created
+          ls -la "${{ env.ASSET }}.asc"
+          
+          echo "✅ Signed: ${{ env.ASSET }}"
+          echo "📝 Signature: ${{ env.ASSET }}.asc"
+
       - name: 📤 Upload release artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.target }}
-          path: ${{ env.ASSET }}
+          path: |
+            ${{ env.ASSET }}
+            ${{ env.ASSET }}.asc
           retention-days: 7
 
   # Generate changelog for the release
@@ -406,7 +432,10 @@ jobs:
       - name: 📋 List artifacts
         run: |
           echo "📦 Release artifacts:"
-          find artifacts -type f -name "*.tar.gz" -o -name "*.zip" | sort
+          find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) | sort
+          echo ""
+          echo "🔐 GPG signatures:"
+          find artifacts -type f -name "*.asc" | sort
 
       - name: 🚀 Create GitHub release
         uses: softprops/action-gh-release@v2

@@ -1,6 +1,6 @@
 [package]
 name = "samoyed"
-version = "0.1.10"
+version = "0.1.11"
 authors = ["Behrang Saeedzadeh <hello@behrang.org>"]
 edition = "2024"
 rust-version = "1.88.0"
@@ -9,16 +9,19 @@ homepage = "https://github.com/nutthead/samoyed"
 repository = "https://github.com/nutthead/samoyed"
 license = "MIT"
 description = "A modern native Git hooks manager implemented in Rust"
-keywords = ["git", "git-hooks", "git-hooks-manager", "husky"]
+keywords = ["git", "git-hooks", "git-hooks-manager", "samoyed", "husky"]
 exclude = [".samoyed/", "samoyed.toml", "docs/", ".claude/", "CLAUDE.md"]
+
 
 [[bin]]
 name = "samoyed"
 path = "src/main.rs"
 
+
 [[bin]]
 name = "samoyed-hook"
 path = "src/hook_runner.rs"
+
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
@@ -31,19 +34,23 @@ anyhow = "1.0"
 tempfile = "3.13"
 criterion = "0.7"
 
+
 [[bench]]
 name = "benchmark"
 harness = false
 path = "tests/benchmark_tests/benchmark.rs"
 
+
 [profile.release]
-opt-level = "z"        # Optimize for size over speed
-lto = true             # Link-time optimization (performance + size)
-codegen-units = 1      # Single codegen unit (better optimization)
-strip = true           # Remove debug symbols (size)
+opt-level = "z"   # Optimize for size over speed
+lto = true        # Link-time optimization (performance + size)
+codegen-units = 1 # Single codegen unit (better optimization)
+strip = true      # Remove debug symbols (size)
+
 
 [profile.release.package."*"]
-opt-level = "z"        # Optimize for size over speed for dependencies
+opt-level = "z" # Optimize for size over speed for dependencies
+
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
