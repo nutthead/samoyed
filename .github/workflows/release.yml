@@ -293,8 +293,8 @@ jobs:
           # List imported keys for verification
           gpg --list-secret-keys --keyid-format LONG
           
-          # Get key ID for signing
-          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | head -1 | cut -d'/' -f2 | cut -d' ' -f1)
+          # Get key ID for signing (robust parsing)
+          GPG_KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/ {print $5; exit}')
           echo "GPG_KEY_ID=${GPG_KEY_ID}" >> $GITHUB_ENV
           echo "🔑 Using GPG key: ${GPG_KEY_ID}"
 
