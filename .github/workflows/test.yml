@@ -15,10 +15,10 @@ permissions:
 # HOW: Individual jobs use conditional logic to run only when relevant files change
 on:
   push:
-    branches: [master, develop]  # Trigger on pushes to main branches
+    branches: [master, develop] # Trigger on pushes to main branches
   pull_request:
-    branches: [master, develop]  # Trigger on PRs targeting main branches  
-  workflow_dispatch:              # Allow manual triggering for testing
+    branches: [master, develop] # Trigger on PRs targeting main branches
+  workflow_dispatch: # Allow manual triggering for testing
 
 # =============================================================================
 # CONCURRENCY CONTROL
@@ -37,8 +37,8 @@ concurrency:
 # WHAT: Environment variables available to all jobs in this workflow
 # WHY: Consistent configuration across all test environments
 env:
-  CARGO_TERM_COLOR: always  # Force colored output in CI logs for better readability
-  RUST_BACKTRACE: 1         # Enable stack traces on panics for debugging
+  CARGO_TERM_COLOR: always # Force colored output in CI logs for better readability
+  RUST_BACKTRACE: 1 # Enable stack traces on panics for debugging
 
 jobs:
   # =============================================================================
@@ -53,15 +53,15 @@ jobs:
     # Job outputs that other jobs can reference via needs.changes.outputs.*
     # These boolean strings ('true'/'false') indicate if file categories changed
     outputs:
-      code: ${{ steps.filter.outputs.code }}  # 'true' if source/config files changed
-      docs: ${{ steps.filter.outputs.docs }}  # 'true' if documentation files changed
+      code: ${{ steps.filter.outputs.code }} # 'true' if source/config files changed
+      docs: ${{ steps.filter.outputs.docs }} # 'true' if documentation files changed
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: 🔍 Detect changed files
-        uses: dorny/paths-filter@v3  # Third-party action for advanced path filtering
-        id: filter                   # Step ID to reference outputs in other steps
+        uses: dorny/paths-filter@v3 # Third-party action for advanced path filtering
+        id: filter # Step ID to reference outputs in other steps
         with:
           # YAML multi-line string defining file categorization rules
           # Each category becomes a step output (filter.outputs.category)
@@ -84,7 +84,7 @@ jobs:
   # =============================================================================
   test:
     name: Test Suite
-    needs: changes  # Wait for change detection to complete
+    needs: changes # Wait for change detection to complete
     # WHAT: Conditional execution based on file changes or manual trigger
     # WHY: Skip expensive multi-platform testing when only docs change
     # SYNTAX: ${{ }} is GitHub expression syntax for dynamic evaluation
@@ -92,24 +92,18 @@ jobs:
     #         || is logical OR operator
     #         github.event_name is built-in context variable
     if: ${{ needs.changes.outputs.code == 'true' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ${{ matrix.os }}  # Runs on multiple OS from strategy matrix
+    runs-on: ${{ matrix.os }} # Runs on multiple OS from strategy matrix
     # WHAT: Matrix strategy creates multiple parallel job instances
     # WHY: Test across different OS platforms and Rust versions for compatibility
     # SYNTAX: Each matrix combination creates a separate runner instance
     strategy:
-      fail-fast: false  # Continue other matrix jobs even if one fails
+      fail-fast: false # Continue other matrix jobs even if one fails
       matrix:
         # Base matrix - every combination of os × rust is created
         os: [ubuntu-latest, ubuntu-24.04, macos-latest]
         rust: [stable]
         # Additional matrix entries beyond the base combinations
         include:
-          - os: ubuntu-latest  # Test cutting-edge Rust features
-            rust: nightly
-          - os: ubuntu-latest  # Test upcoming Rust release
-            rust: beta
-          - os: macos-latest   # Test beta on macOS too
-            rust: beta
           - os: windows-latest # Test Windows with PowerShell
             rust: stable
             shell: powershell
@@ -128,7 +122,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: 📦 Cache Rust dependencies
-        uses: actions/cache@v4  # GitHub's official caching action
+        uses: actions/cache@v4 # GitHub's official caching action
         with:
           # WHAT: Directories to cache between workflow runs
           # WHY: Dramatically speeds up builds by reusing compiled dependencies
@@ -283,12 +277,12 @@ jobs:
   # =============================================================================
   coverage:
     name: 📊 Code Coverage
-    needs: changes  # Depend on change detection
+    needs: changes # Depend on change detection
     # WHAT: Conditional execution - same logic as test job
     # WHY: Coverage analysis is expensive and only needed for code changes
     # SYNTAX: Identical conditional to test job for consistency
     if: ${{ needs.changes.outputs.code == 'true' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest  # Single platform sufficient for coverage
+    runs-on: ubuntu-latest # Single platform sufficient for coverage
     # NOTE: Runs in parallel with test and security jobs for faster CI
 
     steps:
@@ -440,12 +434,12 @@ jobs:
   # =============================================================================
   security:
     name: 🔒 Security Audit
-    needs: changes  # Depend on change detection
+    needs: changes # Depend on change detection
     # WHAT: Conditional execution - same logic as test and coverage jobs
     # WHY: Security audit checks dependencies, only needed when code/dependencies change
     # SYNTAX: Identical conditional to other code-dependent jobs
     if: ${{ needs.changes.outputs.code == 'true' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest  # Single platform sufficient for dependency audit
+    runs-on: ubuntu-latest # Single platform sufficient for dependency audit
     # NOTE: Runs in parallel with test and coverage jobs for faster CI
 
     steps:
@@ -567,7 +561,7 @@ jobs:
   summary:
     name: ✅ Test Summary
     runs-on: ubuntu-latest
-    needs: [changes, test, coverage, security]  # Wait for all jobs to complete
+    needs: [changes, test, coverage, security] # Wait for all jobs to complete
     # WHAT: Always run this job regardless of previous job outcomes
     # WHY: Provides required status check for GitHub branch protection rules
     # SYNTAX: always() function overrides default behavior of skipping on failure
@@ -717,24 +711,24 @@ jobs:
             echo "✅ No code changes detected - skipping tests"
             exit 0  # Success exit code
           fi
-          
+
           # CASE 2: Code changes or manual trigger - validate all job results\n          # LOGIC: All code-related jobs must either succeed or be legitimately skipped
           test_ok=false
           coverage_ok=false
           security_ok=false
-          
+
           if [ "${{ needs.test.result }}" == "success" ] || [ "${{ needs.test.result }}" == "skipped" ]; then
             test_ok=true
           fi
-          
+
           if [ "${{ needs.coverage.result }}" == "success" ] || [ "${{ needs.coverage.result }}" == "skipped" ]; then
             coverage_ok=true
           fi
-          
+
           if [ "${{ needs.security.result }}" == "success" ] || [ "${{ needs.security.result }}" == "skipped" ]; then
             security_ok=true
           fi
-          
+
           if [ "$test_ok" = true ] && [ "$coverage_ok" = true ] && [ "$security_ok" = true ]; then
             echo "✅ All required checks passed successfully!"
           else

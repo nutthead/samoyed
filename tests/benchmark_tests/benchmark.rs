@@ -295,10 +295,10 @@ fn benchmark_startup_time_samoyed_cli(c: &mut Criterion) {
 
                 let elapsed = start.elapsed();
 
-                if let Ok(result) = output {
-                    if result.status.success() {
-                        total_duration += elapsed;
-                    }
+                if let Ok(result) = output
+                    && result.status.success()
+                {
+                    total_duration += elapsed;
                 }
             }
 
