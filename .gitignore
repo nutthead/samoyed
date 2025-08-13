@@ -1,5 +1,4 @@
 target/
 tmp/
 /test-benchmark.log
-
-!tmp/.gitignore
+.claude/settings.local.json
