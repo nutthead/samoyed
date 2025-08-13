@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 <context>
 - Main branch: master
 - GitHub repository: nutthead/samoyed
-- Current version: 0.1.10
+- Current version: 0.1.12
 </context>
 
 ## Project Overview
