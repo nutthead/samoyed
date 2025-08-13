@@ -520,8 +520,8 @@ fn path_validation_error_messages() {
     assert!(error_msg.contains("Security"));
 
     let result = validate_hooks_directory_path("/absolute");
-    if result.is_err() {
-        let error_msg = result.unwrap_err().to_string();
+    if let Err(error) = result {
+        let error_msg = error.to_string();
         assert!(error_msg.contains("Absolute paths not allowed"));
     }
 
