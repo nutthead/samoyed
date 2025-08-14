@@ -4,7 +4,7 @@
 
 A modern, fast, and secure Git hooks manager written in Rust. Samoyed is inspired by Husky with improved performance, better error handling, and enhanced security features.
 
-You don’t have to fuss with that pesky `package.json` file in your projects anymore! 🤌
+You don't have to fuss with that pesky `package.json` file in your projects anymore! 🤌
 
 ![Samoyed](docs/images/samoyed.webp)
 
@@ -32,6 +32,265 @@ Samoyed is published on [crates.io](https://crates.io/crates/samoyed):
 ```bash
 cargo install samoyed
 ```
+
+## Verifying Release Signatures
+
+All Samoyed release binaries are cryptographically signed with GPG to ensure authenticity and integrity. This protects against tampering and supply chain attacks.
+
+### Quick Verification
+
+For users who want to quickly verify a download:
+
+```bash
+# Download and import our public key
+curl -sL https://github.com/nutthead/samoyed/releases/latest/download/samoyed-release-public.key | gpg --import
+
+# Verify a binary (replace with your downloaded file)
+gpg --verify samoyed-0.1.10-x86_64-unknown-linux-gnu.tar.gz.asc \
+             samoyed-0.1.10-x86_64-unknown-linux-gnu.tar.gz
+```
+
+### Step-by-Step Verification Instructions
+
+#### 1. Import the Samoyed Public Key
+
+Download and import our signing key from the latest release:
+
+```bash
+# Download the public key
+curl -sL https://github.com/nutthead/samoyed/releases/latest/download/samoyed-release-public.key -o samoyed-release-public.key
+
+# Import the key into your GPG keyring
+gpg --import samoyed-release-public.key
+```
+
+#### 2. Verify Key Fingerprint
+
+**Critical Security Step**: Always verify the key fingerprint matches our official key:
+
+```bash
+gpg --fingerprint 02D1B70CF6D841EEE6876E13F7A6F8331CBBC51F
+```
+
+Expected output should show:
+```
+pub   ed25519 2025-01-01 [SC] [expires: 2035-01-01]
+      02D1 B70C F6D8 41EE E687  6E13 F7A6 F833 1CBB C51F
+uid           Behrang Saeedzadeh <hello@behrang.org>
+sub   ed25519 2025-01-01 [E] [expires: 2035-01-01]
+```
+
+**⚠️ Security Warning**: If the fingerprint doesn't match exactly, do not proceed. This could indicate a compromised release.
+
+#### 3. Download Release Files
+
+Download the binary and its signature from the [releases page](https://github.com/nutthead/samoyed/releases):
+
+```bash
+# Example for Linux x86_64 (adjust for your platform)
+wget https://github.com/nutthead/samoyed/releases/download/v0.1.10/samoyed-0.1.10-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/nutthead/samoyed/releases/download/v0.1.10/samoyed-0.1.10-x86_64-unknown-linux-gnu.tar.gz.asc
+```
+
+#### 4. Verify the Signature
+
+```bash
+gpg --verify samoyed-0.1.10-x86_64-unknown-linux-gnu.tar.gz.asc \
+             samoyed-0.1.10-x86_64-unknown-linux-gnu.tar.gz
+```
+
+**Expected Output** (successful verification):
+```
+gpg: Signature made [date] using EdDSA key ID 1CBBC51F
+gpg: Good signature from "Behrang Saeedzadeh <hello@behrang.org>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+```
+
+The warning is normal unless you've explicitly trusted our key in your keyring.
+
+#### 5. Verify Checksums (Optional but Recommended)
+
+For additional security, verify the SHA256 checksums:
+
+```bash
+# Download checksums and signature
+wget https://github.com/nutthead/samoyed/releases/download/v0.1.10/CHECKSUMS.txt
+wget https://github.com/nutthead/samoyed/releases/download/v0.1.10/CHECKSUMS.txt.asc
+
+# Verify checksums signature
+gpg --verify CHECKSUMS.txt.asc CHECKSUMS.txt
+
+# Verify your binary's checksum
+sha256sum -c CHECKSUMS.txt --ignore-missing
+```
+
+### Platform-Specific Instructions
+
+#### Linux
+
+Linux distributions typically have GPG pre-installed. If not:
+
+```bash
+# Ubuntu/Debian
+sudo apt update && sudo apt install gnupg
+
+# RHEL/CentOS/Fedora
+sudo dnf install gnupg2
+# or for older systems: sudo yum install gnupg2
+
+# Arch Linux
+sudo pacman -S gnupg
+```
+
+#### macOS
+
+Install GPG using Homebrew:
+
+```bash
+# Install Homebrew if not already installed
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install GPG
+brew install gnupg
+```
+
+Alternative: Download [GPG Suite](https://gpgtools.org/) for a GUI experience.
+
+#### Windows
+
+**Option 1: GPG4Win (Recommended)**
+1. Download and install [GPG4Win](https://gpg4win.org/download.html)
+2. Use Kleopatra (GUI) or `gpg` command in Command Prompt/PowerShell
+
+**Option 2: Git for Windows**
+If you have Git for Windows installed, GPG is included:
+```cmd
+# Use Git Bash terminal
+gpg --version
+```
+
+**Option 3: Windows Subsystem for Linux (WSL)**
+```bash
+# In WSL terminal
+sudo apt update && sudo apt install gnupg
+```
+
+**PowerShell Example**:
+```powershell
+# Import key
+gpg --import samoyed-release-public.key
+
+# Verify signature
+gpg --verify samoyed-0.1.10-x86_64-pc-windows-msvc.zip.asc samoyed-0.1.10-x86_64-pc-windows-msvc.zip
+```
+
+### Troubleshooting Common Issues
+
+#### "gpg: command not found"
+
+**Cause**: GPG is not installed or not in your PATH.
+
+**Solutions**:
+- **Linux**: Install via package manager (see platform instructions above)
+- **macOS**: Install via Homebrew: `brew install gnupg`
+- **Windows**: Install GPG4Win or use Git Bash
+
+#### "gpg: Can't check signature: No public key"
+
+**Cause**: You haven't imported our public key yet.
+
+**Solution**:
+```bash
+# Import the public key first
+curl -sL https://github.com/nutthead/samoyed/releases/latest/download/samoyed-release-public.key | gpg --import
+```
+
+#### "gpg: BAD signature"
+
+**Cause**: The file has been tampered with or corrupted.
+
+**Solutions**:
+1. **Re-download** the file and signature from GitHub releases
+2. **Verify the download URL** - ensure you're downloading from `github.com/nutthead/samoyed`
+3. **Check file integrity** - compare file size with the release page
+4. **Report the issue** if problem persists
+
+#### "WARNING: This key is not certified with a trusted signature"
+
+**Cause**: This is normal behavior. GPG warns when you haven't explicitly trusted a key.
+
+**This is NOT an error**. The important part is seeing "Good signature from...".
+
+**To remove the warning** (optional):
+```bash
+# Trust our key (do this only after verifying the fingerprint)
+gpg --edit-key 02D1B70CF6D841EEE6876E13F7A6F8331CBBC51F
+# Type "trust" then "5" (ultimate trust) then "y" then "quit"
+```
+
+#### "gpg: signing failed: Inappropriate ioctl for device"
+
+**Cause**: GPG agent configuration issue (usually on headless systems).
+
+**Solution**:
+```bash
+export GPG_TTY=$(tty)
+# Add to your ~/.bashrc or ~/.zshrc to make permanent
+```
+
+#### Signature file not found
+
+**Cause**: You're trying to verify a file without downloading its `.asc` signature.
+
+**Solution**: Always download both files:
+```bash
+# Download binary
+wget https://github.com/nutthead/samoyed/releases/download/v0.1.10/samoyed-0.1.10-linux.tar.gz
+# Download signature
+wget https://github.com/nutthead/samoyed/releases/download/v0.1.10/samoyed-0.1.10-linux.tar.gz.asc
+```
+
+#### Old GPG version compatibility
+
+**Cause**: Very old GPG versions (< 2.1) may not support Ed25519 keys.
+
+**Solution**:
+- **Update GPG** to version 2.1 or newer
+- **Check version**: `gpg --version`
+- Most systems from 2014+ have compatible versions
+
+#### Network issues downloading keys
+
+**Cause**: Firewall or network restrictions.
+
+**Alternative methods**:
+```bash
+# Method 1: Direct download
+wget https://github.com/nutthead/samoyed/releases/latest/download/samoyed-release-public.key
+
+# Method 2: From repository
+wget https://raw.githubusercontent.com/nutthead/samoyed/main/samoyed-release-public.key
+
+# Method 3: Manual import (copy key content and save to file)
+cat > samoyed-release-public.key << 'EOF'
+[paste key content here]
+EOF
+```
+
+### Verification Best Practices
+
+1. **Always verify signatures** before extracting or running binaries
+2. **Verify the key fingerprint** against multiple sources (GitHub, documentation, social media)
+3. **Use secure download channels** - always download from `github.com/nutthead/samoyed`
+4. **Keep GPG updated** - use recent versions for best security and compatibility
+5. **Report suspicious activity** - if verification fails, report it immediately
+
+### Security Contact
+
+For security-related issues or questions about signature verification:
+- **GitHub Issues**: [Security-related issues](https://github.com/nutthead/samoyed/issues/new?labels=security)
+- **Email**: hello@behrang.org (for private security reports)
 
 ## Migration Guide
 
@@ -272,4 +531,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - Inspired by [Husky](https://typicode.github.io/husky/)
-- Built with 🤟 🫡 in Rust
+- Built with 🤪 in Rust
