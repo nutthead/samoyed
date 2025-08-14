@@ -6,6 +6,7 @@
 # WHY: Ensures consistent, reliable releases across multiple platforms
 # FEATURES:
 #   - Cross-platform binary builds (Linux, macOS, Windows)
+#   - GPG signing of all release artifacts
 #   - Automated changelog generation from conventional commits
 #   - GitHub release creation with artifacts
 #   - Conditional crates.io publishing (stable releases only)
@@ -19,9 +20,10 @@
 #   1. Validate version consistency between tag and Cargo.toml
 #   2. Build optimized binaries for all supported platforms
 #   3. Generate structured changelog from git commit history
-#   4. Create GitHub release with downloadable artifacts
-#   5. Publish to crates.io registry (stable releases only)
-#   6. Execute post-release tasks (notifications, summaries)
+#   4. Sign all release artifacts with GPG
+#   5. Create GitHub release with downloadable artifacts
+#   6. Publish to crates.io registry (stable releases only)
+#   7. Execute post-release tasks (notifications, summaries)
 
 name: 🚀 Release
 
@@ -49,20 +51,20 @@ on:
       # SYNTAX: Regex pattern for semantic version tags
       # MATCHES: v1.0.0, v2.1.3, v1.0.0-beta.1, v2.0.0-rc.1
       # FORMAT: v{major}.{minor}.{patch}[-{prerelease}]
-      - 'v[0-9]+.[0-9]+.[0-9]+*'
-  
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+
   # WHAT: Manual workflow trigger with configurable inputs
   # WHY: Allows testing releases, emergency releases, or custom versions
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., 0.1.0)'
+        description: "Version to release (e.g., 0.1.0)"
         required: true
-        type: string  # GitHub Actions input type for text
+        type: string # GitHub Actions input type for text
       dry_run:
-        description: 'Dry run (skip publishing)'
+        description: "Dry run (skip publishing)"
         required: false
-        type: boolean  # GitHub Actions input type for checkboxes
+        type: boolean # GitHub Actions input type for checkboxes
         default: false
 
 # =============================================================================
@@ -71,8 +73,8 @@ on:
 # WHAT: Environment variables available to all jobs in this workflow
 # WHY: Consistent configuration for optimal debugging and output
 env:
-  CARGO_TERM_COLOR: always  # Force colored Cargo output in CI logs
-  RUST_BACKTRACE: 1         # Enable detailed stack traces on panics
+  CARGO_TERM_COLOR: always # Force colored Cargo output in CI logs
+  RUST_BACKTRACE: 1 # Enable detailed stack traces on panics
 
 jobs:
   # =============================================================================
@@ -87,9 +89,9 @@ jobs:
     # Job outputs that other jobs can reference via needs.prepare.outputs.*
     # These values determine release behavior (crates.io publishing, GitHub release type)
     outputs:
-      version: ${{ steps.version.outputs.version }}           # Semantic version (e.g., "1.0.0")
+      version: ${{ steps.version.outputs.version }} # Semantic version (e.g., "1.0.0")
       is_prerelease: ${{ steps.version.outputs.is_prerelease }} # Boolean string indicating pre-release
-      
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -100,7 +102,7 @@ jobs:
           fetch-depth: 0
 
       - name: 🏷️ Determine version
-        id: version  # Step ID for referencing outputs in other steps
+        id: version # Step ID for referencing outputs in other steps
         run: |
           # =================================================================
           # VERSION EXTRACTION LOGIC
@@ -108,7 +110,7 @@ jobs:
           # WHAT: Extract version from trigger source (tag or manual input)
           # WHY: Support both automated tag-based and manual releases
           # SYNTAX: github.event_name is built-in context variable
-          
+
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             # Manual trigger: use provided version input
             VERSION="${{ github.event.inputs.version }}"
@@ -118,12 +120,12 @@ jobs:
             TAG="${{ github.ref_name }}"  # github.ref_name contains tag name
             VERSION="${TAG#v}"           # Remove 'v' prefix using bash parameter expansion
           fi
-          
+
           # WHAT: Set step outputs for use in other jobs
           # SYNTAX: >> $GITHUB_OUTPUT is GitHub Actions method to set outputs
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          
+
           # WHAT: Determine if this is a pre-release version
           # WHY: Pre-releases skip crates.io publishing and use different GitHub release flags
           # LOGIC: Semantic version with hyphen indicates pre-release (e.g., 1.0.0-beta.1)
@@ -144,14 +146,14 @@ jobs:
           # WHAT: Ensure Cargo.toml version matches release tag
           # WHY: Prevents publishing releases with incorrect version metadata
           # CRITICAL: Cargo publish uses Cargo.toml version, must match tag
-          
+
           # SYNTAX: Pipeline of commands to extract version from Cargo.toml
           # grep -E "^version" - Find lines starting with "version"
           # head -1 - Take first match (main package version)
           # cut -d'"' -f2 - Split on quotes, take second field (version string)
           CARGO_VERSION=$(grep -E "^version" Cargo.toml | head -1 | cut -d'"' -f2)
           EXPECTED_VERSION="${{ steps.version.outputs.version }}"
-          
+
           # WHAT: Compare versions and fail if mismatch
           # WHY: Version mismatch would cause publish failures or incorrect releases
           if [[ "$CARGO_VERSION" != "$EXPECTED_VERSION" ]]; then
@@ -162,7 +164,7 @@ jobs:
             echo "Please update Cargo.toml version to match the release tag."
             exit 1  # Fail the workflow with error exit code
           fi
-          
+
           echo "✅ Version validated: ${CARGO_VERSION}"
 
   # Build release binaries for all platforms
@@ -182,7 +184,7 @@ jobs:
             os: ubuntu-latest
             archive: tar.gz
             cross: true
-          
+
           # macOS builds
           - target: x86_64-apple-darwin
             os: macos-latest
@@ -190,7 +192,7 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             archive: tar.gz
-          
+
           # Windows builds
           - target: x86_64-pc-windows-msvc
             os: windows-latest
@@ -257,7 +259,7 @@ jobs:
           else
             TARGET_DIR="target/${{ matrix.target }}/release"
           fi
-          
+
           # Package from the target directory
           ASSET_NAME="samoyed-${{ needs.prepare.outputs.version }}-${{ matrix.target }}.tar.gz"
           tar czf "${ASSET_NAME}" -C "${TARGET_DIR}" samoyed samoyed-hook
@@ -273,7 +275,7 @@ jobs:
           else
             TARGET_DIR="target/${{ matrix.target }}/release"
           fi
-          
+
           # Package from the target directory
           ASSET_NAME="samoyed-${{ needs.prepare.outputs.version }}-${{ matrix.target }}.zip"
           cd "${TARGET_DIR}"
@@ -293,7 +295,7 @@ jobs:
     name: 📝 Generate Changelog
     needs: prepare
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -305,7 +307,7 @@ jobs:
         run: |
           # Get the previous tag
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${{ needs.prepare.outputs.tag }}^ 2>/dev/null || echo "")
-          
+
           if [[ -z "$PREVIOUS_TAG" ]]; then
             echo "📝 Generating changelog for first release..."
             RANGE=""
@@ -313,12 +315,12 @@ jobs:
             echo "📝 Generating changelog from ${PREVIOUS_TAG} to ${{ needs.prepare.outputs.tag }}..."
             RANGE="${PREVIOUS_TAG}..${{ needs.prepare.outputs.tag }}"
           fi
-          
+
           # Generate changelog using git log with conventional commit parsing
           {
             echo "## What's Changed in ${{ needs.prepare.outputs.version }}"
             echo ""
-            
+
             # Features
             FEATURES=$(git log ${RANGE} --pretty=format:"%s|%h" | grep -E "^feat(\(.*\))?:" || true)
             if [[ -n "$FEATURES" ]]; then
@@ -328,7 +330,7 @@ jobs:
               done
               echo ""
             fi
-            
+
             # Bug fixes
             FIXES=$(git log ${RANGE} --pretty=format:"%s|%h" | grep -E "^fix(\(.*\))?:" || true)
             if [[ -n "$FIXES" ]]; then
@@ -338,7 +340,7 @@ jobs:
               done
               echo ""
             fi
-            
+
             # Performance improvements
             PERF=$(git log ${RANGE} --pretty=format:"%s|%h" | grep -E "^perf(\(.*\))?:" || true)
             if [[ -n "$PERF" ]]; then
@@ -348,7 +350,7 @@ jobs:
               done
               echo ""
             fi
-            
+
             # Other changes
             OTHERS=$(git log ${RANGE} --pretty=format:"%s|%h" | grep -vE "^(feat|fix|perf|docs|test|chore|ci|build|style|refactor)(\(.*\))?:" || true)
             if [[ -n "$OTHERS" ]]; then
@@ -358,7 +360,7 @@ jobs:
               done
               echo ""
             fi
-            
+
             # Contributors
             echo "### 👥 Contributors"
             git log ${RANGE} --pretty=format:"%an|%ae" | sort | uniq | while IFS='|' read -r author email; do
@@ -374,10 +376,10 @@ jobs:
               esac
             done
             echo ""
-            
+
             echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${{ needs.prepare.outputs.tag }}"
           } > CHANGELOG.md
-          
+
           # Save changelog for release body
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           cat CHANGELOG.md >> $GITHUB_OUTPUT
@@ -396,8 +398,11 @@ jobs:
     needs: [prepare, build, changelog]
     runs-on: ubuntu-latest
     if: github.event.inputs.dry_run != 'true'
-    
+
     steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
       - name: 📥 Download all artifacts
         uses: actions/download-artifact@v5
         with:
@@ -408,6 +413,150 @@ jobs:
           echo "📦 Release artifacts:"
           find artifacts -type f -name "*.tar.gz" -o -name "*.zip" | sort
 
+      - name: 🔐 Import GPG key
+        run: |
+          # Import the private key from repository secrets
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+
+          # Configure GPG for non-interactive signing
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpgconf --reload gpg-agent
+
+          # Verify key was imported successfully (ed25519 key)
+          echo "🔍 Verifying GPG key import..."
+          gpg --list-secret-keys --keyid-format LONG
+
+          # Should show: sec ed25519/${{ vars.GPG_KEY_ID }}
+          if ! gpg --list-secret-keys --keyid-format LONG | grep -q "${{ vars.GPG_KEY_ID }}"; then
+            echo "❌ GPG key import failed"
+            exit 1
+          fi
+          echo "✅ GPG key imported successfully"
+
+      - name: 📜 Extract and verify public key
+        run: |
+          # Extract public key for distribution
+          gpg --armor --export ${{ vars.FULL_GPG_KEY_ID }} > samoyed-release-public.key
+
+          # Verify the exported public key
+          echo "🔍 Verifying exported public key..."
+          gpg --import --import-options show-only --with-fingerprint samoyed-release-public.key
+
+          # Verify fingerprint matches expected value
+          if ! gpg --import --import-options show-only --with-fingerprint samoyed-release-public.key | grep -q "${{ vars.GPG_FINGERPRINT }}"; then
+            echo "❌ Public key fingerprint verification failed"
+            exit 1
+          fi
+          echo "✅ Public key exported and verified"
+
+      - name: ✍️ Sign release artifacts
+        run: |
+          echo "🔐 Signing release artifacts with ed25519 key..."
+
+          # Sign each artifact with detached signature
+          for file in artifacts/release-*/*.tar.gz artifacts/release-*/*.zip; do
+            if [[ -f "$file" ]]; then
+              echo "Signing: $(basename "$file")"
+
+              # Create detached ASCII-armored signature with ed25519 key
+              gpg --batch --yes \
+                --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
+                --pinentry-mode loopback \
+                --armor \
+                --detach-sign \
+                --local-user ${{ vars.FULL_GPG_KEY_ID }} \
+                --output "${file}.asc" \
+                "$file"
+
+              # Verify signature was created correctly
+              if ! gpg --verify "${file}.asc" "$file"; then
+                echo "❌ Signature verification failed for $(basename "$file")"
+                exit 1
+              fi
+              echo "✅ Signed and verified: $(basename "$file")"
+            fi
+          done
+
+      - name: 📋 Generate and sign checksums
+        run: |
+          echo "📋 Generating SHA256 checksums..."
+
+          # Create SHA256 checksums for all release files
+          cd artifacts
+
+          # Generate checksums for all artifacts
+          {
+            echo "# SHA256 Checksums for Samoyed v${{ needs.prepare.outputs.version }}"
+            echo "# Generated on $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo ""
+            find release-* -type f \( -name "*.tar.gz" -o -name "*.zip" \) -print0 | \
+              xargs -0 sha256sum | sort
+          } > CHECKSUMS.txt
+
+          echo "📋 Checksums generated:"
+          cat CHECKSUMS.txt
+
+          # Sign the checksums file with ed25519 key
+          echo "🔐 Signing checksums file..."
+          gpg --batch --yes \
+            --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
+            --pinentry-mode loopback \
+            --armor \
+            --detach-sign \
+            --local-user ${{ vars.FULL_GPG_KEY_ID }} \
+            --output CHECKSUMS.txt.asc \
+            CHECKSUMS.txt
+
+          # Verify checksums signature
+          if ! gpg --verify CHECKSUMS.txt.asc CHECKSUMS.txt; then
+            echo "❌ Checksums signature verification failed"
+            exit 1
+          fi
+          echo "✅ Checksums signed and verified"
+
+          # Move public key to artifacts directory for release
+          cp ../samoyed-release-public.key .
+
+      - name: 📝 Log signing operations
+        run: |
+          echo "📝 Creating signing audit log..."
+          {
+            echo "=== SIGNING AUDIT LOG ==="
+            echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "Release: v${{ needs.prepare.outputs.version }}"
+            echo "Key ID: ${{ vars.FULL_GPG_KEY_ID }}"
+            echo "Workflow: ${{ github.workflow }}"
+            echo "Run ID: ${{ github.run_id }}"
+            echo "Actor: ${{ github.actor }}"
+            echo "Artifacts signed:"
+            find artifacts/release-* -name "*.asc" | while read sig; do
+              echo "  - $(basename "$sig")"
+            done
+            echo "========================"
+          } > signing-audit.log
+
+      - name: 📂 Prepare release assets
+        run: |
+          echo "📂 Organizing release assets..."
+
+          # Create a flat structure for release assets
+          mkdir -p release-assets
+
+          # Copy all binary archives and their signatures
+          find artifacts/release-* -name "*.tar.gz" -o -name "*.zip" -o -name "*.asc" | while read file; do
+            cp "$file" release-assets/
+          done
+
+          # Copy checksums, signatures, and public key
+          cp artifacts/CHECKSUMS.txt release-assets/
+          cp artifacts/CHECKSUMS.txt.asc release-assets/
+          cp artifacts/samoyed-release-public.key release-assets/
+          cp signing-audit.log release-assets/
+
+          # List final release assets
+          echo "📦 Final release assets:"
+          ls -la release-assets/
+
       - name: 🚀 Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
@@ -416,7 +565,7 @@ jobs:
           body_path: artifacts/changelog/CHANGELOG.md
           prerelease: ${{ needs.prepare.outputs.is_prerelease }}
           files: |
-            artifacts/release-*/*
+            release-assets/*
           generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -429,7 +578,7 @@ jobs:
     if: |
       github.event.inputs.dry_run != 'true' &&
       needs.prepare.outputs.is_prerelease == 'false'
-    
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -464,7 +613,7 @@ jobs:
     needs: [prepare, release]
     runs-on: ubuntu-latest
     if: github.event.inputs.dry_run != 'true'
-    
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -475,7 +624,7 @@ jobs:
           script: |
             const version = '${{ needs.prepare.outputs.version }}';
             const releaseUrl = `https://github.com/${{ github.repository }}/releases/tag/v${version}`;
-            
+
             // Find issues that mention this version
             const issues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
@@ -483,7 +632,7 @@ jobs:
               state: 'open',
               labels: 'release'
             });
-            
+
             for (const issue of issues.data) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -505,9 +654,183 @@ jobs:
           echo "| **Type** | ${{ needs.prepare.outputs.is_prerelease == 'true' && 'Pre-release' || 'Stable Release' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Release URL** | https://github.com/${{ github.repository }}/releases/tag/v${{ needs.prepare.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Crates.io** | ${{ needs.prepare.outputs.is_prerelease == 'false' && '✅ Published' || '⏭️ Skipped (pre-release)' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **GPG Signing** | ✅ All artifacts signed with ed25519 |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔐 Security Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Signing Key**: ed25519 (fingerprint: ${{ vars.FULL_GPG_KEY_ID }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **Public Key**: Available in release assets as \`samoyed-release-public.key\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Signatures**: Detached \`.asc\` files for all binaries" >> $GITHUB_STEP_SUMMARY
+          echo "- **Checksums**: SHA256 hashes in signed \`CHECKSUMS.txt\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🎯 Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "1. Verify the release artifacts work correctly" >> $GITHUB_STEP_SUMMARY
-          echo "2. Update documentation if needed" >> $GITHUB_STEP_SUMMARY
-          echo "3. Announce the release" >> $GITHUB_STEP_SUMMARY
+          echo "2. Test signature verification process" >> $GITHUB_STEP_SUMMARY
+          echo "3. Update documentation if needed" >> $GITHUB_STEP_SUMMARY
+          echo "4. Announce the release" >> $GITHUB_STEP_SUMMARY
+
+  # Verify all signatures
+  verify_signatures:
+    name: 🔍 Verify Signatures
+    needs: [prepare, release]
+    runs-on: ubuntu-latest
+    if: github.event.inputs.dry_run != 'true'
+
+    steps:
+      - name: 📥 Download release assets
+        run: |
+          echo "📥 Downloading release assets for verification..."
+          gh release download v${{ needs.prepare.outputs.version }} --repo ${{ github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🔐 Import public key and verify all signatures
+        run: |
+          echo "🔐 Importing public key and verifying signatures..."
+
+          # Import public key
+          gpg --import samoyed-release-public.key
+
+          # Verify key fingerprint
+          if ! gpg --fingerprint ${{ vars.FULL_GPG_KEY_ID }} | grep -q "${{ vars.GPG_FINGERPRINT }}"; then
+            echo "❌ Public key fingerprint verification failed"
+            exit 1
+          fi
+          echo "✅ Public key fingerprint verified"
+
+          # Verify all signatures
+          FAILED=0
+          echo "🔍 Verifying individual signatures..."
+
+          for sig in *.asc; do
+            if [[ ! -f "$sig" ]]; then
+              continue
+            fi
+
+            if [[ "$sig" == "CHECKSUMS.txt.asc" ]]; then
+              FILE="CHECKSUMS.txt"
+            else
+              FILE="${sig%.asc}"
+            fi
+
+            if [[ ! -f "$FILE" ]]; then
+              echo "❌ Missing file for signature: $FILE"
+              FAILED=1
+              continue
+            fi
+
+            if gpg --verify "$sig" "$FILE" 2>/dev/null; then
+              echo "✅ $sig: VALID"
+            else
+              echo "❌ $sig: INVALID"
+              FAILED=1
+            fi
+          done
+
+          if [[ $FAILED -eq 1 ]]; then
+            echo "❌ Signature verification failed"
+            exit 1
+          fi
+          echo "✅ All signatures verified successfully"
+
+  # Security monitoring and alerting
+  security_check:
+    name: 🛡️ Security Monitoring
+    needs: [prepare, release]
+    runs-on: ubuntu-latest
+    if: always() && github.event.inputs.dry_run != 'true'
+
+    steps:
+      - name: 🔍 Check release signature completeness
+        id: security_check
+        run: |
+          echo "🔍 Performing security checks on release..."
+
+          # Get release info
+          RELEASE_INFO=$(gh api repos/${{ github.repository }}/releases/tags/v${{ needs.prepare.outputs.version }})
+
+          # Extract asset names
+          ASSETS=$(echo "$RELEASE_INFO" | jq -r '.assets[].name')
+          echo "📦 Release assets found:"
+          echo "$ASSETS"
+
+          # Check if all expected signature files exist
+          MISSING_SIGS=""
+
+          # Check binary signatures
+          echo "$ASSETS" | grep -E '\.(tar\.gz|zip) | while read binary; do
+            if ! echo "$ASSETS" | grep -q "${binary}.asc"; then
+              echo "❌ Missing signature for: $binary"
+              echo "SECURITY_ISSUE=true" >> $GITHUB_ENV
+            else
+              echo "✅ Found signature for: $binary"
+            fi
+          done
+
+          # Check checksums signature
+          if echo "$ASSETS" | grep -q "CHECKSUMS.txt"; then
+            if ! echo "$ASSETS" | grep -q "CHECKSUMS.txt.asc"; then
+              echo "❌ Missing signature for CHECKSUMS.txt"
+              echo "SECURITY_ISSUE=true" >> $GITHUB_ENV
+            else
+              echo "✅ Found signature for CHECKSUMS.txt"
+            fi
+          else
+            echo "❌ Missing CHECKSUMS.txt file"
+            echo "SECURITY_ISSUE=true" >> $GITHUB_ENV
+          fi
+
+          # Check public key presence
+          if ! echo "$ASSETS" | grep -q "samoyed-release-public.key"; then
+            echo "❌ Missing public key file"
+            echo "SECURITY_ISSUE=true" >> $GITHUB_ENV
+          else
+            echo "✅ Found public key file"
+          fi
+
+          # Check audit log presence
+          if ! echo "$ASSETS" | grep -q "signing-audit.log"; then
+            echo "❌ Missing signing audit log"
+            echo "SECURITY_ISSUE=true" >> $GITHUB_ENV
+          else
+            echo "✅ Found signing audit log"
+          fi
+
+          if [[ "${SECURITY_ISSUE}" == "true" ]]; then
+            echo "❌ Security check failed - missing required files"
+            exit 1
+          fi
+          echo "✅ All security checks passed"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🚨 Alert on security issues
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 SECURITY ALERT: Release v${{ needs.prepare.outputs.version }} signature issues',
+              body: `**CRITICAL SECURITY ISSUE**: Release v${{ needs.prepare.outputs.version }} has signature verification problems.
+
+              **Immediate Actions Required:**
+              1. ⛔ Do not distribute this release to users
+              2. 🔍 Investigate the signing process failure
+              3. 🔐 Check for potential key compromise
+              4. 🔄 Re-run the release workflow if needed
+
+              **Details:**
+              - **Release:** v${{ needs.prepare.outputs.version }}
+              - **Workflow Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              - **Time:** ${new Date().toISOString()}
+
+              **Next Steps:**
+              - Review the failed workflow logs above
+              - Verify all required signature files are present
+              - Check that GPG key is functioning correctly
+              - Consider key rotation if compromise is suspected`,
+              labels: ['security', 'critical', 'release', 'urgent']
+            });
