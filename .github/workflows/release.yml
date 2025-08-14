@@ -700,9 +700,17 @@ jobs:
           # Import public key
           gpg --import samoyed-release-public.key
 
-          # Verify key fingerprint
-          if ! gpg --fingerprint ${{ vars.FULL_GPG_KEY_ID }} | grep -q "${{ vars.GPG_FINGERPRINT }}"; then
+          # Verify key fingerprint (normalize spacing)
+          ACTUAL_FINGERPRINT=$(gpg --fingerprint ${{ vars.FULL_GPG_KEY_ID }} | grep -E '^\s+[0-9A-F]{4} [0-9A-F]{4}' | tr -s ' ' | xargs)
+          EXPECTED_FINGERPRINT="${{ vars.GPG_FINGERPRINT }}"
+          
+          echo "Expected: ${EXPECTED_FINGERPRINT}"
+          echo "Actual:   ${ACTUAL_FINGERPRINT}"
+          
+          if [[ "${ACTUAL_FINGERPRINT}" != "${EXPECTED_FINGERPRINT}" ]]; then
             echo "❌ Public key fingerprint verification failed"
+            echo "Expected: ${EXPECTED_FINGERPRINT}"
+            echo "Actual:   ${ACTUAL_FINGERPRINT}"
             exit 1
           fi
           echo "✅ Public key fingerprint verified"
