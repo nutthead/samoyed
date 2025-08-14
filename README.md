@@ -8,6 +8,10 @@ You don’t have to fuss with that pesky `package.json` file in your projects an
 
 ![Samoyed](docs/images/samoyed.webp)
 
+## Key Rotation Policy
+
+Signing keys are rotated every 10 years or immediately upon suspected compromise. Rotation involves generating new keys, updating GitHub secrets, and notifying users via security advisory.
+
 ## Test Coverage
 
 ![Grid](https://codecov.io/gh/nutthead/samoyed/graphs/tree.svg?token=8ROK706MYS)
@@ -52,12 +56,12 @@ cargo install samoyed
    # Option 1: Standard re-initialization (recommended)
    # Safe to run multiple times, updates hooks only if needed
    samoyed init
-   
+
    # Option 2: Force re-initialization (explicit migration)
    # Explicitly overwrites all hook files to ensure complete migration
    samoyed init -f _
    ```
-   
+
    **When to use each option:**
    - Use `samoyed init` for normal migration (safe, non-destructive)
    - Use `samoyed init -f _` if you want to force complete re-creation of all hook files
