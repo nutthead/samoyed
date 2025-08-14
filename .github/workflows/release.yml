@@ -443,7 +443,7 @@ jobs:
           gpg --import --import-options show-only --with-fingerprint samoyed-release-public.key
 
           # Verify fingerprint matches expected value (normalize spacing)
-          ACTUAL_FINGERPRINT=$(gpg --import --import-options show-only --with-fingerprint samoyed-release-public.key | grep -E '^\s+[0-9A-F]{4} [0-9A-F]{4}' | tr -s ' ' | xargs)
+          ACTUAL_FINGERPRINT=$(gpg --import --import-options show-only --with-fingerprint samoyed-release-public.key | grep -E '^\s+([0-9A-F]{4}\s*){10}' | tr -s ' ' | xargs)
           EXPECTED_FINGERPRINT="${{ vars.GPG_FINGERPRINT }}"
           
           echo "Expected: ${EXPECTED_FINGERPRINT}"
@@ -701,7 +701,7 @@ jobs:
           gpg --import samoyed-release-public.key
 
           # Verify key fingerprint (normalize spacing)
-          ACTUAL_FINGERPRINT=$(gpg --fingerprint ${{ vars.FULL_GPG_KEY_ID }} | grep -E '^\s+[0-9A-F]{4} [0-9A-F]{4}' | tr -s ' ' | xargs)
+          ACTUAL_FINGERPRINT=$(gpg --fingerprint ${{ vars.FULL_GPG_KEY_ID }} | grep -E '^\s+([0-9A-F]{4}\s*){10}' | tr -s ' ' | xargs)
           EXPECTED_FINGERPRINT="${{ vars.GPG_FINGERPRINT }}"
           
           echo "Expected: ${EXPECTED_FINGERPRINT}"
