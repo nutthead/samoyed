@@ -517,6 +517,24 @@ jobs:
           # Move public key to artifacts directory for release
           cp ../samoyed-release-public.key .
 
+      - name: 📝 Log signing operations
+        run: |
+          echo "📝 Creating signing audit log..."
+          {
+            echo "=== SIGNING AUDIT LOG ==="
+            echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "Release: v${{ needs.prepare.outputs.version }}"
+            echo "Key ID: 02D1B70CF6D841EEE6876E13F7A6F8331CBBC51F"
+            echo "Workflow: ${{ github.workflow }}"
+            echo "Run ID: ${{ github.run_id }}"
+            echo "Actor: ${{ github.actor }}"
+            echo "Artifacts signed:"
+            find artifacts/release-* -name "*.asc" | while read sig; do
+              echo "  - $(basename "$sig")"
+            done
+            echo "========================"
+          } > signing-audit.log
+
       - name: 📂 Prepare release assets
         run: |
           echo "📂 Organizing release assets..."
@@ -533,6 +551,7 @@ jobs:
           cp artifacts/CHECKSUMS.txt release-assets/
           cp artifacts/CHECKSUMS.txt.asc release-assets/
           cp artifacts/samoyed-release-public.key release-assets/
+          cp signing-audit.log release-assets/
 
           # List final release assets
           echo "📦 Final release assets:"
@@ -650,3 +669,168 @@ jobs:
           echo "2. Test signature verification process" >> $GITHUB_STEP_SUMMARY
           echo "3. Update documentation if needed" >> $GITHUB_STEP_SUMMARY
           echo "4. Announce the release" >> $GITHUB_STEP_SUMMARY
+
+  # Verify all signatures
+  verify_signatures:
+    name: 🔍 Verify Signatures
+    needs: [prepare, release]
+    runs-on: ubuntu-latest
+    if: github.event.inputs.dry_run != 'true'
+
+    steps:
+      - name: 📥 Download release assets
+        run: |
+          echo "📥 Downloading release assets for verification..."
+          gh release download v${{ needs.prepare.outputs.version }} --repo ${{ github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🔐 Import public key and verify all signatures
+        run: |
+          echo "🔐 Importing public key and verifying signatures..."
+
+          # Import public key
+          gpg --import samoyed-release-public.key
+
+          # Verify key fingerprint
+          if ! gpg --fingerprint 02D1B70CF6D841EEE6876E13F7A6F8331CBBC51F | grep -q "02D1 B70C F6D8 41EE E687 6E13 F7A6 F833 1CBB C51F"; then
+            echo "❌ Public key fingerprint verification failed"
+            exit 1
+          fi
+          echo "✅ Public key fingerprint verified"
+
+          # Verify all signatures
+          FAILED=0
+          echo "🔍 Verifying individual signatures..."
+
+          for sig in *.asc; do
+            if [[ ! -f "$sig" ]]; then
+              continue
+            fi
+
+            if [[ "$sig" == "CHECKSUMS.txt.asc" ]]; then
+              FILE="CHECKSUMS.txt"
+            else
+              FILE="${sig%.asc}"
+            fi
+
+            if [[ ! -f "$FILE" ]]; then
+              echo "❌ Missing file for signature: $FILE"
+              FAILED=1
+              continue
+            fi
+
+            if gpg --verify "$sig" "$FILE" 2>/dev/null; then
+              echo "✅ $sig: VALID"
+            else
+              echo "❌ $sig: INVALID"
+              FAILED=1
+            fi
+          done
+
+          if [[ $FAILED -eq 1 ]]; then
+            echo "❌ Signature verification failed"
+            exit 1
+          fi
+          echo "✅ All signatures verified successfully"
+
+  # Security monitoring and alerting
+  security_check:
+    name: 🛡️ Security Monitoring
+    needs: [prepare, release]
+    runs-on: ubuntu-latest
+    if: always() && github.event.inputs.dry_run != 'true'
+
+    steps:
+      - name: 🔍 Check release signature completeness
+        id: security_check
+        run: |
+          echo "🔍 Performing security checks on release..."
+
+          # Get release info
+          RELEASE_INFO=$(gh api repos/${{ github.repository }}/releases/tags/v${{ needs.prepare.outputs.version }})
+
+          # Extract asset names
+          ASSETS=$(echo "$RELEASE_INFO" | jq -r '.assets[].name')
+          echo "📦 Release assets found:"
+          echo "$ASSETS"
+
+          # Check if all expected signature files exist
+          MISSING_SIGS=""
+
+          # Check binary signatures
+          echo "$ASSETS" | grep -E '\.(tar\.gz|zip) | while read binary; do
+            if ! echo "$ASSETS" | grep -q "${binary}.asc"; then
+              echo "❌ Missing signature for: $binary"
+              echo "SECURITY_ISSUE=true" >> $GITHUB_ENV
+            else
+              echo "✅ Found signature for: $binary"
+            fi
+          done
+
+          # Check checksums signature
+          if echo "$ASSETS" | grep -q "CHECKSUMS.txt"; then
+            if ! echo "$ASSETS" | grep -q "CHECKSUMS.txt.asc"; then
+              echo "❌ Missing signature for CHECKSUMS.txt"
+              echo "SECURITY_ISSUE=true" >> $GITHUB_ENV
+            else
+              echo "✅ Found signature for CHECKSUMS.txt"
+            fi
+          else
+            echo "❌ Missing CHECKSUMS.txt file"
+            echo "SECURITY_ISSUE=true" >> $GITHUB_ENV
+          fi
+
+          # Check public key presence
+          if ! echo "$ASSETS" | grep -q "samoyed-release-public.key"; then
+            echo "❌ Missing public key file"
+            echo "SECURITY_ISSUE=true" >> $GITHUB_ENV
+          else
+            echo "✅ Found public key file"
+          fi
+
+          # Check audit log presence
+          if ! echo "$ASSETS" | grep -q "signing-audit.log"; then
+            echo "❌ Missing signing audit log"
+            echo "SECURITY_ISSUE=true" >> $GITHUB_ENV
+          else
+            echo "✅ Found signing audit log"
+          fi
+
+          if [[ "${SECURITY_ISSUE}" == "true" ]]; then
+            echo "❌ Security check failed - missing required files"
+            exit 1
+          fi
+          echo "✅ All security checks passed"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🚨 Alert on security issues
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 SECURITY ALERT: Release v${{ needs.prepare.outputs.version }} signature issues',
+              body: `**CRITICAL SECURITY ISSUE**: Release v${{ needs.prepare.outputs.version }} has signature verification problems.
+
+              **Immediate Actions Required:**
+              1. ⛔ Do not distribute this release to users
+              2. 🔍 Investigate the signing process failure
+              3. 🔐 Check for potential key compromise
+              4. 🔄 Re-run the release workflow if needed
+
+              **Details:**
+              - **Release:** v${{ needs.prepare.outputs.version }}
+              - **Workflow Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              - **Time:** ${new Date().toISOString()}
+
+              **Next Steps:**
+              - Review the failed workflow logs above
+              - Verify all required signature files are present
+              - Check that GPG key is functioning correctly
+              - Consider key rotation if compromise is suspected`,
+              labels: ['security', 'critical', 'release', 'urgent']
+            });
