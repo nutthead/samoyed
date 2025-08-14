@@ -775,7 +775,7 @@ jobs:
           MISSING_SIGS=""
 
           # Check binary signatures
-          echo "$ASSETS" | grep -E '\.(tar\.gz|zip) | while read binary; do
+          echo "$ASSETS" | grep -E '\.(tar\.gz|zip)$' | while read binary; do
             if ! echo "$ASSETS" | grep -q "${binary}.asc"; then
               echo "❌ Missing signature for: $binary"
               echo "SECURITY_ISSUE=true" >> $GITHUB_ENV
