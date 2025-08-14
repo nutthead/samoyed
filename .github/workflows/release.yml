@@ -426,8 +426,8 @@ jobs:
           echo "🔍 Verifying GPG key import..."
           gpg --list-secret-keys --keyid-format LONG
 
-          # Should show: sec ed25519/F7A6F8331CBBC51F
-          if ! gpg --list-secret-keys --keyid-format LONG | grep -q "F7A6F8331CBBC51F"; then
+          # Should show: sec ed25519/${{ vars.GPG_KEY_ID }}
+          if ! gpg --list-secret-keys --keyid-format LONG | grep -q "${{ vars.GPG_KEY_ID }}"; then
             echo "❌ GPG key import failed"
             exit 1
           fi
@@ -436,14 +436,14 @@ jobs:
       - name: 📜 Extract and verify public key
         run: |
           # Extract public key for distribution
-          gpg --armor --export 02D1B70CF6D841EEE6876E13F7A6F8331CBBC51F > samoyed-release-public.key
+          gpg --armor --export ${{ vars.FULL_GPG_KEY_ID }} > samoyed-release-public.key
 
           # Verify the exported public key
           echo "🔍 Verifying exported public key..."
           gpg --import --import-options show-only --with-fingerprint samoyed-release-public.key
 
           # Verify fingerprint matches expected value
-          if ! gpg --import --import-options show-only --with-fingerprint samoyed-release-public.key | grep -q "02D1 B70C F6D8 41EE E687 6E13 F7A6 F833 1CBB C51F"; then
+          if ! gpg --import --import-options show-only --with-fingerprint samoyed-release-public.key | grep -q "${{ vars.GPG_FINGERPRINT }}"; then
             echo "❌ Public key fingerprint verification failed"
             exit 1
           fi
@@ -464,7 +464,7 @@ jobs:
                 --pinentry-mode loopback \
                 --armor \
                 --detach-sign \
-                --local-user 02D1B70CF6D841EEE6876E13F7A6F8331CBBC51F \
+                --local-user ${{ vars.FULL_GPG_KEY_ID }} \
                 --output "${file}.asc" \
                 "$file"
 
@@ -503,7 +503,7 @@ jobs:
             --pinentry-mode loopback \
             --armor \
             --detach-sign \
-            --local-user 02D1B70CF6D841EEE6876E13F7A6F8331CBBC51F \
+            --local-user ${{ vars.FULL_GPG_KEY_ID }} \
             --output CHECKSUMS.txt.asc \
             CHECKSUMS.txt
 
@@ -524,7 +524,7 @@ jobs:
             echo "=== SIGNING AUDIT LOG ==="
             echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
             echo "Release: v${{ needs.prepare.outputs.version }}"
-            echo "Key ID: 02D1B70CF6D841EEE6876E13F7A6F8331CBBC51F"
+            echo "Key ID: ${{ vars.FULL_GPG_KEY_ID }}"
             echo "Workflow: ${{ github.workflow }}"
             echo "Run ID: ${{ github.run_id }}"
             echo "Actor: ${{ github.actor }}"
@@ -658,7 +658,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🔐 Security Information" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Signing Key**: ed25519 (fingerprint: 02D1B70CF6D841EEE6876E13F7A6F8331CBBC51F)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Signing Key**: ed25519 (fingerprint: ${{ vars.FULL_GPG_KEY_ID }})" >> $GITHUB_STEP_SUMMARY
           echo "- **Public Key**: Available in release assets as \`samoyed-release-public.key\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Signatures**: Detached \`.asc\` files for all binaries" >> $GITHUB_STEP_SUMMARY
           echo "- **Checksums**: SHA256 hashes in signed \`CHECKSUMS.txt\`" >> $GITHUB_STEP_SUMMARY
@@ -693,7 +693,7 @@ jobs:
           gpg --import samoyed-release-public.key
 
           # Verify key fingerprint
-          if ! gpg --fingerprint 02D1B70CF6D841EEE6876E13F7A6F8331CBBC51F | grep -q "02D1 B70C F6D8 41EE E687 6E13 F7A6 F833 1CBB C51F"; then
+          if ! gpg --fingerprint ${{ vars.FULL_GPG_KEY_ID }} | grep -q "${{ vars.GPG_FINGERPRINT }}"; then
             echo "❌ Public key fingerprint verification failed"
             exit 1
           fi
