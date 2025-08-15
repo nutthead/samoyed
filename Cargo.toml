@@ -16,6 +16,8 @@ exclude = [
   ".gitignore",
   ".samoyed/",
   "docs/",
+  "src/unit_tests/",
+  "tests/",
   ".markdownlint.json",
   ".tarpaulin.toml",
   "CLAUDE.md",
