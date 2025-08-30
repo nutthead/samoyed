@@ -57,7 +57,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs }} # 'true' if documentation files changed
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🔍 Detect changed files
         uses: dorny/paths-filter@v3 # Third-party action for advanced path filtering
@@ -113,7 +113,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🦀 Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -287,7 +287,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🦀 Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -444,7 +444,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 🦀 Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
