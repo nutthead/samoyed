@@ -1,23 +1,22 @@
 [package]
 name = "samoyed"
-version = "0.1.17"
+version = "0.2.0"
 authors = ["Behrang Saeedzadeh <hello@behrang.org>"]
 edition = "2024"
-rust-version = "1.88.0"
+rust-version = "1.90.0"
 readme = "README.md"
 homepage = "https://github.com/nutthead/samoyed"
 repository = "https://github.com/nutthead/samoyed"
 license = "MIT"
-description = "A single-binary Git hooks manager"
+description = "A single-binary, minimal, cross-platform Git hooks manager"
 keywords = ["git", "git-hooks", "git-hooks-manager", "husky"]
 exclude = [
   ".claude/",
   ".github/",
   ".gitignore",
   ".samoyed/",
-  "docs/",
+  ".docs/",
   "src/unit_tests/",
-  "tests/",
   ".markdownlint.json",
   ".tarpaulin.toml",
   "CLAUDE.md",
@@ -30,39 +29,18 @@ name = "samoyed"
 path = "src/main.rs"
 
 
-[[bin]]
-name = "samoyed-hook"
-path = "src/hook_runner.rs"
-
-
 [dependencies]
-clap = { version = "4.5", features = ["derive"] }
-toml = "0.9"
-serde = { version = "1.0", features = ["derive"] }
-anyhow = "1.0"
-
-
-[dev-dependencies]
-tempfile = "3.21"
-criterion = "0.7"
-
-
-[[bench]]
-name = "benchmark"
-harness = false
-path = "tests/benchmark_tests/benchmark.rs"
+clap = { version = "4.5.48", features = ["derive"] }
 
 
 [profile.release]
-opt-level = "z"   # Optimize for size over speed
-lto = true        # Link-time optimization (performance + size)
+opt-level = 3     # Optimize for speed
+lto = "fat"       # Link Time Optimization (better optimization)
 codegen-units = 1 # Single codegen unit (better optimization)
 strip = true      # Remove debug symbols (size)
 
 
 [profile.release.package."*"]
-opt-level = "z" # Optimize for size over speed for dependencies
-
-
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
+opt-level = 3     # Optimize for speed
+codegen-units = 1 # Single codegen unit (better optimization)
+strip = true      # Remove debug symbols (size)

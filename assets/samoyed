@@ -1,0 +1,74 @@
+#!/usr/bin/env sh
+# SAMOYED Git Hook Wrapper
+# This script wraps user-defined Git hooks and provides a consistent execution environment
+
+# ============================================================================
+# DEBUG MODE
+# ============================================================================
+# Enable shell debugging if SAMOYED=2 is set
+if [ "$SAMOYED" = "2" ]; then
+    set -x
+fi
+
+# ============================================================================
+# HOOK IDENTIFICATION
+# ============================================================================
+# Determine which Git hook is being executed (e.g., pre-commit, pre-push)
+hook_name=$(basename "$0")
+
+# Find the actual user-defined hook script
+# Structure: .SAMOYED/_/pre-commit calls .SAMOYED/pre-commit
+hook_directory=$(dirname "$(dirname "$0")")
+user_hook_script="${hook_directory}/${hook_name}"
+
+# ============================================================================
+# HOOK EXISTENCE CHECK
+# ============================================================================
+# Exit gracefully if no user-defined hook exists
+if [ ! -f "$user_hook_script" ]; then
+    exit 0
+fi
+
+# ============================================================================
+# USER CONFIGURATION
+# ============================================================================
+# Load user initialization script if it exists
+# This allows users to set environment variables or perform setup
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
+init_script="${config_dir}/SAMOYED/init.sh"
+
+if [ -f "$init_script" ]; then
+    . "$init_script"
+fi
+
+# ============================================================================
+# SAMOYED BYPASS CHECK
+# ============================================================================
+# Allow users to skip all hooks by setting SAMOYED=0
+# Note: This check happens AFTER loading init script so it can be set dynamically
+if [ "${SAMOYED-}" = "0" ]; then
+    exit 0
+fi
+
+# ============================================================================
+# HOOK EXECUTION
+# ============================================================================
+# Execute the user-defined hook script with error checking (-e flag)
+sh -e "$user_hook_script" "$@"
+exit_code=$?
+
+# ============================================================================
+# ERROR HANDLING
+# ============================================================================
+# Report failures with helpful context
+if [ $exit_code != 0 ]; then
+    echo "SAMOYED - $hook_name script failed (code $exit_code)"
+    
+    # Special case: command not found
+    if [ $exit_code = 127 ]; then
+        echo "SAMOYED - command not found in PATH=$PATH"
+    fi
+fi
+
+# Exit with the same code as the user's hook script
+exit $exit_code
