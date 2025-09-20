@@ -23,9 +23,9 @@ cargo build --release --verbose
 cargo test --verbose
 
 # Platform-specific tests
-cargo test --test linux_tests --verbose             # Linux only
-cargo test --test macos_tests --verbose             # macOS only
-cargo test --test windows_tests --verbose           # Windows only
+cargo test --test linux_tests --verbose      # Linux only
+cargo test --test macos_tests --verbose      # macOS only
+cargo test --test windows_tests --verbose    # Windows only
 ```
 
 ### Code Quality

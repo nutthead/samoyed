@@ -1,5 +1,6 @@
 [default]
 run-types = ["Tests"]
+fail-under = 80
 
 [report]
 output-dir = "target/tarpaulin/coverage"
