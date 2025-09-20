@@ -1,6 +1,10 @@
 Context:
   The specification for Samoyed is written below, after the next horizontal rule.
-  Execute the following workflow to implement Samoyed in Rust.
+  Execute the following workflow to implement Samoyed according to its specification in Rust.
+
+Rules:
+  - Unit tests MUST NOT modify any files outside the temporary directories created for testing and the `/tmp` directory.
+  - Adhoc scripts or code that modifies files outside the temporary directories created for testing and the `/tmp` directory MUST NOT be written.
 
 Workflow:
   AdoptMindsets("Systematic", "Methodical", "Thorough", "Exact", "Diligent")
@@ -11,48 +15,54 @@ Workflow:
   Read("Samoyed Specification for Developers") ->
     Ultrathink ->
     Analyze ->
+    Think ->
     ExtractFacts ->
+    Think ->
     Distill ->
+    Think ->
     Synthesize ->
-    Implement ->
+    Ultrathink ->
+    Implement(include: "comprehensive, eloquent rustdoc comments") ->
     Format(using: "cargo fmt") ->
     Lint(using: "cargo clippy", onFailure: "Fix lint errors") ->
     Compile(using: "cargo build", onFailure: "Fix compilation errors");
 
-  Validate("Samoyed Specification for Developers") ->
+  Read(src/main.rs assets/samoyed) ->
+    Ultrathink ->
+    AddAdditionalLibrariesForUnitTesting(ifNeeded: true) ->
     WriteUnitTests ->
-    RunTests(using: "cargo test", onFailure: "Find and fix root cause of test failures") ->
+    RunTests(using: "cargo test", onFailure: "Ultrathink, find and fix root cause of test failures") ->
     EnsureAllTestsPass ->
-    MeasureCodeCoverage(using: "cargo tarpaulin", onFailure: "Write more tests to improve coverage") ->
-    
-
-
+    MeasureCodeCoverage(using: "cargo tarpaulin", onFailure: "Ulrathink, strategize, and write more unit tests to improve coverage") ->
 ---
 
 # Samoyed Specification for Developers
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://datatracker.ietf.org/doc/html/rfc2119).
 
-## Vision
+## Goal
 
 Build _Samoyed_, a cross-platform tool written in Rust that simplifies and streamlines how users work with client-side _Git Hooks_.
 
-Samoyed avoids feature-creep. Also, fortunately, managing and working with client-side Git hooks is very simple. Consequently, the entire Rust code for Samoyed MUST fit in a single file, [`main.rs`](../src/main.rs).
+Samoyed avoids feature-creep. Also, fortunately, as managing and working with client-side Git hooks is very simple, the entire Rust code for Samoyed can and MUST fit in a single file, `./src/main.rs`.
 
-Samoyed's source code has a 2nd file, [`samoyed`](../assets/samoyed), which is a POSIX shell script that is used as a Git hook wrapper. This file MUST be copied into the current repository's `[samoyed-dirname]/_` directory when `samoyed init` is executed inside a git repository.
+Samoyed's source code has a 2nd file, `./assets/samoyed`, which is a POSIX shell script that is used as a Git hook wrapper. When `samoyed init [samoyed-dirname]` is executed inside a git repository, `./assets/samoyed` MUST be copied into the current repository's `[samoyed-dirname]/_` directory 
 
-**NOTE:** The `[samoyed-dirname]` is an optional argument to the `samoyed init` command. If not provided, it defaults to `.samoyed`.
+**NOTE:** The `[samoyed-dirname]` is an optional argument to the `samoyed init` command. If not provided, its value defaults to `.samoyed`.
 
 ## Coding Rules
 
-* All the Rust code for Samoyed MUST fit and MUST reside in [`main.rs`](../src/main.rs)
+* All the Rust code for Samoyed MUST fit and MUST reside in `src/main.rs`
 * Mega functions, God Objects, and similar anti-patterns MUST be avoided
 * Code MUST be split into as many functions as needed, and each function MUST have a "cognitive-complexity-threshold" less than or equal to 21
-* A function MUST be split into two or more functions, if and only if, there is a logical reason to do so and the resulting code is more readable AND/OR easier to understand and test
+* A function MUST be split into two or more functions, if and only if, there is a logical reason to do so AND/OR the resulting code is more readable and easier to understand and unit test
 * You MUST follow the [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) principle
-* You MUST write code with testability in mind and code that you write MUST be easily testable
+* You MUST write code with unit testability in mind and code that you write MUST be easily unit testable
 * You MUST avoid overengineering
 * You MUST document the code using rustdoc comments
+* You MUST NOT add any **dependencies** to `Cargo.toml`
+* You MAY add **dev-dependencies** and **build-dependencies** to `Cargo.toml`, if and only if, they are absolutely necessary
+* You MUST adopt a structure for the code that allows additional files and directories to be created by Samoyed, or the code that already creates files and directories to be easily removed or modified
 
 ## CLI
 
@@ -74,7 +84,7 @@ Running `samoyed init [samoyed-dirname]` inside a git repository:
 * MUST create a `[samoyed-dirname]` directory in the root of the git repository, if it does not already exist
 * MUST create a `[samoyed-dirname]/_` directory
 
-Running `samoyed init [samoyed-dirname]` inside a git repository MUST copy [`assets/samoyed`](../assets/samoyed) to `[samoyed-dirname]/_` and set its permission to `644`:
+Running `samoyed init [samoyed-dirname]` inside a git repository MUST copy `assets/samoyed` to `[samoyed-dirname]/_` and set its permission to `644`:
 
 Running `samoyed init [samoyed-dirname]` inside a git repository MUST also create the following files inside the `[samoyed-dirname]/_` directory (collectively referred to as the "hook scripts") and set the file permission for each of them to `755`:
 
@@ -99,7 +109,7 @@ All the hook scripts MUST contain the following code, including the last newline
 base_name=$(basename "$0")
 abs_path=$(dirname "$(dirname "$0")")/$base_name
 
-echo "Change me: ${abs_path}"
+echo "I am the ${base_name} hook. Change me at: ${abs_path}."
 
 ```
 
@@ -115,4 +125,15 @@ Running `samoyed init [samoyed-dirname]` inside a git repository MUST create a f
 
 Running `samoyed init [samoyed-dirname]` inside a git repository:
 
-* MUST use `git config` to set `core.hooksPath` for the current repository to `[samoyed-dirname]/_`
+MUST set `core.hooksPath` for the current repository to `[samoyed-dirname]/_`.
+
+**NOTE 5:** To set `core.hooksPath`, you MUST use the command `git config core.hooksPath [samoyed-dirname]/_`.
+
+Running `samoyed init [samoyed-dirname]` inside a git repository:
+
+MUST create a `.gitignore` file inside `[samoyed-dirname]/_` with the following contents (including the last newline), if `[samoyed-dirname]/_/.gitignore` does not already exist:
+
+```
+*
+
+```
