@@ -22,6 +22,7 @@ Samoyed's source code has a 2nd file, [`samoyed`](../assets/samoyed), which is a
 * You MUST write code with testability in mind and code that you write MUST be easily testable
 * You MUST avoid overengineering
 * You MUST document the code using rustdoc comments
+* Samoyed is a CLI tool and not a library, therefore it MUST NOT have a `lib.rs` file
 
 ## CLI
 

@@ -1,4 +1,19 @@
+# ============================================================================
+# Build Artifacts & Compilation Output
+# ============================================================================
+# Rust target directory containing all compiled artifacts, dependencies,
+# and intermediate build files generated during compilation
 target/
+
+# ============================================================================
+# Temporary Files & Working Directories
+# ============================================================================
+# Temporary directory for transient files and experimental work
 tmp/
-/test-benchmark.log
+
+# ============================================================================
+# Development Environment Configuration
+# ============================================================================
+# Claude Code local settings - user-specific configurations that should
+# not be shared across development environments
 .claude/settings.local.json
