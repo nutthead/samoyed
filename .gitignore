@@ -8,8 +8,10 @@ target/
 # ============================================================================
 # Temporary Files & Working Directories
 # ============================================================================
-# Temporary directory for transient files and experimental work
-tmp/
+# Temporary directory for transient files and experimental work. When needed,
+# use this directory to test Samoyed, as it is ignored by version control.
+/tmp/*
+!/tmp/.gitkeep
 
 # ============================================================================
 # Development Environment Configuration
