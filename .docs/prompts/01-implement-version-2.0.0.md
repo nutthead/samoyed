@@ -36,7 +36,7 @@ Workflow:
     WriteUnitTests ->
     RunTests(using: "cargo test", exclude: "Windows and macOS tests", onFailure: "Ultrathink, find and fix root cause of test failures") ->
     EnsureAllTestsPass ->
-    MeasureCodeCoverage(using: "cargo tarpaulin", onFailure: "Ulrathink, strategize, and write more unit tests to improve coverage");
+    MeasureCodeCoverage(using: "cargo tarpaulin", onFailure: "Ultrathink, strategize, and write more unit tests to improve coverage");
 
   Instruction(Explain what you are doing when you do it);
   Instruction(Ultrathink and execute the workflow step by step, by respecting the adopted mindsets);
@@ -52,7 +52,7 @@ Build _Samoyed_, a cross-platform tool written in Rust that simplifies and strea
 
 Samoyed avoids feature-creep. Also, fortunately, as managing and working with client-side Git hooks is very simple, the entire Rust code for Samoyed can and MUST fit in a single file, `./src/main.rs`.
 
-Samoyed's source code has a 2nd file, `./assets/samoyed`, which is a POSIX shell script that is used as a Git hook wrapper. When `samoyed init [samoyed-dirname]` is executed inside a git repository, `./assets/samoyed` MUST be copied into the current repository's `[samoyed-dirname]/_` directory when `samoyed init [samoyed-dirname]` is executed inside a git repository.
+Samoyed's source code has a 2nd file, `./assets/samoyed`, which is a POSIX shell script that is used as a Git hook wrapper. When `samoyed init [samoyed-dirname]` is executed inside a git repository, `./assets/samoyed` MUST be copied into the current repository's `[samoyed-dirname]/_` directory (i.e. `[samoyed-dirname]/_/samoyed`).
 
 **NOTE 1:** The `[samoyed-dirname]` is an optional argument to the `samoyed init` command. If not provided, its value defaults to `.samoyed`.
 **NOTE 2:** Use an appropriate Rust technique such as `include_bytes!` to embed `./assets/samoyed` into the compiled binary, so that the binary is self-contained and does not depend on any external files.
@@ -93,7 +93,7 @@ Running `samoyed init [samoyed-dirname]` inside a git repository:
 
 **NOTE 5:** When `[samoyed-dirname]` is provided, then it MUST resolve to a path that is inside the current git repository. Otherwise, the message `Error: [samoyed-dirname] is outside the [absolute path] git repository` MUST be printed to `stderr` and the program MUST exit with a non-zero exit code. For example, let's assume we are inside `/home/user/Code/my-repo` which is a git repository according to `git rev-parse --is-inside-work-tree`. Then, `..` is not a valid value for `[samoyed-dirname]`, because it resolves to a path that is outside the current git repository. Hence a non-zero exit code MUST be returned and the message `Error: /home/user is outside the /home/user/Code/my-repo git repository` MUST be printed to `stderr`.
 
-Running `samoyed init [samoyed-dirname]` inside a git repository MUST copy `assets/samoyed` to `[samoyed-dirname]/_` and set its permission to `644`:
+Running `samoyed init [samoyed-dirname]` inside a git repository MUST copy `assets/samoyed` to `[samoyed-dirname]/_/samoyed` and set its permission to `644`.
 
 Running `samoyed init [samoyed-dirname]` inside a git repository MUST also create the following files inside the `[samoyed-dirname]/_` directory (collectively referred to as the "hook scripts") and set the file permission for each of them to `755`:
 
@@ -126,7 +126,7 @@ Running `samoyed init [samoyed-dirname]` inside a git repository MUST create a f
 
 ```sh
 #!/usr/bin/env sh
-. "$(dirname "$0")/samoyed"
+. "$(dirname "$0")/_/samoyed"
 
 ```
 

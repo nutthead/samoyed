@@ -17,7 +17,7 @@ fi
 hook_name=$(basename "$0")
 
 # Find the actual user-defined hook script
-# Structure: .SAMOYED/_/pre-commit calls .SAMOYED/pre-commit
+# Structure: .samoyed/_/pre-commit calls .samoyed/pre-commit
 hook_directory=$(dirname "$(dirname "$0")")
 user_hook_script="${hook_directory}/${hook_name}"
 
@@ -35,7 +35,7 @@ fi
 # Load user initialization script if it exists
 # This allows users to set environment variables or perform setup
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
-init_script="${config_dir}/SAMOYED/init.sh"
+init_script="${config_dir}/samoyed/init.sh"
 
 if [ -f "$init_script" ]; then
     . "$init_script"
