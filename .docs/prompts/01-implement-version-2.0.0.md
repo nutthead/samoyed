@@ -1,5 +1,7 @@
 Context:
-  The specification for Samoyed is written below, after the next horizontal rule.
+  The specification for _Samoyed_, _Samoyed Specification for Developers_, is written below, after the next horizontal rule.
+  Samoyed is a modern, minimal, safe, ultra-fast, cross-platform Git hooks manager.
+
   Execute the following workflow to implement Samoyed according to its specification in Rust.
 
 Rules:
@@ -36,6 +38,7 @@ Workflow:
     MeasureCodeCoverage(using: "cargo tarpaulin", onFailure: "Ulrathink, strategize, and write more unit tests to improve coverage");
 
   Instruction(Explain what you are doing when you do it);
+  Instruction(Execute the workflow step by step, do not skip any steps);
 ---
 
 # Samoyed Specification for Developers
