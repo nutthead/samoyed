@@ -9,6 +9,7 @@ Samoyed is a single-binary, minimal, cross-platform Git hooks manager written in
 ## Architecture
 
 ### Core Implementation
+
 - **Single-file architecture**: All Rust code resides in `src/main.rs` (currently ~700 lines) following the principle of minimalism and avoiding feature creep
 - **Embedded wrapper script**: The shell script at `assets/samoyed` is embedded into the binary using `include_bytes!` macro
 - **Hook wrapper pattern**: Each Git hook is a symlink to the wrapper script which delegates to user-defined hooks
@@ -30,7 +31,8 @@ Samoyed is a single-binary, minimal, cross-platform Git hooks manager written in
    - Loads user configuration from `${XDG_CONFIG_HOME:-$HOME/.config}/samoyed/init.sh`
    - Handles hook execution with proper exit code propagation
 
-### Design Constraints (from .docs/01-vision-version-2.0.0.md)
+### Design Constraints
+
 - All Rust code MUST fit in single file
 - Cognitive complexity threshold: 21 (enforced by clippy)
 - No runtime dependencies (only clap for CLI)
@@ -98,14 +100,14 @@ cargo tarpaulin --verbose --bins --all-features --timeout 120
 ```
 .
 ├── src/
-│   └── main.rs          # Complete implementation (init, hook management)
+│   └── main.rs                     # Complete implementation (init, hook management)
 ├── assets/
-│   └── samoyed          # POSIX shell wrapper script (embedded in binary)
+│   └── samoyed                     # POSIX shell wrapper script (embedded in binary)
 ├── .docs/
 │   └── 01-vision-version-2.0.0.md  # Detailed specification
-├── Cargo.toml           # Optimized release profile (fat LTO, stripped)
-├── clippy.toml          # Cognitive complexity: 21
-└── .tarpaulin.toml      # Coverage config (HTML, XML, JSON, LCOV)
+├── Cargo.toml                      # Optimized release profile (fat LTO, stripped)
+├── clippy.toml                     # Cognitive complexity: 21
+└── .tarpaulin.toml                 # Coverage config (HTML, XML, JSON, LCOV)
 ```
 
 ## Implementation Status
