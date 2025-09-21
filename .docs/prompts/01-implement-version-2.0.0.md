@@ -39,7 +39,7 @@ Workflow:
     MeasureCodeCoverage(using: "cargo tarpaulin", onFailure: "Ulrathink, strategize, and write more unit tests to improve coverage");
 
   Instruction(Explain what you are doing when you do it);
-  Instruction(Execute the workflow step by step, do not skip any steps);
+  Instruction(Ultrathink and execute the workflow step by step, by respecting the adopted mindsets);
 ---
 
 # Samoyed Specification for Developers
