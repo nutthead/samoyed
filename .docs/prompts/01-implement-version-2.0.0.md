@@ -48,9 +48,10 @@ Build _Samoyed_, a cross-platform tool written in Rust that simplifies and strea
 
 Samoyed avoids feature-creep. Also, fortunately, as managing and working with client-side Git hooks is very simple, the entire Rust code for Samoyed can and MUST fit in a single file, `./src/main.rs`.
 
-Samoyed's source code has a 2nd file, `./assets/samoyed`, which is a POSIX shell script that is used as a Git hook wrapper. When `samoyed init [samoyed-dirname]` is executed inside a git repository, `./assets/samoyed` MUST be copied into the current repository's `[samoyed-dirname]/_` directory 
+Samoyed's source code has a 2nd file, `./assets/samoyed`, which is a POSIX shell script that is used as a Git hook wrapper. When `samoyed init [samoyed-dirname]` is executed inside a git repository, `./assets/samoyed` MUST be copied into the current repository's `[samoyed-dirname]/_` directory when `samoyed init [samoyed-dirname]` is executed inside a git repository.
 
-**NOTE:** The `[samoyed-dirname]` is an optional argument to the `samoyed init` command. If not provided, its value defaults to `.samoyed`.
+**NOTE 1:** The `[samoyed-dirname]` is an optional argument to the `samoyed init` command. If not provided, its value defaults to `.samoyed`.
+**NOTE 2:** Use an appropriate Rust technique such as `include_bytes!` to embed `./assets/samoyed` into the compiled binary, so that the binary is self-contained and does not depend on any external files.
 
 ## Coding Rules
 
@@ -78,16 +79,15 @@ Running `samoyed init [samoyed-dirname]` in an environment where the `SAMOYED` e
 
 Running `samoyed init [samoyed-dirname]` outside a git repository MUST print an error message: `Error: Not a git repository` to `stderr` and exit with a non-zero exit code.
 
-**NOTE 1:** `[samoyed-dirname]` is an optional argument. If not provided, its value defaults to `.samoyed`.
-
-**NOTE 2:** To check if the current directory is inside a git repository, you MUST use the command `git rev-parse --is-inside-work-tree` and check its exit code. If and only if the exit code is zero AND the command's output is `true`, then the current directory is inside a git repository.
+**NOTE 3:** `[samoyed-dirname]` is an optional argument. If not provided, its value defaults to `.samoyed`.
+**NOTE 4:** To check if the current directory is inside a git repository, you MUST use the command `git rev-parse --is-inside-work-tree` and check its exit code. If and only if the exit code is zero AND the command's output is `true`, then the current directory is inside a git repository.
 
 Running `samoyed init [samoyed-dirname]` inside a git repository:
 
 * MUST create a `[samoyed-dirname]` directory in the root of the git repository, if it does not already exist
 * MUST create a `[samoyed-dirname]/_` directory
 
-**NOTE 3:** When `[samoyed-dirname]` is provided, then it MUST resolve to a path that is inside the current git repository. Otherwise, the message `Error: [samoyed-dirname] is outside the [absolute path] git repository` MUST be printed to `stderr` and the program MUST exit with a non-zero exit code. For example, let's assume we are inside `/home/user/Code/my-repo` which is a git repository according to `git rev-parse --is-inside-work-tree`. Then, `..` is not a valid value for `[samoyed-dirname]`, because it resolves to a path that is outside the current git repository. Hence a non-zero exit code MUST be returned and the message `Error: /home/user is outside the /home/user/Code/my-repo git repository` MUST be printed to `stderr`.
+**NOTE 5:** When `[samoyed-dirname]` is provided, then it MUST resolve to a path that is inside the current git repository. Otherwise, the message `Error: [samoyed-dirname] is outside the [absolute path] git repository` MUST be printed to `stderr` and the program MUST exit with a non-zero exit code. For example, let's assume we are inside `/home/user/Code/my-repo` which is a git repository according to `git rev-parse --is-inside-work-tree`. Then, `..` is not a valid value for `[samoyed-dirname]`, because it resolves to a path that is outside the current git repository. Hence a non-zero exit code MUST be returned and the message `Error: /home/user is outside the /home/user/Code/my-repo git repository` MUST be printed to `stderr`.
 
 Running `samoyed init [samoyed-dirname]` inside a git repository MUST copy `assets/samoyed` to `[samoyed-dirname]/_` and set its permission to `644`:
 
@@ -126,13 +126,13 @@ Running `samoyed init [samoyed-dirname]` inside a git repository MUST create a f
 
 ```
 
-**NOTE 4:** `[samoyed-dirname]` is an optional argument. If not provided, it defaults to `.samoyed`.
+**NOTE 6:** `[samoyed-dirname]` is an optional argument. If not provided, it defaults to `.samoyed`.
 
 Running `samoyed init [samoyed-dirname]` inside a git repository:
 
 MUST set `core.hooksPath` for the current repository to `[samoyed-dirname]/_`.
 
-**NOTE 5:** To set `core.hooksPath`, you MUST use the command `git config core.hooksPath [samoyed-dirname]/_`.
+**NOTE 7:** To set `core.hooksPath`, you MUST use the command `git config core.hooksPath [samoyed-dirname]/_`.
 
 Running `samoyed init [samoyed-dirname]` inside a git repository:
 
