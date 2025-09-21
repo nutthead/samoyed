@@ -7,12 +7,12 @@ Rules:
   - Adhoc scripts or code that modifies files outside the temporary directories created for testing and the `/tmp` directory MUST NOT be written.
 
 Workflow:
-  AdoptMindsets("Systematic", "Methodical", "Thorough", "Exact", "Diligent")
-  forEach mindset in adoptedMindsets
-    Define(mindset)
-    Embody(mindset)
+  let adoptedMindsets = AdoptMindsets(Systematic, Methodical, Thorough, Exact, Diligent) in
+    forEach mindset in adoptedMindsets
+      Println(Define(mindset))
+      Println(Embody(mindset));
 
-  Read("Samoyed Specification for Developers") ->
+  Read(Samoyed Specification for Developers) ->
     Ultrathink ->
     Analyze ->
     Think ->
@@ -31,9 +31,11 @@ Workflow:
     Ultrathink ->
     AddAdditionalLibrariesForUnitTesting(ifNeeded: true) ->
     WriteUnitTests ->
-    RunTests(using: "cargo test", onFailure: "Ultrathink, find and fix root cause of test failures") ->
+    RunTests(using: "cargo test", exclude: "Windows and macOS tests", onFailure: "Ultrathink, find and fix root cause of test failures") ->
     EnsureAllTestsPass ->
-    MeasureCodeCoverage(using: "cargo tarpaulin", onFailure: "Ulrathink, strategize, and write more unit tests to improve coverage") ->
+    MeasureCodeCoverage(using: "cargo tarpaulin", onFailure: "Ulrathink, strategize, and write more unit tests to improve coverage");
+
+  Instruction(Explain what you are doing when you do it);
 ---
 
 # Samoyed Specification for Developers
@@ -72,17 +74,20 @@ Running `samoyed`, `samoyed --help`, or `samoyed -h` MUST print the help message
 
 ### `samoyed init [samoyed-dirname]`
 
-**NOTE 1:** `[samoyed-dirname]` is an optional argument. If not provided, it defaults to `.samoyed`.
-**NOTE 2:** `[samoyed-dirname]` MUST resolve to a path that is inside the current git repository. Otherwise, an error MUST be printed to `stderr` and the program MUST exit with a non-zero exit code. For example, `..` is not a valid value for `[samoyed-dirname]` if the current directory is the root of a git repository.
+Running `samoyed init [samoyed-dirname]` in an environment where the `SAMOYED` environment variable is set to `0` MUST print the message `Bypassing samoyed init due to SAMOYED=0` to `stdout` and exit with a zero exit code.
 
-Running `samoyed init` outside a git repository MUST print an error message: `Error: Not a git repository` to `stderr` and exit with a non-zero exit code.
+Running `samoyed init [samoyed-dirname]` outside a git repository MUST print an error message: `Error: Not a git repository` to `stderr` and exit with a non-zero exit code.
 
-**NOTE 3:** To check if the current directory is inside a git repository, you MUST use the command `git rev-parse --is-inside-work-tree` and check its exit code. If and only if the exit code is zero AND the command's output is `true`, then the current directory is inside a git repository.
+**NOTE 1:** `[samoyed-dirname]` is an optional argument. If not provided, its value defaults to `.samoyed`.
+
+**NOTE 2:** To check if the current directory is inside a git repository, you MUST use the command `git rev-parse --is-inside-work-tree` and check its exit code. If and only if the exit code is zero AND the command's output is `true`, then the current directory is inside a git repository.
 
 Running `samoyed init [samoyed-dirname]` inside a git repository:
 
 * MUST create a `[samoyed-dirname]` directory in the root of the git repository, if it does not already exist
 * MUST create a `[samoyed-dirname]/_` directory
+
+**NOTE 3:** When `[samoyed-dirname]` is provided, then it MUST resolve to a path that is inside the current git repository. Otherwise, the message `Error: [samoyed-dirname] is outside the [absolute path] git repository` MUST be printed to `stderr` and the program MUST exit with a non-zero exit code. For example, let's assume we are inside `/home/user/Code/my-repo` which is a git repository according to `git rev-parse --is-inside-work-tree`. Then, `..` is not a valid value for `[samoyed-dirname]`, because it resolves to a path that is outside the current git repository. Hence a non-zero exit code MUST be returned and the message `Error: /home/user is outside the /home/user/Code/my-repo git repository` MUST be printed to `stderr`.
 
 Running `samoyed init [samoyed-dirname]` inside a git repository MUST copy `assets/samoyed` to `[samoyed-dirname]/_` and set its permission to `644`:
 
