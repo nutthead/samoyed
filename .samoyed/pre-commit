@@ -1,7 +1,11 @@
 #!/usr/bin/env sh
-# Add your pre-commit checks here. For example:
-# echo "Running Samoyed sample pre-commit"
-# exit 0
 echo "Pre-commit: start"
-cargo fmt
+
+echo "Type-checking with cargo check…"
+cargo check
+
+echo "Formatting with cargo fmt…"
+cargo fmt --all
+
 echo "Pre-commit: finish"
+
