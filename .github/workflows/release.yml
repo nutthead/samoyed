@@ -1,0 +1,249 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (semver, without leading v)'
+        required: true
+      branch:
+        description: 'Branch to cut the release from'
+        default: master
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+  checks: read
+
+env:
+  RUST_VERSION: 1.90.0
+
+jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      release_sha: ${{ steps.meta.outputs.release_sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1.15.0
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          profile: minimal
+          components: clippy, rustfmt
+
+      - name: Install release tooling
+        run: |
+          cargo install cargo-edit --locked
+          cargo install git-cliff --locked
+
+      - name: Validate version input
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          python - <<'PY'
+            import os, re
+
+            version = os.environ["VERSION"]
+            if not re.match(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$", version):
+                raise SystemExit(f"Invalid semver: {version}")
+          PY
+
+      - name: Set crate version
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          cargo set-version --workspace "$VERSION"
+
+      - name: Format, lint, and test
+        run: |
+          cargo fmt --all
+          cargo clippy --all-targets --all-features -- -D warnings
+          cargo test -- --test-threads=1
+
+      - name: Generate changelog
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          git-cliff --tag "v${VERSION}" --output CHANGELOG.md
+          git-cliff --latest --tag "v${VERSION}" > release-notes.md
+
+      - name: Commit release changes
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock CHANGELOG.md
+          git commit -m "chore(release): v${VERSION}"
+          git tag "v${VERSION}"
+          git push origin "HEAD:${{ github.event.inputs.branch }}"
+          git push origin "v${VERSION}"
+
+      - name: Export metadata
+        id: meta
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release notes artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+
+  build:
+    name: Build ${{ matrix.artifact_prefix }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            artifact_prefix: samoyed-linux-x86_64
+            archive: tar.gz
+            use_cross: false
+          - os: ubuntu-24.04
+            target: aarch64-unknown-linux-gnu
+            artifact_prefix: samoyed-linux-aarch64
+            archive: tar.gz
+            use_cross: true
+          - os: macos-14
+            target: aarch64-apple-darwin
+            artifact_prefix: samoyed-macos-aarch64
+            archive: tar.gz
+            use_cross: false
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_prefix: samoyed-windows-x86_64
+            archive: zip
+            use_cross: false
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            artifact_prefix: samoyed-windows-aarch64
+            archive: zip
+            use_cross: false
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare.outputs.release_sha }}
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1.15.0
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          profile: minimal
+          target: ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.use_cross
+        run: cargo install cross --locked
+
+      - name: Build binary
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cargo build --release --target "${{ matrix.target }}"
+          elif [[ "${{ matrix.use_cross }}" == "true" ]]; then
+            cross build --release --target "${{ matrix.target }}"
+          else
+            cargo build --release --target "${{ matrix.target }}"
+          fi
+        shell: bash
+
+      - name: Package archive (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          set -euo pipefail
+          ARTIFACT_NAME="${{ matrix.artifact_prefix }}-v${VERSION}"
+          STAGING="dist/${ARTIFACT_NAME}"
+          mkdir -p "$STAGING"
+          BIN_PATH="target/${{ matrix.target }}/release/samoyed"
+          install "$BIN_PATH" "$STAGING/samoyed"
+          cp LICENSE "$STAGING/"
+          cp README.md "$STAGING/"
+          tar -czf "dist/${ARTIFACT_NAME}.tar.gz" -C dist "${ARTIFACT_NAME}"
+          shasum -a 256 "dist/${ARTIFACT_NAME}.tar.gz" > "dist/${ARTIFACT_NAME}.sha256"
+          rm -rf "$STAGING"
+        shell: bash
+
+      - name: Package archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $artifactName = "${{ matrix.artifact_prefix }}-v${{ needs.prepare.outputs.version }}"
+          $staging = Join-Path -Path 'dist' -ChildPath $artifactName
+          New-Item -ItemType Directory -Force -Path $staging | Out-Null
+          $targetDir = Join-Path -Path 'target' -ChildPath '${{ matrix.target }}'
+          $binaryDir = Join-Path -Path $targetDir -ChildPath 'release'
+          $binaryPath = Join-Path -Path $binaryDir -ChildPath 'samoyed.exe'
+          Copy-Item $binaryPath (Join-Path -Path $staging -ChildPath 'samoyed.exe')
+          Copy-Item 'LICENSE' $staging
+          Copy-Item 'README.md' $staging
+          $archivePath = Join-Path -Path 'dist' -ChildPath "$artifactName.zip"
+          Compress-Archive -Path (Join-Path -Path $staging -ChildPath '*') -DestinationPath $archivePath -Force
+          Get-FileHash -Algorithm SHA256 $archivePath | ForEach-Object { "{0}  {1}" -f $_.Hash, (Split-Path -Leaf $_.Path) } > (Join-Path -Path 'dist' -ChildPath "$artifactName.sha256")
+          Remove-Item -Recurse -Force $staging
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ${{ matrix.artifact_prefix }}-v${{ needs.prepare.outputs.version }}
+          path: |
+            dist/${{ matrix.artifact_prefix }}-v${{ needs.prepare.outputs.version }}.${{ matrix.archive }}
+            dist/${{ matrix.artifact_prefix }}-v${{ needs.prepare.outputs.version }}.sha256
+          if-no-files-found: error
+
+  release:
+    name: Publish Release
+    runs-on: ubuntu-24.04
+    needs:
+      - prepare
+      - build
+    steps:
+      - name: Download release notes
+        uses: actions/download-artifact@v5.0.0
+        with:
+          name: release-notes
+          path: release
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v5.0.0
+        with:
+          path: dist
+          pattern: samoyed-*
+          merge-multiple: true
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2.3.3
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: Samoyed ${{ needs.prepare.outputs.version }}
+          body_path: release/release-notes.md
+          draft: false
+          prerelease: ${{ contains(needs.prepare.outputs.version, '-') }}
+          files: |
+            dist/**/*.tar.gz
+            dist/**/*.zip
+            dist/**/*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

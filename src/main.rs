@@ -465,6 +465,7 @@ fn create_gitignore(samoyed_dir: &Path) -> Result<(), String> {
 mod tests {
     use super::*;
     use std::fs;
+    use std::path::PathBuf;
     use std::process::Command as StdCommand;
     use tempfile::TempDir;
 
@@ -514,7 +515,9 @@ mod tests {
         let result = validate_samoyed_dir(git_root, git_root, ".samoyed");
         assert!(result.is_ok());
         let path = result.unwrap();
-        assert_eq!(path, git_root.join(".samoyed"));
+        let expected = canonicalize_allowing_nonexistent(&git_root.join(".samoyed"))
+            .expect("failed to canonicalize expected path");
+        assert_eq!(path, expected);
 
         // Test with nested directory
         let result = validate_samoyed_dir(git_root, git_root, "hooks/samoyed");
@@ -808,7 +811,15 @@ mod tests {
             .unwrap();
 
         let hooks_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        assert!(hooks_path.contains("samoyed/_") || hooks_path.ends_with("/_"));
+        assert!(!hooks_path.is_empty());
+
+        let hooks_path_buf = PathBuf::from(&hooks_path);
+        let expected_hooks = samoyed_dir.join("_");
+        let hooks_canonical = canonicalize_allowing_nonexistent(&hooks_path_buf)
+            .expect("failed to canonicalize hooks path");
+        let expected_canonical = canonicalize_allowing_nonexistent(&expected_hooks)
+            .expect("failed to canonicalize expected hooks path");
+        assert_eq!(hooks_canonical, expected_canonical);
 
         env::set_current_dir(original_dir).unwrap();
     }
@@ -875,7 +886,15 @@ mod tests {
 
         assert!(output.status.success());
         let hooks_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        assert!(hooks_path.contains("samoyed/_") || hooks_path.ends_with("/_"));
+        assert!(!hooks_path.is_empty());
+
+        let hooks_path_buf = PathBuf::from(&hooks_path);
+        let expected_hooks = samoyed_dir.join("_");
+        let hooks_canonical = canonicalize_allowing_nonexistent(&hooks_path_buf)
+            .expect("failed to canonicalize hooks path");
+        let expected_canonical = canonicalize_allowing_nonexistent(&expected_hooks)
+            .expect("failed to canonicalize expected hooks path");
+        assert_eq!(hooks_canonical, expected_canonical);
 
         env::set_current_dir(original_dir).unwrap();
     }
@@ -929,7 +948,8 @@ mod tests {
 
         // The resulting path should be inside git root
         let path = result.unwrap();
-        assert!(path.starts_with(git_root));
+        let git_root_canonical = git_root.canonicalize().unwrap();
+        assert!(path.starts_with(&git_root_canonical));
     }
 
     /// Test that main function returns success exit code
