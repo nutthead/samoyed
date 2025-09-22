@@ -148,11 +148,12 @@ done
 # Test: Wrapper script permissions
 echo "Testing: Wrapper script permissions"
 
-# The wrapper script must be executable because hook stubs exec into it
+# The wrapper script intentionally ships without the executable bit; the hooks
+# invoke it via their own shebang.
 if [ -x ".samoyed/_/samoyed" ]; then
-    ok "Wrapper script is executable"
+    error "Wrapper script unexpectedly has execute permission"
 else
-    error "Wrapper script is not executable"
+    ok "Wrapper script is non-executable as expected"
 fi
 
 # Test: Sample pre-commit hook content
