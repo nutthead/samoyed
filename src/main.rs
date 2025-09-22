@@ -7,9 +7,11 @@
 use clap::{Parser, Subcommand};
 use std::env;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, ExitCode};
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 
 /// Embedded assets/samoyed script that serves as the Git hook wrapper
 const SAMOYED_WRAPPER_SCRIPT: &[u8] = include_bytes!("../assets/samoyed");
@@ -463,9 +465,11 @@ fn create_gitignore(samoyed_dir: &Path) -> Result<(), String> {
 mod tests {
     use super::*;
     use std::fs;
-    use std::os::unix::fs::PermissionsExt;
     use std::process::Command as StdCommand;
     use tempfile::TempDir;
+
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
 
     /// Test check_bypass_mode function
     #[test]
