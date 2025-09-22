@@ -27,6 +27,8 @@ Samoyed was built to strip Git hook tooling down to the essentials:
 
 Version 0.2.0 doubles down on clarity: the `samoyed init` command seeds every Git hook, wires them through the shared wrapper, and leaves a template pre-commit script ready for teams to adapt. Environment variables such as `SAMOYED=0` (bypass) and `SAMOYED=2` (debug) give developers predictable escape hatches without extra plugins.
 
+This represents a fundamental architectural simplification from version 0.1.17, which scattered functionality across 23 separate Rust modules totaling nearly 6,000 lines of code. The current single-file implementation achieves the same functionality in just 942 lines—an 84% reduction in code size. By consolidating everything into `src/main.rs`, the codebase becomes dramatically easier to understand, debug, and maintain, while eliminating the cognitive overhead of navigating complex module hierarchies and cross-file dependencies.
+
 ## Install
 
 Samoyed is a Cargo binary. Install straight from source:
