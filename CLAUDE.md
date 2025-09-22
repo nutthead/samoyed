@@ -10,9 +10,9 @@ Samoyed is a single-binary, minimal, cross-platform Git hooks manager written in
 
 ### Core Implementation
 
-- **Single-file architecture**: All Rust code resides in `src/main.rs` (currently ~700 lines) following the principle of minimalism and avoiding feature creep
+- **Single-file architecture**: All Rust code resides in `src/main.rs` (currently ~900 lines) following the principle of minimalism and avoiding feature creep
 - **Embedded wrapper script**: The shell script at `assets/samoyed` is embedded into the binary using `include_bytes!` macro
-- **Hook wrapper pattern**: Each Git hook is a symlink to the wrapper script which delegates to user-defined hooks
+- **Hook wrapper pattern**: Each Git hook in `.samoyed/_/` is generated as an executable stub that points contributors to the user-editable scripts in `.samoyed/`; the embedded wrapper script at `.samoyed/_/samoyed` is copied alongside for hooks (like the sample pre-commit) that source it.
 
 ### Key Components
 
@@ -93,14 +93,14 @@ cargo audit
 # Install tarpaulin if not present
 cargo install cargo-tarpaulin
 
-# Generate coverage with multiple output formats
-cargo tarpaulin --verbose --bins --all-features --timeout 120
+# Generate coverage (args and outputs are configured in .tarpaulin.toml)
+cargo tarpaulin -- --test-threads=1
 
 # Output locations:
-# - HTML: target/tarpaulin/coverage/index.html
-# - XML: target/tarpaulin/coverage/cobertura.xml
-# - JSON: target/tarpaulin/coverage/coverage.json
-# - LCOV: target/tarpaulin/coverage/lcov.info
+# - HTML: target/tarpaulin/tarpaulin-report.html
+# - XML: target/tarpaulin/cobertura.xml
+# - JSON: target/tarpaulin/tarpaulin-report.json
+# - LCOV: target/tarpaulin/lcov.info
 ```
 
 ## Project Structure
@@ -143,9 +143,9 @@ Currently implemented:
 - `get_git_root()` - Find repository root
 - `validate_samoyed_path()` - Ensure path is within repository
 - `create_directory_structure()` - Set up hook directories
-- `copy_samoyed_wrapper()` - Install wrapper script
-- `create_hook_scripts()` - Generate hook symlinks/scripts
-- `create_sample_precommit()` - Example hook creation
+- `copy_wrapper_script()` - Install wrapper script
+- `create_hook_scripts()` - Generate hook stub scripts
+- `create_sample_pre_commit()` - Example hook creation
 - `set_git_hooks_path()` - Configure Git to use hooks
 - `create_gitignore()` - Ignore wrapper directory
 
