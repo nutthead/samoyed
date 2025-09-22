@@ -38,21 +38,22 @@ EOF
 chmod +x "$temp_bin_dir/git"
 
 # Put fake git first in PATH
-export PATH="$temp_bin_dir:$ORIGINAL_PATH"
+PATH="$temp_bin_dir:$ORIGINAL_PATH"
+export PATH
 
 # Verify our fake git is being used
-set +e
-git --version 2>&1 | grep -q "command not found"
-if [ $? -ne 0 ]; then
+if ! git --version 2>&1 | grep -q "command not found"; then
     # Restore PATH and skip test if we can't override git
-    export PATH="$ORIGINAL_PATH"
+    PATH="$ORIGINAL_PATH"
+    export PATH
     echo "WARNING: Cannot override git command, skipping some tests"
     echo "Testing: Alternative approach - empty PATH"
 
     # Try completely empty PATH instead
-    export PATH=""
+    # shellcheck disable=SC2123 # Intentionally clear PATH to simulate missing git
+    PATH=""
+    export PATH
 fi
-set -e
 
 # Test: Try to run samoyed init without git available
 echo "Testing: samoyed init without git in PATH"
@@ -63,7 +64,8 @@ exit_code=$?
 set -e
 
 # Restore PATH before checking results
-export PATH="$ORIGINAL_PATH"
+PATH="$ORIGINAL_PATH"
+export PATH
 
 if [ $exit_code -ne 1 ]; then
     error "Expected samoyed init to fail without git, got exit code $exit_code"
@@ -122,7 +124,8 @@ EOF
 chmod +x "$temp_bin_dir/git"
 
 # Use the failing git
-export PATH="$temp_bin_dir:$ORIGINAL_PATH"
+PATH="$temp_bin_dir:$ORIGINAL_PATH"
+export PATH
 
 set +e
 output=$("$SAMOYED_BIN" init 2>&1)
@@ -130,7 +133,8 @@ exit_code=$?
 set -e
 
 # Restore PATH
-export PATH="$ORIGINAL_PATH"
+PATH="$ORIGINAL_PATH"
+export PATH
 
 if [ $exit_code -ne 1 ]; then
     error "Expected samoyed to fail when git returns error, got exit code $exit_code"
@@ -150,7 +154,8 @@ real_git=$(command -v git)
 ln -s "$real_git" "$unusual_git_dir/git"
 
 # Set PATH to only include unusual location
-export PATH="$unusual_git_dir:$(dirname "$SAMOYED_BIN")"
+PATH="$unusual_git_dir:$(dirname "$SAMOYED_BIN")"
+export PATH
 
 # Clean up for fresh test
 rm -rf .samoyed
@@ -163,7 +168,8 @@ exit_code=$?
 set -e
 
 # Restore PATH
-export PATH="$ORIGINAL_PATH"
+PATH="$ORIGINAL_PATH"
+export PATH
 
 if [ $exit_code -ne 0 ]; then
     error "Samoyed should work with git in unusual PATH location, got exit code $exit_code: $output"

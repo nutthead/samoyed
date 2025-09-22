@@ -18,7 +18,7 @@
 build_samoyed
 
 # Create a test directory that is NOT a git repository
-test_name="$(basename -- "$0" .sh)"
+test_name="$(basename "$0" .sh)"
 test_dir="${TEST_BASE_DIR}/samoyed-test-${test_name}-$$"
 
 echo

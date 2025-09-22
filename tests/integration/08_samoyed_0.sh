@@ -24,8 +24,7 @@ setup
 echo "Testing: SAMOYED=0 bypasses samoyed init"
 
 # Try to initialize with SAMOYED=0
-SAMOYED=0 "$SAMOYED_BIN" init 2>&1 | grep -q "Bypassing samoyed init"
-if [ $? -eq 0 ]; then
+if SAMOYED=0 "$SAMOYED_BIN" init 2>&1 | grep -q "Bypassing samoyed init"; then
     ok "SAMOYED=0 bypassed init with message"
 else
     # Even if message differs, check that nothing was created
@@ -44,6 +43,7 @@ ok "core.hooksPath not set when init bypassed"
 # Test: Normal init without SAMOYED=0
 echo "Testing: Normal init without SAMOYED=0"
 unset SAMOYED
+# shellcheck disable=SC2119 # Run init without forwarding script arguments
 init_samoyed
 ok "Samoyed initialized normally"
 

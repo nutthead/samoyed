@@ -158,6 +158,7 @@ else
     error "Sample pre-commit missing or incorrect shebang"
 fi
 
+# shellcheck disable=SC2016 # Keep the subshell expression literal for matching
 if grep -q '\. "$(dirname "$0")/_/samoyed"' ".samoyed/pre-commit"; then
     ok "Sample pre-commit sources wrapper correctly"
 else

@@ -19,6 +19,7 @@ setup
 
 # Initialize Samoyed
 echo "Testing: Initialize Samoyed"
+# shellcheck disable=SC2119 # Run init without forwarding script arguments
 init_samoyed
 ok "Samoyed initialized"
 
@@ -110,6 +111,7 @@ export HOOK_ENV="from_init"
 EOF
 
 # Create a hook that uses the exported variable
+# shellcheck disable=SC2016 # The variable expands later when the hook runs
 create_hook "pre-commit" 'echo "HOOK_ENV is: ${HOOK_ENV:-not_set}"'
 
 echo "proper handling test" >> test.txt

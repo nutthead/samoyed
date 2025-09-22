@@ -16,6 +16,7 @@ setup
 
 # Initialize Samoyed
 echo "Testing: Initialize Samoyed for timing tests"
+# shellcheck disable=SC2119 # Run init without forwarding script arguments
 init_samoyed
 ok "Samoyed initialized"
 
@@ -138,6 +139,7 @@ fi
 echo "Testing: Hook with simulated workload"
 
 # Create a hook with a small workload
+# shellcheck disable=SC2016 # Hook body should expand variables when it runs
 create_hook "pre-commit" '
 echo "Starting workload..."
 # Do some work (but keep it quick for testing)

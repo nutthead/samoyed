@@ -19,6 +19,7 @@ setup
 
 # Initialize Samoyed
 echo "Testing: Initialize Samoyed"
+# shellcheck disable=SC2119 # Run init without forwarding script arguments
 init_samoyed
 ok "Samoyed initialized"
 
@@ -139,7 +140,8 @@ ok "Hook succeeded with explicit path to command"
 echo "Testing: Command works when in PATH"
 
 # Add local_bin to PATH
-export PATH="$(pwd)/local_bin:$PATH"
+PATH="$(pwd)/local_bin:$PATH"
+export PATH
 
 # Create hook using just command name
 create_hook "pre-commit" "my_checker"

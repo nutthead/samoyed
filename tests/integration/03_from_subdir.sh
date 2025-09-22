@@ -28,6 +28,7 @@ echo "Testing: Initialize from src/components/ui subdirectory"
 cd src/components/ui
 
 # Run samoyed init from subdirectory - should create .samoyed at repo root
+# shellcheck disable=SC2119 # Run init without forwarding script arguments
 init_samoyed
 ok "Samoyed initialized from subdirectory"
 

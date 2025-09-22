@@ -21,6 +21,7 @@ setup
 
 # Test: Initialize Samoyed with default directory
 echo "Testing: samoyed init (default directory)"
+# shellcheck disable=SC2119 # Run init without forwarding script arguments
 init_samoyed
 ok "Samoyed initialized successfully"
 
