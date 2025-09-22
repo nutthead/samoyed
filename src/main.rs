@@ -60,24 +60,18 @@ enum Commands {
 /// Parses command-line arguments and dispatches to appropriate handlers.
 /// If no command is provided, displays help message.
 fn main() -> ExitCode {
-    let cli = Cli::parse();
-
-    match cli.command {
+    match Cli::parse().command {
         Some(Commands::Init { dirname }) => {
             let dirname = dirname.unwrap_or_else(|| DEFAULT_SAMOYED_DIR.to_string());
-            match init_samoyed(&dirname) {
-                Ok(()) => ExitCode::SUCCESS,
-                Err(e) => {
-                    eprintln!("{}", e);
+            init_samoyed(&dirname).map_or_else(
+                |err| {
+                    eprintln!("{err}");
                     ExitCode::FAILURE
-                }
-            }
+                },
+                |_| ExitCode::SUCCESS,
+            )
         }
-        None => {
-            // When no command is provided, clap automatically shows help
-            // This is handled by clap's default behavior
-            ExitCode::SUCCESS
-        }
+        None => ExitCode::SUCCESS,
     }
 }
 
@@ -155,17 +149,20 @@ fn check_bypass_mode() -> bool {
 ///
 /// Returns the absolute path to the git root, or an error if not in a git repo
 fn get_git_root() -> Result<PathBuf, String> {
-    // Check if we're inside a git repository
     let output = Command::new("git")
         .args(["rev-parse", "--is-inside-work-tree"])
         .output()
         .map_err(|_| "Error: Failed to execute git command".to_string())?;
 
-    if !output.status.success() || output.stdout != b"true\n" {
+    if !output.status.success() {
         return Err("Error: Not a git repository".to_string());
     }
 
-    // Get the git root directory
+    let inside = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if inside != "true" {
+        return Err("Error: Not a git repository".to_string());
+    }
+
     let output = Command::new("git")
         .args(["rev-parse", "--show-toplevel"])
         .output()
@@ -176,7 +173,6 @@ fn get_git_root() -> Result<PathBuf, String> {
     }
 
     let git_root = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
     Ok(PathBuf::from(git_root))
 }
 
@@ -203,15 +199,15 @@ fn validate_samoyed_dir(
 
     let candidate = if provided_path.is_absolute() {
         provided_path.to_path_buf()
-    } else if dirname == DEFAULT_SAMOYED_DIR {
-        git_root_canonical.join(provided_path)
-    } else if provided_path
-        .components()
-        .any(|component| matches!(component, Component::ParentDir))
-    {
-        current_dir.join(provided_path)
     } else {
-        git_root_canonical.join(provided_path)
+        let has_parent = provided_path
+            .components()
+            .any(|component| matches!(component, Component::ParentDir));
+        if has_parent {
+            current_dir.join(provided_path)
+        } else {
+            git_root_canonical.join(provided_path)
+        }
     };
 
     let resolved = canonicalize_allowing_nonexistent(&candidate).map_err(|e| {
@@ -314,7 +310,7 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
     fs::write(&wrapper_path, SAMOYED_WRAPPER_SCRIPT)
         .map_err(|e| format!("Error: Failed to write wrapper script: {}", e))?;
 
-    // Set permissions to 755 (rwxr-xr-x) so the wrapper can be executed
+    // Set permissions to 644 (rw-r--r--) because the wrapper is sourced
     #[cfg(unix)]
     {
         let metadata = fs::metadata(&wrapper_path)
@@ -331,7 +327,7 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
 /// Create hook scripts in the _ directory
 ///
 /// Creates all Git hook scripts with 755 permissions.
-/// Each script contains a simple message indicating its purpose.
+/// Each script sources the shared wrapper so user hooks run consistently.
 ///
 /// # Arguments
 ///
@@ -426,12 +422,12 @@ fn set_git_hooks_path(samoyed_dir: &Path) -> Result<(), String> {
         .to_str()
         .ok_or_else(|| "Error: Invalid path for hooks directory".to_string())?;
 
-    let output = Command::new("git")
+    let status = Command::new("git")
         .args(["config", "core.hooksPath", hooks_path_str])
-        .output()
+        .status()
         .map_err(|_| "Error: Failed to set git config".to_string())?;
 
-    if !output.status.success() {
+    if !status.success() {
         return Err("Error: Failed to set core.hooksPath".to_string());
     }
 

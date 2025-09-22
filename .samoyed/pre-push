@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+set -eu
+
+# Ensure we run from the repository root for consistent paths
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+printf '%s\n' "Pre-push: start"
+
+printf '%s\n' "Checking formatting with cargo fmt --check…"
+cargo fmt --all -- --check
+
+printf '%s\n' "Linting with cargo clippy…"
+cargo clippy --all-targets --all-features -- -D warnings
+
+printf '%s\n' "Running test suite (serial mode)…"
+cargo test -- --test-threads=1
+
+printf '%s\n' "Pre-push: finish"
