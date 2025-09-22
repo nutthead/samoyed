@@ -8,8 +8,13 @@
 #
 # This is important for debugging when hooks fail due to missing commands.
 
-# Load test helper functions
-. tests/integration/functions.sh
+# Load test helper functions regardless of current working directory
+integration_script_dir="$(cd "$(dirname "$0")" && pwd)"
+integration_repo_root="$(cd "$integration_script_dir/../.." && pwd)"
+cd "$integration_repo_root"
+. "$integration_repo_root/tests/integration/functions.sh"
+unset integration_script_dir
+unset integration_repo_root
 
 # Build Samoyed binary if needed
 build_samoyed
