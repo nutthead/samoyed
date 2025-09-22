@@ -1,6 +1,6 @@
-[default]
-run-types = ["Tests"]
+[run]
+args = ["--test-threads=1"]
 
 [report]
-output-dir = "target/tarpaulin/coverage"
-out = ["Html", "Xml", "Json", "Lcov"]
+out = ["Html", "Json", "Xml", "Lcov"]
+output-dir = "target/tarpaulin"

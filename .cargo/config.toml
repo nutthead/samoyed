@@ -1,0 +1,6 @@
+[build]
+
+[env]
+# Configure cargo to run tests sequentially by default
+# This prevents race conditions in tests that change directories
+RUST_TEST_THREADS = "1"

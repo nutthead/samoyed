@@ -1,4 +1,24 @@
+# ============================================================================
+# Build Artifacts & Compilation Output
+# ============================================================================
+# Rust target directory containing all compiled artifacts, dependencies,
+# and intermediate build files generated during compilation
 target/
-tmp/
-/test-benchmark.log
+
+# ============================================================================
+# Temporary Files & Working Directories
+# ============================================================================
+# Temporary directory for transient files and experimental work. When needed,
+# use this directory to run ad-hoc tests for Samoyed, as it is ignored by
+# version control. This directory is also where integration tests may create
+# testbed repositories and liberally modify files without affecting the
+# main codebase.
+/tmp/*
+!/tmp/.gitkeep
+
+# ============================================================================
+# Development Environment Configuration
+# ============================================================================
+# Claude Code local settings - user-specific configurations that should
+# not be shared across development environments
 .claude/settings.local.json

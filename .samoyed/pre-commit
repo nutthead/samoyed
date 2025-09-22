@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+echo "Pre-commit: start"
+
+echo "Type-checking with cargo check…"
+cargo check
+
+echo "Formatting with cargo fmt…"
+cargo fmt --all
+
+echo "Pre-commit: finish"
+

@@ -1,251 +1,184 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with the samoyed repository - a modern native Git hooks manager implemented in Rust.
-
-<context>
-- Main branch: master
-- GitHub repository: nutthead/samoyed
-- Current version: 0.1.12
-</context>
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-### Architecture
+Samoyed is a single-binary, minimal, cross-platform Git hooks manager written in Rust. The project implements a complete Git hooks management system that allows users to manage client-side Git hooks with a simple, consistent interface.
 
-<binaries>
-- **samoyed**: Main CLI binary from `src/main.rs` with unified CLI (`init` and `hook` subcommands)
-- **samoyed-hook**: Deprecated backward compatibility shim from `src/hook_runner.rs`
-</binaries>
+## Architecture
 
-### Hook Execution Flow
-```
-Git Hook Trigger → .samoyed/_/hook-name → samoyed hook subcommand
-                                        ↓
-                   Two-tier lookup system:
-                   1. PRIMARY: samoyed.toml [hooks] section
-                   2. FALLBACK: .samoyed/scripts/hook-name
-```
+### Core Implementation
 
-<modules>
-**Public API (lib.rs exports)**:
-- `environment`: Dependency injection traits (Environment, CommandRunner, FileSystem) with Mock implementations
-- `git`: Git repository validation and configuration management
-- `hooks`: Hook file creation and management with cross-platform support
-- `installer`: Main installation logic orchestration
-- `logging`: Secure logging utilities with automatic sanitization of sensitive information
+- **Single-file architecture**: All Rust code resides in `src/main.rs` (currently ~900 lines) following the principle of minimalism and avoiding feature creep
+- **Embedded wrapper script**: The shell script at `assets/samoyed` is embedded into the binary using `include_bytes!` macro
+- **Hook wrapper pattern**: Each Git hook in `.samoyed/_/` is generated as an executable stub that points contributors to the user-editable scripts in `.samoyed/`; the embedded wrapper script at `.samoyed/_/samoyed` is copied alongside for hooks (like the sample pre-commit) that source it.
 
-**Internal modules (used in main.rs)**:
-- `config`: TOML-based configuration (SamoyedConfig, SamoyedSettings)
-- `project`: Project type detection (Rust, Go, Node.js, Python) with sensible defaults
-- `init`: Implementation of the `samoyed init` command
-- `exit_codes`: Standardized sysexits.h-compliant exit codes
-- `hook_runner`: Deprecated shim binary for backward compatibility
-</modules>
+### Key Components
 
-### Dependencies
-**Core Runtime Dependencies**:
-- **clap** (v4.5): Command-line argument parsing with derive macros
-- **toml** (v0.9): Configuration file parsing and serialization
-- **serde** (v1.0): Serialization/deserialization with derive support
-- **anyhow** (v1.0): Flexible error handling and context propagation
+1. **CLI Interface** (using clap):
+   - `samoyed init [dirname]` - Initialize hooks in a repository
+   - Default dirname: `.samoyed`
 
-**Development Dependencies**:
-- **tempfile** (v3.13): Temporary file creation for testing
-- **criterion** (v0.7): Performance benchmarking framework
+2. **Hook Management**:
+   - Supports 14 standard Git hooks (pre-commit, commit-msg, pre-push, etc.)
+   - Creates structure: `[dirname]/_/` for wrapper scripts, `[dirname]/` for user hooks
+   - Configures Git's `core.hooksPath` to point to the wrapper directory
 
-### Testing
-- **Unit tests**: Located in `src/unit_tests/` directory, included via `#[path]` attributes
-- **Integration tests**: In `tests/` directory with platform-specific test suites
-- **Cross-platform tests**: Linux, macOS, Windows (PowerShell + Git Bash)
-- **Benchmarks**: Criterion benchmarks in `tests/benchmark_tests/benchmark.rs`
-- **Coverage**: 69% minimum threshold using `cargo tarpaulin` (target: 90%)
-- **Test pattern**: Dependency injection with Mock* implementations for 100% testability
-- **CI Matrix**: 8+ platform/toolchain combinations in GitHub Actions
+3. **Wrapper Script** (`assets/samoyed`):
+   - POSIX-compliant shell script
+   - Provides debug mode (`SAMOYED=2`) and bypass mode (`SAMOYED=0`)
+   - Loads user configuration from `${XDG_CONFIG_HOME:-$HOME/.config}/samoyed/init.sh`
+   - Handles hook execution with proper exit code propagation
 
-### Security
-- **Path validation**: Prevents directory traversal attacks (rejects "..")
-- **Logging sanitization**: Automatic redaction of sensitive information (passwords, tokens, home directories)
-- **Cross-platform security**: Handles Windows PowerShell, Git Bash, and Unix environments safely
+### Design Constraints
 
-### Performance
-- **Release profile**: Optimized for size with LTO and single codegen unit
-- **Binary size**: Stripped debug symbols for minimal distribution size
-- **Cross-platform**: Native builds for Linux (x86_64, aarch64), macOS (x86_64, aarch64), Windows (x86_64, i686)
+- All Rust code MUST fit in single file
+- Cognitive complexity threshold: 21 (enforced by clippy)
+- No runtime dependencies (only clap for CLI)
+- Must be cross-platform (Unix/Windows)
+- Follow DRY principle and maintain testability
+- Rust 2024 edition with four-space indent, trailing commas
+- Functions and variables use `snake_case`, types use `UpperCamelCase`
+- CLI subcommands remain lowercase per clap conventions
 
-### Rust Edition
-This project uses Rust 2024 edition with minimum supported Rust version 1.88.0.
+## Development Commands
 
-## Git Workflow
-
-### Version Tags
+### Building
 ```bash
-# Use semantic versioning with 'v' prefix
-# Example:
-git tag -a v0.1.7 -m "Release version 0.1.7"
-```
-
-## Markdown Conventions
-**YOU MUST** write tables in human-readabke format:
-
-**✅ GOOD:**
-```markdown
-| Column 1 | Column 2 |
-|----------|----------|
-| Foo      | Bar      |
-```
-
-**❌ BAD:**
-```markdown
-| Column 1 | Column 2 |
-|-|-|
-| Foo | Bar |
-```
-
-## PR body conventions
-**YOU MUST NOT** use `[ ]` and `[x]` to show scope of a PR.
-**YOU MUST** use `☐` and `☑` to show scope of a PR.
-
-### Examples
-
-❌ BAD - DON'T DO THIS!
-```markdown
-## Type of Change
-
-- [x] Chore/cleanup (non-breaking change that doesn't add features or fix bugs)
-- [x] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
-```
-
-✅ GOOD - DO THIS!
-```markdown
-## Type of Change
-
-- 🗵 Chore/cleanup (non-breaking change that doesn't add features or fix bugs)
-- 🗵 Bug fix (non-breaking change which fixes an issue)
-- ☐ New feature (non-breaking change which adds functionality)
-- ☐ Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- ☐ Documentation update
-```
-
-## Technical Learnings
-
-### Testing with process::exit()
-- Tests that call `process::exit()` use `std::panic::catch_unwind()` pattern
-- This catches the panic from `process::exit()` calls during testing
-- Pattern: `assert!(result.is_err())` verifies the function exited
-- Limitation: Cannot easily verify specific exit codes in tests
-
-### Test Code Refactoring Patterns
-- Extract repeated struct creation patterns into helper functions
-- Example: `make_output(status_code, stdout, stderr)` reduces `Output` duplication
-- Benefits: Single point of change, improved readability, consistent patterns
-- Apply when seeing 3+ similar patterns in test code
-
-### Cross-Platform Testing Strategy
-- **Dependency injection**: All external dependencies abstracted through traits for testability
-- **Mock implementations**: MockEnvironment, MockCommandRunner, MockFileSystem for isolated testing
-- **Platform-specific tests**: Separate test suites for Linux, macOS, and Windows behaviors
-- **Shell compatibility**: Tests verify PowerShell, Git Bash, and Unix shell execution
-- **Coverage tracking**: Comprehensive coverage analysis with multiple output formats (HTML, XML, JSON, LCOV)
-
-## Project Type Defaults
-
-Samoyed automatically detects project types and suggests appropriate hook commands:
-
-| Project Type | Detection                        | Default Hook Command                               |
-|--------------|----------------------------------|----------------------------------------------------|
-| **Rust**     | Cargo.toml                       | `cargo fmt --check && cargo clippy -- -D warnings` |
-| **Go**       | go.mod                           | `go fmt ./... && go vet ./...`                     |
-| **Node.js**  | package.json                     | `npm run lint && npm test`                         |
-| **Python**   | requirements.txt, pyproject.toml | `black --check . && flake8`                        |
-
-## Configuration Structure
-
-### TOML Schema (samoyed.toml)
-```toml
-[hooks]
-pre-commit = "command to execute"
-pre-push = "another command"
-
-[settings]  # Optional
-hook_directory = ".samoyed"  # Default
-debug = false
-fail_fast = true
-skip_hooks = false
-```
-
-### Environment Variables
-- **SAMOYED=0**: Skip all hooks
-- **SAMOYED=1**: Normal execution (default)
-- **SAMOYED=2**: Debug mode with verbose output
-
-## CI/CD Workflow
-
-### GitHub Actions
-- **Test Suite**: Cross-platform testing (Ubuntu, macOS, Windows) with multiple Rust versions
-- **Code Coverage**: cargo-tarpaulin analysis with 69% minimum threshold
-- **Security Audit**: cargo-audit for dependency vulnerability scanning
-- **Release Automation**: Cross-platform binary builds with automated changelog generation
-- **Quality Gates**: rustfmt, clippy, documentation generation, benchmark execution
-
-### Platform Coverage
-- **Linux**: ubuntu-latest, ubuntu-24.04 (stable, beta, nightly)
-- **macOS**: macos-latest (stable, beta)
-- **Windows**: windows-latest (stable with PowerShell and Git Bash)
-
-## Quick Reference
-
-<frequently-used-commands>
-### Build Commands
-```bash
+# Debug build
 cargo build --verbose
+
+# Release build (optimized with fat LTO, single codegen unit)
 cargo build --release --verbose
 ```
 
-### Testing Suite
+### Testing
 ```bash
-cargo test --verbose                              # All tests
-cargo test --lib --verbose                        # Unit tests only
-cargo test --test installation_tests              # Specific integration test
-cargo test --test linux_tests                     # Platform-specific tests
-cargo test --test cross_platform_shell_execution  # Cross-platform compatibility
+# Run all tests (unit tests are in main.rs)
+# IMPORTANT: Tests must run serially to prevent intermittent failures
+cargo test -- --test-threads=1
+
+# Run specific test
+cargo test test_name -- --test-threads=1
+
+# With output display
+cargo test -- --test-threads=1 --nocapture
+
+# WARNING: Never run 'samoyed init' in this repository!
+# Create a throwaway git repo for testing:
+cd tmp && git init testbed && cd testbed
 ```
 
 ### Code Quality
 ```bash
-cargo fmt --all -- --check                                # Format checking
-cargo clippy --all-targets --all-features -- -D warnings  # Linting (deny all warnings)
-cargo doc --no-deps --verbose                             # Documentation generation
-```
+# Format code
+cargo fmt --all
 
-### Coverage Analysis
-```bash
-cargo tarpaulin                                                # Generate coverage report
-cargo tarpaulin --verbose --bins --all-features --timeout 120  # Full coverage analysis
-```
+# Check formatting (required for CI)
+cargo fmt --all -- --check
 
-### Security & Performance
-```bash
-cargo audit                            # Dependency vulnerability scan
-cargo bench --verbose                  # Run performance benchmarks
-```
+# Run Clippy linter (cognitive complexity limit: 21)
+cargo clippy --all-targets --all-features -- -D warnings
 
-### Complete Development Check
-```bash
-cargo fmt --all -- --check && \
-cargo clippy --all-targets --all-features -- -D warnings && \
-cargo test --verbose && \
+# Generate documentation
 cargo doc --no-deps --verbose
+
+# Security audit
+cargo audit
 ```
 
-### Release Preparation
+### Code Coverage
 ```bash
-# Version validation
-grep -E "^version" Cargo.toml | head -1 | cut -d'"' -f2
+# Install tarpaulin if not present
+cargo install cargo-tarpaulin
 
-# Tag creation (semantic versioning)
-git tag -a v0.1.10 -m "Release version 0.1.10"
+# Generate coverage (args and outputs are configured in .tarpaulin.toml)
+cargo tarpaulin -- --test-threads=1
+
+# Output locations:
+# - HTML: target/tarpaulin/tarpaulin-report.html
+# - XML: target/tarpaulin/cobertura.xml
+# - JSON: target/tarpaulin/tarpaulin-report.json
+# - LCOV: target/tarpaulin/lcov.info
 ```
-</frequently-used-commands>
+
+## Project Structure
+
+```
+.
+├── src/
+│   └── main.rs                     # Complete implementation (init, hook management)
+├── assets/
+│   └── samoyed                     # POSIX shell wrapper script (embedded in binary)
+├── .docs/
+│   └── 01-vision-version-2.0.0.md  # Detailed specification
+├── Cargo.toml                      # Optimized release profile (fat LTO, stripped)
+├── clippy.toml                     # Cognitive complexity: 21
+└── .tarpaulin.toml                 # Coverage config (HTML, XML, JSON, LCOV)
+```
+
+## Implementation Status
+
+Currently implemented:
+- Full `init` command with validation
+- Git repository detection
+- Hook directory structure creation
+- Wrapper script installation
+- Git config management
+- Sample pre-commit hook generation
+- Cross-platform path handling
+- Comprehensive error handling
+
+## Environment Variables
+
+- `SAMOYED=0` - Bypass all hooks (checked by wrapper and init)
+- `SAMOYED=2` - Enable shell debug mode in wrapper script
+- `XDG_CONFIG_HOME` - Config directory (defaults to `~/.config`)
+
+## Key Functions in main.rs
+
+- `main()` - CLI entry point using clap
+- `init_samoyed()` - Core initialization logic
+- `get_git_root()` - Find repository root
+- `validate_samoyed_path()` - Ensure path is within repository
+- `create_directory_structure()` - Set up hook directories
+- `copy_wrapper_script()` - Install wrapper script
+- `create_hook_scripts()` - Generate hook stub scripts
+- `create_sample_pre_commit()` - Example hook creation
+- `set_git_hooks_path()` - Configure Git to use hooks
+- `create_gitignore()` - Ignore wrapper directory
+
+## Testing Approach
+
+Tests are integrated into `main.rs` using `#[cfg(test)]` modules. Key test areas:
+- Path validation
+- Git repository detection
+- Hook script generation
+- Cross-platform compatibility
+
+Run tests with `cargo test --verbose` to see all test output.
+
+## Release Optimization
+
+The release profile in `Cargo.toml` includes:
+- `lto = "fat"` - Full link-time optimization
+- `codegen-units = 1` - Single compilation unit
+- `strip = true` - Remove debug symbols
+- `opt-level = 3` - Maximum optimization
+
+This produces a minimal, fast binary suitable for distribution.
+
+## Development Environment
+
+The project includes a Nix flake for consistent development environments. Run `nix develop` to enter a shell with all required tools including Rust toolchain, cargo-tarpaulin, and other dependencies.
+
+## Commit Guidelines
+
+Commits follow Conventional Commits format:
+- `feat:` for new features
+- `fix:` for bug fixes
+- `chore:` for maintenance tasks
+- Add `!` for breaking changes (e.g., `feat!:`)
+- Use concise, imperative descriptions
+- Group related changes, avoid catch-all commits

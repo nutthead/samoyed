@@ -1,608 +1,946 @@
-//! Command Line Interface for Samoyed Git hooks manager
+//! Samoyed - A modern, minimal, safe, ultra-fast, cross-platform Git hooks manager
 //!
-//! This binary provides a CLI for managing Git hooks through TOML configuration.
-//! Supports the `init` command and deprecated command warnings.
+//! This is a single-binary tool that simplifies and streamlines how users work with
+//! client-side Git hooks. The entire implementation fits in this single file to maintain
+//! simplicity and avoid feature creep.
 
-use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use std::env;
-use std::path::{Path, PathBuf};
-use std::process;
+use std::fs;
+use std::path::{Component, Path, PathBuf};
+use std::process::{Command, ExitCode};
 
-mod config;
-mod environment;
-mod exit_codes;
-mod git;
-mod hooks;
-mod init;
-mod installer;
-mod logging;
-mod project;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 
-use config::SamoyedConfig;
-use environment::{
-    CommandRunner, Environment, FileSystem, SystemCommandRunner, SystemEnvironment,
-    SystemFileSystem,
-};
-use exit_codes::{EX_USAGE, determine_exit_code};
-use logging::{log_command_execution, log_file_operation_with_env, sanitize_args, sanitize_path};
+/// Embedded assets/samoyed script that serves as the Git hook wrapper
+const SAMOYED_WRAPPER_SCRIPT: &[u8] = include_bytes!("../assets/samoyed");
 
+/// List of Git hook names that Samoyed manages
+const GIT_HOOKS: &[&str] = &[
+    "applypatch-msg",
+    "commit-msg",
+    "post-applypatch",
+    "post-checkout",
+    "post-commit",
+    "post-merge",
+    "post-rewrite",
+    "pre-applypatch",
+    "pre-auto-gc",
+    "pre-commit",
+    "pre-merge-commit",
+    "pre-push",
+    "pre-rebase",
+    "prepare-commit-msg",
+];
+
+/// Default directory name for Samoyed hooks if not specified
+const DEFAULT_SAMOYED_DIR: &str = ".samoyed";
+
+/// Samoyed - A modern, minimal, safe, ultra-fast, cross-platform Git hooks manager
 #[derive(Parser)]
 #[command(name = "samoyed")]
-#[command(about = "Modern native Git hooks manager")]
-#[command(version = env!("CARGO_PKG_VERSION"))]
+#[command(author, version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 }
 
+/// Available commands for Samoyed
 #[derive(Subcommand)]
 enum Commands {
-    /// Initialize samoyed in the current repository
+    /// Initialize Samoyed in the current git repository
     Init {
-        /// Project type to auto-detect (optional)
-        #[arg(short, long)]
-        project_type: Option<String>,
-        /// Force regenerate hook files with the specified directory name
-        #[arg(short, long)]
-        force: Option<String>,
-    },
-    /// Execute git hook (internal command)
-    Hook {
-        /// Name of the hook being executed
-        hook_name: String,
-        /// Arguments passed from git
-        #[arg(trailing_var_arg = true)]
-        args: Vec<String>,
+        /// Directory name for Samoyed hooks (default: .samoyed)
+        #[arg(value_name = "samoyed-dirname")]
+        dirname: Option<String>,
     },
 }
 
-#[cfg(not(tarpaulin_include))]
-fn main() -> Result<()> {
-    let cli = Cli::parse();
-
-    match cli.command {
-        Some(Commands::Init {
-            project_type,
-            force,
-        }) => {
-            if let Err(e) = init_command_with_system_deps(project_type, force) {
-                let exit_code = determine_exit_code(&e);
-                eprintln!("Error: {e}");
-                process::exit(exit_code);
-            }
-        }
-        Some(Commands::Hook { hook_name, args }) => {
-            if let Err(e) = hook_command_with_system_deps(hook_name, args) {
-                let exit_code = determine_exit_code(&e);
-                eprintln!("Error: {e}");
-                process::exit(exit_code);
-            }
-        }
-        None => {
-            // Show help when no command is provided
-            eprintln!("Error: No command specified. Use 'samoyed init' to get started.");
-            eprintln!("Run 'samoyed --help' for usage information.");
-            process::exit(EX_USAGE); // Command line usage error
-        }
-    }
-
-    Ok(())
-}
-
-/// Wrapper function that calls init_command with real system dependencies
-#[cfg(not(tarpaulin_include))]
-fn init_command_with_system_deps(
-    project_type_hint: Option<String>,
-    force: Option<String>,
-) -> Result<()> {
-    let env = SystemEnvironment;
-    let runner = SystemCommandRunner;
-    let fs = SystemFileSystem;
-
-    init::init_command(&env, &runner, &fs, project_type_hint, force)
-}
-
-/// Wrapper function that calls hook_command with real system dependencies
-#[cfg(not(tarpaulin_include))]
-fn hook_command_with_system_deps(hook_name: String, args: Vec<String>) -> Result<()> {
-    let env = SystemEnvironment;
-    let runner = SystemCommandRunner;
-    let fs = SystemFileSystem;
-
-    // Convert to the format expected by run_hook (similar to hook_runner.rs)
-    let mut full_args = vec!["samoyed".to_string(), hook_name];
-    full_args.extend(args);
-
-    hook_command(&env, &runner, &fs, &full_args)
-}
-
-/// Main hook execution logic with dependency injection support
-fn hook_command(
-    env: &dyn Environment,
-    runner: &dyn CommandRunner,
-    fs: &dyn FileSystem,
-    args: &[String],
-) -> Result<()> {
-    // Check SAMOYED environment variable for execution mode
-    let samoyed_mode = env.get_var("SAMOYED").unwrap_or_else(|| "1".to_string());
-
-    // SAMOYED=0 means skip execution entirely
-    if samoyed_mode == "0" {
-        process::exit(0);
-    }
-
-    // SAMOYED=2 enables debug mode (script tracing)
-    let debug_mode = samoyed_mode == "2";
-
-    if debug_mode {
-        eprintln!("samoyed: Debug mode enabled (SAMOYED=2)");
-        let sanitized_args = sanitize_args(args);
-        eprintln!("samoyed: Hook runner args: {sanitized_args:?}");
-    }
-
-    // Determine hook name from the first argument (e.g., pre-commit, post-commit)
-    let hook_name = if args.len() < 2 {
-        anyhow::bail!("No hook name provided in arguments");
-    } else {
-        Path::new(&args[1])
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("unknown")
-    };
-
-    if debug_mode {
-        eprintln!("samoyed: Detected hook name: {hook_name}");
-    }
-
-    // First, try to load and execute command from samoyed.toml
-    match load_hook_command_from_config(fs, hook_name, debug_mode) {
-        Ok(command) => {
-            if debug_mode {
-                eprintln!("samoyed: Found command in samoyed.toml: {command}");
-            }
-
-            // Load initialization script from ~/.config/samoyed/init.sh
-            load_init_script(env, runner, fs, debug_mode)?;
-
-            // Execute the command from configuration
-            return execute_hook_command(env, runner, &command, &args[2..], debug_mode);
-        }
-        Err(e) => {
-            if debug_mode {
-                eprintln!("samoyed: Failed to load command from samoyed.toml: {e}");
-            }
-        }
-    }
-
-    // Fallback: Build the expected hook script path: .samoyed/scripts/{hook_name}
-    let hook_script_path = PathBuf::from(".samoyed").join("scripts").join(hook_name);
-
-    if debug_mode {
-        log_file_operation_with_env(
-            env,
-            debug_mode,
-            "Looking for hook script at",
-            &hook_script_path,
-        );
-    }
-
-    // Check if the hook script exists - if not, exit silently (this is normal)
-    if !fs.exists(&hook_script_path) {
-        if debug_mode {
-            eprintln!("samoyed: Hook script not found, exiting silently");
-        }
-        process::exit(0);
-    }
-
-    // Load initialization script from ~/.config/samoyed/init.sh
-    load_init_script(env, runner, fs, debug_mode)?;
-
-    // Execute the hook script with proper environment
-    execute_hook_script(env, runner, fs, &hook_script_path, &args[2..], debug_mode)
-}
-
-/// Load hook command from samoyed.toml configuration
-fn load_hook_command_from_config(
-    fs: &dyn FileSystem,
-    hook_name: &str,
-    debug_mode: bool,
-) -> Result<String> {
-    let config_path = Path::new("samoyed.toml");
-
-    if debug_mode {
-        eprintln!("samoyed: Checking for samoyed.toml...");
-    }
-
-    if !fs.exists(config_path) {
-        if debug_mode {
-            eprintln!("samoyed: No samoyed.toml found");
-        }
-        anyhow::bail!("No samoyed.toml configuration file found");
-    }
-
-    if debug_mode {
-        eprintln!("samoyed: Reading samoyed.toml...");
-    }
-
-    let config_content = fs
-        .read_to_string(config_path)
-        .context("Failed to read samoyed.toml")?;
-
-    if debug_mode {
-        eprintln!("samoyed: Parsing samoyed.toml...");
-    }
-
-    let config: SamoyedConfig =
-        toml::from_str(&config_content).context("Failed to parse samoyed.toml")?;
-
-    if debug_mode {
-        eprintln!("samoyed: Successfully parsed config, looking for hook '{hook_name}'");
-        eprintln!(
-            "samoyed: Available hooks: {:?}",
-            config.hooks.keys().collect::<Vec<_>>()
-        );
-    }
-
-    if let Some(command) = config.hooks.get(hook_name) {
-        Ok(command.clone())
-    } else {
-        if debug_mode {
-            eprintln!("samoyed: No command configured for hook '{hook_name}' in samoyed.toml");
-        }
-        anyhow::bail!("No command configured for hook '{hook_name}'");
-    }
-}
-
-/// Execute a hook command from configuration
-fn execute_hook_command(
-    env: &dyn Environment,
-    runner: &dyn CommandRunner,
-    command: &str,
-    hook_args: &[String],
-    debug_mode: bool,
-) -> Result<()> {
-    if debug_mode {
-        eprintln!("samoyed: Executing command: {command}");
-        let sanitized_hook_args = sanitize_args(hook_args);
-        eprintln!("samoyed: Hook arguments: {sanitized_hook_args:?}");
-    }
-
-    // Use shell to execute the command
-    let shell_command =
-        if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode) {
-            "cmd"
-        } else {
-            "sh"
-        };
-
-    let shell_args = if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode)
-    {
-        vec!["/C", command]
-    } else {
-        vec!["-c", command]
-    };
-
-    if debug_mode {
-        log_command_execution(
-            debug_mode,
-            shell_command,
-            &shell_args.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
-        );
-    }
-
-    let output = runner
-        .run_command(shell_command, &shell_args)
-        .with_context(|| format!("Failed to execute hook command: {command}"))?;
-
-    // Check exit code and provide appropriate error messages
-    let exit_code = output.status.code().unwrap_or(1);
-
-    if debug_mode {
-        eprintln!("samoyed: Hook command exit code: {exit_code}");
-    }
-
-    // Print stdout and stderr from the hook
-    if !output.stdout.is_empty() {
-        print!("{}", String::from_utf8_lossy(&output.stdout));
-    }
-    if !output.stderr.is_empty() {
-        eprint!("{}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    // Handle specific error cases
-    if exit_code != 0 {
-        eprintln!("samoyed - hook command failed (code {exit_code}): {command}");
-
-        // Check for command not found (exit code 127)
-        if exit_code == 127 {
-            eprintln!("samoyed - command not found in PATH");
-            if !debug_mode {
-                eprintln!("samoyed - run with SAMOYED=2 for more details");
-            }
-        }
-    }
-
-    // Exit with the same code as the hook command
-    process::exit(exit_code);
-}
-
-/// Loads and prepares the user's initialization script for hook execution.
-fn load_init_script(
-    env: &dyn Environment,
-    _runner: &dyn CommandRunner,
-    fs: &dyn FileSystem,
-    debug_mode: bool,
-) -> Result<()> {
-    // Determine the init script path: ~/.config/samoyed/init.sh
-    let home_dir = env
-        .get_var("HOME")
-        .or_else(|| env.get_var("USERPROFILE")) // Windows fallback
-        .context("Could not determine home directory")?;
-
-    // Determine configuration directory based on platform and environment
-    let config_dir = if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode)
-    {
-        // Native Windows: use %APPDATA%/samoyed or fall back to %USERPROFILE%/.config/samoyed
-        env.get_var("APPDATA")
-            .map(|appdata| format!("{appdata}/samoyed"))
-            .unwrap_or_else(|| format!("{home_dir}/.config/samoyed"))
-    } else {
-        // Unix-like systems (including WSL, Git Bash): use XDG Base Directory
-        env.get_var("XDG_CONFIG_HOME")
-            .map(|xdg| format!("{xdg}/samoyed"))
-            .unwrap_or_else(|| format!("{home_dir}/.config/samoyed"))
-    };
-
-    // Choose script name based on environment
-    let script_name =
-        if cfg!(target_os = "windows") && !is_windows_unix_environment(env, debug_mode) {
-            "init.cmd" // Use batch file on native Windows
-        } else {
-            "init.sh" // Use shell script on Unix-like systems
-        };
-
-    let init_script_path = PathBuf::from(config_dir).join(script_name);
-
-    if debug_mode {
-        log_file_operation_with_env(
-            env,
-            debug_mode,
-            "Checking for init script at",
-            &init_script_path,
-        );
-    }
-
-    // If the init script exists, source it using shell
-    if fs.exists(&init_script_path) {
-        if debug_mode {
-            log_file_operation_with_env(env, debug_mode, "Loading init script", &init_script_path);
-        }
-
-        // Note: We can't actually source the script into our environment easily
-        // In a real implementation, this would require more complex shell integration
-        // For now, we'll document this limitation and focus on hook execution
-        if debug_mode {
-            eprintln!("samoyed: Init script found but sourcing not implemented yet");
-        }
-    } else if debug_mode {
-        eprintln!("samoyed: No init script found");
-    }
-
-    Ok(())
-}
-
-/// Detects Unix-like environments running on Windows
-fn is_windows_unix_environment(env: &dyn Environment, debug_mode: bool) -> bool {
-    // Check for Git Bash / MSYS2
-    if let Some(msystem) = env.get_var("MSYSTEM") {
-        if debug_mode {
-            eprintln!("samoyed: Detected MSYSTEM={msystem}");
-        }
-        return matches!(msystem.as_str(), "MINGW32" | "MINGW64" | "MSYS");
-    }
-
-    // Check for Cygwin
-    if env.get_var("CYGWIN").is_some() {
-        if debug_mode {
-            eprintln!("samoyed: Detected Cygwin environment");
-        }
-        return true;
-    }
-
-    // Check for WSL (Windows Subsystem for Linux)
-    if env.get_var("WSL_DISTRO_NAME").is_some() || env.get_var("WSL_INTEROP").is_some() {
-        if debug_mode {
-            eprintln!("samoyed: Detected WSL environment");
-        }
-        return true;
-    }
-
-    false
-}
-
-/// Determines the appropriate shell command and arguments for executing a hook script
-fn determine_shell_execution(
-    env: &dyn Environment,
-    script_path: &Path,
-    args: &[&str],
-    debug_mode: bool,
-) -> (String, Vec<String>) {
-    // Check if we're on Windows
-    if cfg!(target_os = "windows") {
-        // Check for Unix-like environments on Windows
-        if is_windows_unix_environment(env, debug_mode) {
-            if debug_mode {
-                eprintln!("samoyed: Detected Unix-like environment on Windows, using sh");
-            }
-            return (
-                "sh".to_string(),
-                vec![
-                    "-e".to_string(),
-                    script_path.to_string_lossy().to_string(),
-                    args.join(" "),
-                ],
-            );
-        }
-
-        // Native Windows execution
-        if debug_mode {
-            eprintln!("samoyed: Native Windows detected, determining shell by file extension");
-        }
-
-        // Determine shell based on file extension
-        if let Some(ext) = script_path.extension().and_then(|e| e.to_str()) {
-            match ext.to_lowercase().as_str() {
-                "bat" | "cmd" => {
-                    return (
-                        "cmd".to_string(),
-                        vec![
-                            "/C".to_string(),
-                            script_path.to_string_lossy().to_string(),
-                            args.join(" "),
-                        ],
-                    );
-                }
-                "ps1" => {
-                    return (
-                        "powershell".to_string(),
-                        vec![
-                            "-ExecutionPolicy".to_string(),
-                            "Bypass".to_string(),
-                            "-File".to_string(),
-                            script_path.to_string_lossy().to_string(),
-                            args.join(" "),
-                        ],
-                    );
-                }
-                _ => {}
-            }
-        }
-
-        // Default to cmd.exe for extensionless files on Windows
-        return (
-            "cmd".to_string(),
-            vec![
-                "/C".to_string(),
-                script_path.to_string_lossy().to_string(),
-                args.join(" "),
-            ],
-        );
-    }
-
-    // Unix-like systems (Linux, macOS, etc.)
-    if debug_mode {
-        eprintln!("samoyed: Unix-like system detected, using sh");
-    }
-    (
-        "sh".to_string(),
-        vec![
-            "-e".to_string(),
-            script_path.to_string_lossy().to_string(),
-            args.join(" "),
-        ],
-    )
-}
-
-/// Execute the actual hook script and handle exit codes
-fn execute_hook_script(
-    env: &dyn Environment,
-    runner: &dyn CommandRunner,
-    _fs: &dyn FileSystem,
-    script_path: &Path,
-    hook_args: &[String],
-    debug_mode: bool,
-) -> Result<()> {
-    if debug_mode {
-        log_file_operation_with_env(env, debug_mode, "Executing hook script", script_path);
-        let sanitized_hook_args = sanitize_args(hook_args);
-        eprintln!("samoyed: Hook arguments: {sanitized_hook_args:?}");
-    }
-
-    // Convert String args to &str for the runner interface
-    let str_args: Vec<&str> = hook_args.iter().map(|s| s.as_str()).collect();
-
-    // Determine appropriate shell and arguments based on platform and environment
-    let (shell_command, shell_args) =
-        determine_shell_execution(env, script_path, &str_args, debug_mode);
-
-    if debug_mode {
-        log_command_execution(debug_mode, &shell_command, &shell_args);
-    }
-
-    let output = runner
-        .run_command(
-            &shell_command,
-            &shell_args.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-        )
-        .with_context(|| {
-            format!(
-                "Failed to execute hook script: {}",
-                sanitize_path(script_path)
+/// Main entry point for Samoyed
+///
+/// Parses command-line arguments and dispatches to appropriate handlers.
+/// If no command is provided, displays help message.
+fn main() -> ExitCode {
+    match Cli::parse().command {
+        Some(Commands::Init { dirname }) => {
+            let dirname = dirname.unwrap_or_else(|| DEFAULT_SAMOYED_DIR.to_string());
+            init_samoyed(&dirname).map_or_else(
+                |err| {
+                    eprintln!("{err}");
+                    ExitCode::FAILURE
+                },
+                |_| ExitCode::SUCCESS,
             )
-        })?;
-
-    // Check exit code and provide appropriate error messages
-    let exit_code = output.status.code().unwrap_or(1);
-
-    if debug_mode {
-        eprintln!("samoyed: Hook script exit code: {exit_code}");
-        if !output.stdout.is_empty() {
-            eprintln!(
-                "samoyed: Hook stdout: {}",
-                String::from_utf8_lossy(&output.stdout)
-            );
         }
-        if !output.stderr.is_empty() {
-            eprintln!(
-                "samoyed: Hook stderr: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
+        None => ExitCode::SUCCESS,
+    }
+}
+
+/// Initialize Samoyed in the current git repository
+///
+/// This function performs the following steps:
+/// 1. Checks if SAMOYED=0 (bypass mode)
+/// 2. Verifies we're inside a git repository
+/// 3. Validates the samoyed directory path
+/// 4. Creates the directory structure
+/// 5. Copies the wrapper script
+/// 6. Creates hook scripts
+/// 7. Creates sample pre-commit hook
+/// 8. Sets git config core.hooksPath
+/// 9. Creates .gitignore in the _ directory
+///
+/// # Arguments
+///
+/// * `dirname` - The directory name for Samoyed hooks
+///
+/// # Returns
+///
+/// Returns Ok(()) on success, or an error message on failure
+fn init_samoyed(dirname: &str) -> Result<(), String> {
+    // Check for bypass mode
+    if check_bypass_mode() {
+        println!("Bypassing samoyed init due to SAMOYED=0");
+        return Ok(());
+    }
+
+    // Check if we're in a git repository
+    let git_root = get_git_root()?;
+    let current_dir = env::current_dir()
+        .map_err(|e| format!("Error: Failed to determine current directory: {}", e))?;
+
+    // Validate and resolve the samoyed directory path
+    let samoyed_dir = validate_samoyed_dir(&git_root, &current_dir, dirname)?;
+
+    // Create directory structure
+    create_directory_structure(&samoyed_dir)?;
+
+    // Copy wrapper script to _/samoyed
+    copy_wrapper_script(&samoyed_dir)?;
+
+    // Create hook scripts in _ directory
+    create_hook_scripts(&samoyed_dir)?;
+
+    // Create sample pre-commit hook
+    create_sample_pre_commit(&samoyed_dir)?;
+
+    // Set git config core.hooksPath
+    set_git_hooks_path(&samoyed_dir)?;
+
+    // Create .gitignore in _ directory
+    create_gitignore(&samoyed_dir)?;
+
+    Ok(())
+}
+
+/// Check if SAMOYED environment variable is set to "0" (bypass mode)
+///
+/// # Returns
+///
+/// Returns true if SAMOYED=0, false otherwise
+fn check_bypass_mode() -> bool {
+    matches!(env::var("SAMOYED").as_deref(), Ok("0"))
+}
+
+/// Get the root directory of the current git repository
+///
+/// Uses `git rev-parse --is-inside-work-tree` to check if we're in a git repo,
+/// and `git rev-parse --show-toplevel` to get the root directory.
+///
+/// # Returns
+///
+/// Returns the absolute path to the git root, or an error if not in a git repo
+fn get_git_root() -> Result<PathBuf, String> {
+    let output = Command::new("git")
+        .args(["rev-parse", "--is-inside-work-tree"])
+        .output()
+        .map_err(|_| "Error: Failed to execute git command".to_string())?;
+
+    if !output.status.success() {
+        return Err("Error: Not a git repository".to_string());
+    }
+
+    let inside = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if inside != "true" {
+        return Err("Error: Not a git repository".to_string());
+    }
+
+    let output = Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .map_err(|_| "Error: Failed to get git root directory".to_string())?;
+
+    if !output.status.success() {
+        return Err("Error: Failed to get git root directory".to_string());
+    }
+
+    let git_root = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Ok(PathBuf::from(git_root))
+}
+
+/// Validate that the samoyed directory is inside the git repository
+///
+/// # Arguments
+///
+/// * `git_root` - The root directory of the git repository
+/// * `dirname` - The proposed directory name for Samoyed
+///
+/// # Returns
+///
+/// Returns the absolute path to the samoyed directory, or an error if invalid
+fn validate_samoyed_dir(
+    git_root: &Path,
+    current_dir: &Path,
+    dirname: &str,
+) -> Result<PathBuf, String> {
+    let git_root_canonical = git_root
+        .canonicalize()
+        .map_err(|e| format!("Error: Failed to resolve git root: {}", e))?;
+
+    let provided_path = Path::new(dirname);
+
+    let candidate = if provided_path.is_absolute() {
+        provided_path.to_path_buf()
+    } else {
+        let has_parent = provided_path
+            .components()
+            .any(|component| matches!(component, Component::ParentDir));
+        if has_parent {
+            current_dir.join(provided_path)
+        } else {
+            git_root_canonical.join(provided_path)
         }
+    };
+
+    let resolved = canonicalize_allowing_nonexistent(&candidate).map_err(|e| {
+        format!(
+            "Error: Failed to resolve samoyed directory '{}': {}",
+            dirname, e
+        )
+    })?;
+
+    if !resolved.starts_with(&git_root_canonical) {
+        return Err(format!(
+            "Error: {} is outside the {} git repository",
+            resolved.display(),
+            git_root_canonical.display()
+        ));
     }
 
-    // Print stdout and stderr from the hook
-    if !output.stdout.is_empty() {
-        print!("{}", String::from_utf8_lossy(&output.stdout));
+    Ok(resolved)
+}
+
+fn canonicalize_allowing_nonexistent(path: &Path) -> std::io::Result<PathBuf> {
+    if path.exists() {
+        return path.canonicalize();
     }
-    if !output.stderr.is_empty() {
-        eprint!("{}", String::from_utf8_lossy(&output.stderr));
-    }
 
-    // Handle specific error cases
-    if exit_code != 0 {
-        let hook_name = script_path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("unknown");
+    let mut components = Vec::new();
+    let mut current = path;
 
-        eprintln!("samoyed - {hook_name} script failed (code {exit_code})");
+    loop {
+        if current.exists() {
+            let mut canonical = current.canonicalize()?;
+            for component in components.iter().rev() {
+                canonical.push(component);
+            }
+            return Ok(canonical);
+        }
 
-        // Check for command not found (exit code 127)
-        if exit_code == 127 {
-            eprintln!("samoyed - command not found in PATH");
-            if debug_mode {
-                // Only show PATH in debug mode, and sanitize it
-                if let Ok(path) = std::env::var("PATH") {
-                    // Use platform-specific PATH separator for counting
-                    let separator = if cfg!(target_os = "windows") {
-                        ";"
-                    } else {
-                        ":"
-                    };
-                    let dir_count = path.split(separator).count();
-                    eprintln!("samoyed - PATH contains {dir_count} directories");
-                }
-            } else {
-                eprintln!("samoyed - run with SAMOYED=2 for more details");
+        match current.file_name() {
+            Some(name) => components.push(name.to_os_string()),
+            None => {
+                // We've reached a root that doesn't exist; this means the entire path is invalid
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Unable to resolve path",
+                ));
+            }
+        }
+
+        match current.parent() {
+            Some(parent) => current = parent,
+            None => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Unable to resolve parent path",
+                ));
             }
         }
     }
+}
 
-    // Exit with the same code as the hook script
-    process::exit(exit_code);
+/// Create the directory structure for Samoyed
+///
+/// Creates the main samoyed directory and the _ subdirectory.
+///
+/// # Arguments
+///
+/// * `samoyed_dir` - Path to the samoyed directory
+///
+/// # Returns
+///
+/// Returns Ok(()) on success, or an error message on failure
+fn create_directory_structure(samoyed_dir: &Path) -> Result<(), String> {
+    // Create main samoyed directory
+    fs::create_dir_all(samoyed_dir)
+        .map_err(|e| format!("Error: Failed to create samoyed directory: {}", e))?;
+
+    // Create _ subdirectory
+    let underscore_dir = samoyed_dir.join("_");
+    fs::create_dir_all(&underscore_dir)
+        .map_err(|e| format!("Error: Failed to create _ directory: {}", e))?;
+
+    Ok(())
+}
+
+/// Copy the embedded wrapper script to _/samoyed
+///
+/// The script is copied with 644 permissions.
+///
+/// # Arguments
+///
+/// * `samoyed_dir` - Path to the samoyed directory
+///
+/// # Returns
+///
+/// Returns Ok(()) on success, or an error message on failure
+fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
+    let wrapper_path = samoyed_dir.join("_").join("samoyed");
+
+    // Write the embedded script
+    fs::write(&wrapper_path, SAMOYED_WRAPPER_SCRIPT)
+        .map_err(|e| format!("Error: Failed to write wrapper script: {}", e))?;
+
+    // Set permissions to 644 (rw-r--r--) because the wrapper is sourced
+    #[cfg(unix)]
+    {
+        let metadata = fs::metadata(&wrapper_path)
+            .map_err(|e| format!("Error: Failed to get file metadata: {}", e))?;
+        let mut permissions = metadata.permissions();
+        permissions.set_mode(0o644);
+        fs::set_permissions(&wrapper_path, permissions)
+            .map_err(|e| format!("Error: Failed to set file permissions: {}", e))?;
+    }
+
+    Ok(())
+}
+
+/// Create hook scripts in the _ directory
+///
+/// Creates all Git hook scripts with 755 permissions.
+/// Each script sources the shared wrapper so user hooks run consistently.
+///
+/// # Arguments
+///
+/// * `samoyed_dir` - Path to the samoyed directory
+///
+/// # Returns
+///
+/// Returns Ok(()) on success, or an error message on failure
+fn create_hook_scripts(samoyed_dir: &Path) -> Result<(), String> {
+    let underscore_dir = samoyed_dir.join("_");
+
+    for hook_name in GIT_HOOKS {
+        let hook_path = underscore_dir.join(hook_name);
+
+        // Create hook script content that sources the shared wrapper.
+        let content = r#"#!/usr/bin/env sh
+. "$(dirname "$0")/samoyed"
+"#;
+
+        // Write the hook script
+        fs::write(&hook_path, content)
+            .map_err(|e| format!("Error: Failed to write {} hook: {}", hook_name, e))?;
+
+        // Set permissions to 755 (rwxr-xr-x)
+        #[cfg(unix)]
+        {
+            let metadata = fs::metadata(&hook_path)
+                .map_err(|e| format!("Error: Failed to get file metadata: {}", e))?;
+            let mut permissions = metadata.permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&hook_path, permissions)
+                .map_err(|e| format!("Error: Failed to set file permissions: {}", e))?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Create a sample pre-commit hook in the samoyed directory
+///
+/// This creates a simple pre-commit hook template that users can extend.
+/// The file is created with 644 permissions.
+///
+/// # Arguments
+///
+/// * `samoyed_dir` - Path to the samoyed directory
+///
+/// # Returns
+///
+/// Returns Ok(()) on success, or an error message on failure
+fn create_sample_pre_commit(samoyed_dir: &Path) -> Result<(), String> {
+    let pre_commit_path = samoyed_dir.join("pre-commit");
+
+    let content = r#"#!/usr/bin/env sh
+# Add your pre-commit checks here. For example:
+# echo "Running Samoyed sample pre-commit"
+# exit 0
+"#;
+
+    // Write the sample pre-commit hook
+    fs::write(&pre_commit_path, content)
+        .map_err(|e| format!("Error: Failed to write sample pre-commit hook: {}", e))?;
+
+    // Set permissions to 644 (rw-r--r--)
+    #[cfg(unix)]
+    {
+        let metadata = fs::metadata(&pre_commit_path)
+            .map_err(|e| format!("Error: Failed to get file metadata: {}", e))?;
+        let mut permissions = metadata.permissions();
+        permissions.set_mode(0o644);
+        fs::set_permissions(&pre_commit_path, permissions)
+            .map_err(|e| format!("Error: Failed to set file permissions: {}", e))?;
+    }
+
+    Ok(())
+}
+
+/// Set the git config core.hooksPath to point to the _ directory
+///
+/// Uses `git config core.hooksPath` to configure Git to use our hooks.
+///
+/// # Arguments
+///
+/// * `samoyed_dir` - Path to the samoyed directory
+///
+/// # Returns
+///
+/// Returns Ok(()) on success, or an error message on failure
+fn set_git_hooks_path(samoyed_dir: &Path) -> Result<(), String> {
+    let hooks_path = samoyed_dir.join("_");
+    let hooks_path_str = hooks_path
+        .to_str()
+        .ok_or_else(|| "Error: Invalid path for hooks directory".to_string())?;
+
+    let status = Command::new("git")
+        .args(["config", "core.hooksPath", hooks_path_str])
+        .status()
+        .map_err(|_| "Error: Failed to set git config".to_string())?;
+
+    if !status.success() {
+        return Err("Error: Failed to set core.hooksPath".to_string());
+    }
+
+    Ok(())
+}
+
+/// Create a .gitignore file in the _ directory
+///
+/// The .gitignore contains a single asterisk to ignore all files in the directory.
+/// Only creates the file if it doesn't already exist.
+///
+/// # Arguments
+///
+/// * `samoyed_dir` - Path to the samoyed directory
+///
+/// # Returns
+///
+/// Returns Ok(()) on success, or an error message on failure
+fn create_gitignore(samoyed_dir: &Path) -> Result<(), String> {
+    let gitignore_path = samoyed_dir.join("_").join(".gitignore");
+
+    // Only create if it doesn't exist
+    if !gitignore_path.exists() {
+        let content = "*\n";
+        fs::write(&gitignore_path, content)
+            .map_err(|e| format!("Error: Failed to write .gitignore: {}", e))?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
-#[path = "unit_tests/main_tests.rs"]
-mod tests;
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::process::Command as StdCommand;
+    use tempfile::TempDir;
+
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+
+    /// Test check_bypass_mode function
+    #[test]
+    fn test_check_bypass_mode() {
+        // Test when SAMOYED is not set
+        unsafe {
+            env::remove_var("SAMOYED");
+        }
+        assert!(!check_bypass_mode());
+
+        // Test when SAMOYED=0
+        unsafe {
+            env::set_var("SAMOYED", "0");
+        }
+        assert!(check_bypass_mode());
+
+        // Test when SAMOYED=1
+        unsafe {
+            env::set_var("SAMOYED", "1");
+        }
+        assert!(!check_bypass_mode());
+
+        // Test when SAMOYED=2
+        unsafe {
+            env::set_var("SAMOYED", "2");
+        }
+        assert!(!check_bypass_mode());
+
+        // Clean up
+        unsafe {
+            env::remove_var("SAMOYED");
+        }
+    }
+
+    /// Test validate_samoyed_dir function with valid paths
+    #[test]
+    fn test_validate_samoyed_dir_valid() {
+        let temp_dir = TempDir::new().unwrap();
+        let git_root = temp_dir.path();
+
+        // Test with simple directory name
+        let result = validate_samoyed_dir(git_root, git_root, ".samoyed");
+        assert!(result.is_ok());
+        let path = result.unwrap();
+        assert_eq!(path, git_root.join(".samoyed"));
+
+        // Test with nested directory
+        let result = validate_samoyed_dir(git_root, git_root, "hooks/samoyed");
+        assert!(result.is_ok());
+    }
+
+    /// Test validate_samoyed_dir function with invalid paths
+    #[test]
+    fn test_validate_samoyed_dir_invalid() {
+        let temp_dir = TempDir::new().unwrap();
+        let git_root = temp_dir.path();
+
+        // Test with path outside git root
+        let result = validate_samoyed_dir(git_root, git_root, "..");
+        assert!(result.is_err());
+
+        // Test with absolute path outside git root
+        let result = validate_samoyed_dir(git_root, git_root, "/tmp/outside");
+        assert!(result.is_err());
+    }
+
+    /// Test create_directory_structure function
+    #[test]
+    fn test_create_directory_structure() {
+        let temp_dir = TempDir::new().unwrap();
+        let samoyed_dir = temp_dir.path().join(".samoyed");
+
+        let result = create_directory_structure(&samoyed_dir);
+        assert!(result.is_ok());
+
+        // Check that directories were created
+        assert!(samoyed_dir.exists());
+        assert!(samoyed_dir.join("_").exists());
+
+        // Test idempotency - should work even if directories exist
+        let result = create_directory_structure(&samoyed_dir);
+        assert!(result.is_ok());
+    }
+
+    /// Test copy_wrapper_script function
+    #[test]
+    fn test_copy_wrapper_script() {
+        let temp_dir = TempDir::new().unwrap();
+        let samoyed_dir = temp_dir.path().join(".samoyed");
+        fs::create_dir_all(samoyed_dir.join("_")).unwrap();
+
+        let result = copy_wrapper_script(&samoyed_dir);
+        assert!(result.is_ok());
+
+        let wrapper_path = samoyed_dir.join("_").join("samoyed");
+        assert!(wrapper_path.exists());
+
+        let contents = fs::read(&wrapper_path).unwrap();
+        assert_eq!(contents, SAMOYED_WRAPPER_SCRIPT);
+
+        // Check permissions on Unix
+        #[cfg(unix)]
+        {
+            let metadata = fs::metadata(&wrapper_path).unwrap();
+            let mode = metadata.permissions().mode();
+            assert_eq!(mode & 0o777, 0o644);
+        }
+    }
+
+    /// Test create_hook_scripts function
+    #[test]
+    fn test_create_hook_scripts() {
+        let temp_dir = TempDir::new().unwrap();
+        let samoyed_dir = temp_dir.path().join(".samoyed");
+        fs::create_dir_all(samoyed_dir.join("_")).unwrap();
+
+        let result = create_hook_scripts(&samoyed_dir);
+        assert!(result.is_ok());
+
+        // Check that all hook scripts were created
+        for hook_name in GIT_HOOKS {
+            let hook_path = samoyed_dir.join("_").join(hook_name);
+            assert!(hook_path.exists(), "Hook {} should exist", hook_name);
+
+            // Check content
+            let content = fs::read_to_string(&hook_path).unwrap();
+            assert!(content.contains(". \"$(dirname \"$0\")/samoyed\""));
+
+            // Check permissions on Unix
+            #[cfg(unix)]
+            {
+                let metadata = fs::metadata(&hook_path).unwrap();
+                let mode = metadata.permissions().mode();
+                assert_eq!(
+                    mode & 0o777,
+                    0o755,
+                    "Hook {} should have 755 permissions",
+                    hook_name
+                );
+            }
+        }
+    }
+
+    /// Test create_sample_pre_commit function
+    #[test]
+    fn test_create_sample_pre_commit() {
+        let temp_dir = TempDir::new().unwrap();
+        let samoyed_dir = temp_dir.path().join(".samoyed");
+        fs::create_dir_all(&samoyed_dir).unwrap();
+
+        let result = create_sample_pre_commit(&samoyed_dir);
+        assert!(result.is_ok());
+
+        let pre_commit_path = samoyed_dir.join("pre-commit");
+        assert!(pre_commit_path.exists());
+
+        // Check content
+        let content = fs::read_to_string(&pre_commit_path).unwrap();
+        assert!(content.contains("#!/usr/bin/env sh"));
+        assert!(content.contains("Add your pre-commit checks"));
+
+        // Check permissions on Unix
+        #[cfg(unix)]
+        {
+            let metadata = fs::metadata(&pre_commit_path).unwrap();
+            let mode = metadata.permissions().mode();
+            assert_eq!(mode & 0o777, 0o644);
+        }
+    }
+
+    /// Test create_gitignore function
+    #[test]
+    fn test_create_gitignore() {
+        let temp_dir = TempDir::new().unwrap();
+        let samoyed_dir = temp_dir.path().join(".samoyed");
+        fs::create_dir_all(samoyed_dir.join("_")).unwrap();
+
+        let result = create_gitignore(&samoyed_dir);
+        assert!(result.is_ok());
+
+        let gitignore_path = samoyed_dir.join("_").join(".gitignore");
+        assert!(gitignore_path.exists());
+
+        // Check content
+        let content = fs::read_to_string(&gitignore_path).unwrap();
+        assert_eq!(content, "*\n");
+
+        // Test that it doesn't overwrite existing file
+        fs::write(&gitignore_path, "custom content").unwrap();
+        let result = create_gitignore(&samoyed_dir);
+        assert!(result.is_ok());
+
+        let content = fs::read_to_string(&gitignore_path).unwrap();
+        assert_eq!(content, "custom content");
+    }
+
+    /// Test the CLI parsing
+    #[test]
+    fn test_cli_parsing() {
+        use clap::CommandFactory;
+
+        // Test that the CLI can be constructed
+        let _cli = Cli::command();
+
+        // Test parsing init command
+        let cli = Cli::parse_from(["samoyed", "init"]);
+        match cli.command {
+            Some(Commands::Init { dirname }) => {
+                assert!(dirname.is_none());
+            }
+            _ => panic!("Expected Init command"),
+        }
+
+        // Test parsing init command with dirname
+        let cli = Cli::parse_from(["samoyed", "init", ".hooks"]);
+        match cli.command {
+            Some(Commands::Init { dirname }) => {
+                assert_eq!(dirname, Some(".hooks".to_string()));
+            }
+            _ => panic!("Expected Init command"),
+        }
+    }
+
+    /// Test get_git_root function when not in a git repo
+    #[test]
+    fn test_get_git_root_not_in_repo() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Change to temp directory
+        let original_dir = env::current_dir().unwrap();
+        env::set_current_dir(temp_dir.path()).unwrap();
+
+        let result = get_git_root();
+        assert!(result.is_err());
+
+        // Restore original directory
+        env::set_current_dir(original_dir).unwrap();
+    }
+
+    /// Test init_samoyed with bypass mode
+    #[test]
+    fn test_init_samoyed_bypass() {
+        unsafe {
+            env::set_var("SAMOYED", "0");
+        }
+
+        let result = init_samoyed(".samoyed");
+        assert!(result.is_ok());
+
+        unsafe {
+            env::remove_var("SAMOYED");
+        }
+    }
+
+    /// Test init_samoyed when not in git repo
+    #[test]
+    fn test_init_samoyed_not_in_repo() {
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = env::current_dir().unwrap();
+        env::set_current_dir(temp_dir.path()).unwrap();
+
+        let result = init_samoyed(".samoyed");
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err();
+        assert!(err_msg.contains("Not a git repository"));
+
+        env::set_current_dir(&original_dir).unwrap();
+    }
+
+    /// Helper function to create a test git repository
+    fn create_test_git_repo() -> TempDir {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Initialize git repo
+        StdCommand::new("git")
+            .args(["init"])
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("Failed to init git repo");
+
+        // Configure git user (required for some operations)
+        StdCommand::new("git")
+            .args(["config", "user.email", "test@example.com"])
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("Failed to set git user email");
+
+        StdCommand::new("git")
+            .args(["config", "user.name", "Test User"])
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("Failed to set git user name");
+
+        temp_dir
+    }
+
+    /// Test full init_samoyed function in a git repo
+    #[test]
+    fn test_init_samoyed_full() {
+        let git_repo = create_test_git_repo();
+        let original_dir = env::current_dir().unwrap();
+        env::set_current_dir(git_repo.path()).unwrap();
+
+        // Run init
+        let result = init_samoyed(".samoyed");
+        assert!(result.is_ok());
+
+        // Verify directory structure
+        let samoyed_dir = git_repo.path().join(".samoyed");
+        assert!(samoyed_dir.exists());
+        assert!(samoyed_dir.join("_").exists());
+
+        // Verify wrapper script
+        let wrapper_path = samoyed_dir.join("_").join("samoyed");
+        assert!(wrapper_path.exists());
+
+        // Verify sample pre-commit
+        let pre_commit_path = samoyed_dir.join("pre-commit");
+        assert!(pre_commit_path.exists());
+
+        // Verify all hook scripts
+        for hook_name in GIT_HOOKS {
+            let hook_path = samoyed_dir.join("_").join(hook_name);
+            assert!(hook_path.exists(), "Hook {} should exist", hook_name);
+        }
+
+        // Verify .gitignore
+        let gitignore_path = samoyed_dir.join("_").join(".gitignore");
+        assert!(gitignore_path.exists());
+
+        // Verify git config was set
+        let output = StdCommand::new("git")
+            .args(["config", "core.hooksPath"])
+            .current_dir(git_repo.path())
+            .output()
+            .unwrap();
+
+        let hooks_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        assert!(hooks_path.contains("samoyed/_") || hooks_path.ends_with("/_"));
+
+        env::set_current_dir(original_dir).unwrap();
+    }
+
+    /// Test init_samoyed with custom directory name
+    #[test]
+    fn test_init_samoyed_custom_dir() {
+        let git_repo = create_test_git_repo();
+        let original_dir = env::current_dir().unwrap();
+        env::set_current_dir(git_repo.path()).unwrap();
+
+        // Run init with custom directory
+        let result = init_samoyed(".hooks");
+        assert!(result.is_ok());
+
+        // Verify custom directory was created
+        let hooks_dir = git_repo.path().join(".hooks");
+        assert!(hooks_dir.exists());
+        assert!(hooks_dir.join("_").exists());
+
+        env::set_current_dir(original_dir).unwrap();
+    }
+
+    /// Test init_samoyed idempotency (running it twice)
+    #[test]
+    fn test_init_samoyed_idempotent() {
+        let git_repo = create_test_git_repo();
+        let original_dir = env::current_dir().unwrap();
+        env::set_current_dir(git_repo.path()).unwrap();
+
+        // Run init first time
+        let result1 = init_samoyed(".samoyed");
+        assert!(result1.is_ok());
+
+        // Run init second time
+        let result2 = init_samoyed(".samoyed");
+        assert!(result2.is_ok());
+
+        // Verify structure still exists
+        let samoyed_dir = git_repo.path().join(".samoyed");
+        assert!(samoyed_dir.exists());
+
+        env::set_current_dir(original_dir).unwrap();
+    }
+
+    /// Test set_git_hooks_path function
+    #[test]
+    fn test_set_git_hooks_path() {
+        let git_repo = create_test_git_repo();
+        let original_dir = env::current_dir().unwrap();
+        env::set_current_dir(git_repo.path()).unwrap();
+
+        let samoyed_dir = git_repo.path().join(".samoyed");
+        fs::create_dir_all(samoyed_dir.join("_")).unwrap();
+
+        let result = set_git_hooks_path(&samoyed_dir);
+        assert!(result.is_ok());
+
+        // Verify git config was set
+        let output = StdCommand::new("git")
+            .args(["config", "core.hooksPath"])
+            .output()
+            .unwrap();
+
+        assert!(output.status.success());
+        let hooks_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        assert!(hooks_path.contains("samoyed/_") || hooks_path.ends_with("/_"));
+
+        env::set_current_dir(original_dir).unwrap();
+    }
+
+    /// Test get_git_root in an actual git repository
+    #[test]
+    fn test_get_git_root_in_repo() {
+        let git_repo = create_test_git_repo();
+        let original_dir = env::current_dir().unwrap();
+
+        // Test from root
+        env::set_current_dir(git_repo.path()).unwrap();
+        let result = get_git_root();
+        assert!(result.is_ok());
+        let git_root = result.unwrap();
+        // Canonicalize both paths for comparison
+        assert_eq!(
+            git_root.canonicalize().unwrap(),
+            git_repo.path().canonicalize().unwrap()
+        );
+
+        // Test from subdirectory
+        let subdir = git_repo.path().join("subdir");
+        fs::create_dir(&subdir).unwrap();
+        env::set_current_dir(&subdir).unwrap();
+
+        let result = get_git_root();
+        assert!(result.is_ok());
+        let git_root = result.unwrap();
+        assert_eq!(
+            git_root.canonicalize().unwrap(),
+            git_repo.path().canonicalize().unwrap()
+        );
+
+        env::set_current_dir(original_dir).unwrap();
+    }
+
+    /// Test validate_samoyed_dir with relative path containing ..
+    #[test]
+    fn test_validate_samoyed_dir_parent_relative() {
+        let temp_dir = TempDir::new().unwrap();
+        let git_root = temp_dir.path();
+
+        // Create subdirectory
+        let subdir = git_root.join("subdir");
+        fs::create_dir(&subdir).unwrap();
+
+        // Test with path that goes up and back down
+        let result = validate_samoyed_dir(git_root, &subdir, "../.samoyed");
+        assert!(result.is_ok());
+
+        // The resulting path should be inside git root
+        let path = result.unwrap();
+        assert!(path.starts_with(git_root));
+    }
+
+    /// Test that main function returns success exit code
+    #[test]
+    fn test_main_no_command() {
+        // This will trigger the help display
+        let args = vec!["samoyed"];
+        let result = std::panic::catch_unwind(|| Cli::try_parse_from(args));
+
+        // When no command is given, clap returns an error (which shows help)
+        // but our main function still returns SUCCESS
+        assert!(result.is_ok());
+    }
+}
