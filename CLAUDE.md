@@ -38,6 +38,9 @@ Samoyed is a single-binary, minimal, cross-platform Git hooks manager written in
 - No runtime dependencies (only clap for CLI)
 - Must be cross-platform (Unix/Windows)
 - Follow DRY principle and maintain testability
+- Rust 2024 edition with four-space indent, trailing commas
+- Functions and variables use `snake_case`, types use `UpperCamelCase`
+- CLI subcommands remain lowercase per clap conventions
 
 ## Development Commands
 
@@ -53,13 +56,18 @@ cargo build --release --verbose
 ### Testing
 ```bash
 # Run all tests (unit tests are in main.rs)
-cargo test --verbose
+# IMPORTANT: Tests must run serially to prevent intermittent failures
+cargo test -- --test-threads=1
 
 # Run specific test
-cargo test test_name --verbose
+cargo test test_name -- --test-threads=1
 
 # With output display
-cargo test -- --nocapture
+cargo test -- --test-threads=1 --nocapture
+
+# WARNING: Never run 'samoyed init' in this repository!
+# Create a throwaway git repo for testing:
+cd tmp && git init testbed && cd testbed
 ```
 
 ### Code Quality
@@ -160,3 +168,17 @@ The release profile in `Cargo.toml` includes:
 - `opt-level = 3` - Maximum optimization
 
 This produces a minimal, fast binary suitable for distribution.
+
+## Development Environment
+
+The project includes a Nix flake for consistent development environments. Run `nix develop` to enter a shell with all required tools including Rust toolchain, cargo-tarpaulin, and other dependencies.
+
+## Commit Guidelines
+
+Commits follow Conventional Commits format:
+- `feat:` for new features
+- `fix:` for bug fixes
+- `chore:` for maintenance tasks
+- Add `!` for breaking changes (e.g., `feat!:`)
+- Use concise, imperative descriptions
+- Group related changes, avoid catch-all commits
