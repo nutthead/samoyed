@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 /// Embedded assets/samoyed script that serves as the Git hook wrapper
@@ -110,9 +110,11 @@ fn init_samoyed(dirname: &str) -> Result<(), String> {
 
     // Check if we're in a git repository
     let git_root = get_git_root()?;
+    let current_dir = env::current_dir()
+        .map_err(|e| format!("Error: Failed to determine current directory: {}", e))?;
 
     // Validate and resolve the samoyed directory path
-    let samoyed_dir = validate_samoyed_dir(&git_root, dirname)?;
+    let samoyed_dir = validate_samoyed_dir(&git_root, &current_dir, dirname)?;
 
     // Create directory structure
     create_directory_structure(&samoyed_dir)?;
@@ -188,25 +190,86 @@ fn get_git_root() -> Result<PathBuf, String> {
 /// # Returns
 ///
 /// Returns the absolute path to the samoyed directory, or an error if invalid
-fn validate_samoyed_dir(git_root: &Path, dirname: &str) -> Result<PathBuf, String> {
-    let samoyed_path = git_root.join(dirname);
-
-    // Canonicalize to resolve any .. or . components
-    let canonical_path = samoyed_path
+fn validate_samoyed_dir(
+    git_root: &Path,
+    current_dir: &Path,
+    dirname: &str,
+) -> Result<PathBuf, String> {
+    let git_root_canonical = git_root
         .canonicalize()
-        .unwrap_or_else(|_| samoyed_path.clone());
+        .map_err(|e| format!("Error: Failed to resolve git root: {}", e))?;
 
-    // Check if the path is inside the git repository
-    if !canonical_path.starts_with(git_root) {
-        let git_root_str = git_root.display();
-        let canonical_str = canonical_path.display();
+    let provided_path = Path::new(dirname);
+
+    let candidate = if provided_path.is_absolute() {
+        provided_path.to_path_buf()
+    } else if dirname == DEFAULT_SAMOYED_DIR {
+        git_root_canonical.join(provided_path)
+    } else if provided_path
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        current_dir.join(provided_path)
+    } else {
+        git_root_canonical.join(provided_path)
+    };
+
+    let resolved = canonicalize_allowing_nonexistent(&candidate).map_err(|e| {
+        format!(
+            "Error: Failed to resolve samoyed directory '{}': {}",
+            dirname, e
+        )
+    })?;
+
+    if !resolved.starts_with(&git_root_canonical) {
         return Err(format!(
             "Error: {} is outside the {} git repository",
-            canonical_str, git_root_str
+            resolved.display(),
+            git_root_canonical.display()
         ));
     }
 
-    Ok(canonical_path)
+    Ok(resolved)
+}
+
+fn canonicalize_allowing_nonexistent(path: &Path) -> std::io::Result<PathBuf> {
+    if path.exists() {
+        return path.canonicalize();
+    }
+
+    let mut components = Vec::new();
+    let mut current = path;
+
+    loop {
+        if current.exists() {
+            let mut canonical = current.canonicalize()?;
+            for component in components.iter().rev() {
+                canonical.push(component);
+            }
+            return Ok(canonical);
+        }
+
+        match current.file_name() {
+            Some(name) => components.push(name.to_os_string()),
+            None => {
+                // We've reached a root that doesn't exist; this means the entire path is invalid
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Unable to resolve path",
+                ));
+            }
+        }
+
+        match current.parent() {
+            Some(parent) => current = parent,
+            None => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Unable to resolve parent path",
+                ));
+            }
+        }
+    }
 }
 
 /// Create the directory structure for Samoyed
@@ -251,13 +314,13 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
     fs::write(&wrapper_path, SAMOYED_WRAPPER_SCRIPT)
         .map_err(|e| format!("Error: Failed to write wrapper script: {}", e))?;
 
-    // Set permissions to 644 (rw-r--r--)
+    // Set permissions to 755 (rwxr-xr-x) so the wrapper can be executed
     #[cfg(unix)]
     {
         let metadata = fs::metadata(&wrapper_path)
             .map_err(|e| format!("Error: Failed to get file metadata: {}", e))?;
         let mut permissions = metadata.permissions();
-        permissions.set_mode(0o644);
+        permissions.set_mode(0o755);
         fs::set_permissions(&wrapper_path, permissions)
             .map_err(|e| format!("Error: Failed to set file permissions: {}", e))?;
     }
@@ -283,12 +346,10 @@ fn create_hook_scripts(samoyed_dir: &Path) -> Result<(), String> {
     for hook_name in GIT_HOOKS {
         let hook_path = underscore_dir.join(hook_name);
 
-        // Create hook script content
-        let content = r#"base_name=$(basename "$0")
-abs_path=$(dirname "$(dirname "$0")")/$base_name
-
-echo "I am the ${base_name} hook. Change me at: ${abs_path}."
-
+        // Create hook script content that delegates to the wrapper while
+        // preserving the original hook path for context.
+        let content = r#"#!/usr/bin/env sh
+exec "$(dirname "$0")/samoyed" "$0" "$@"
 "#;
 
         // Write the hook script
@@ -312,7 +373,7 @@ echo "I am the ${base_name} hook. Change me at: ${abs_path}."
 
 /// Create a sample pre-commit hook in the samoyed directory
 ///
-/// This creates a simple pre-commit hook that sources the wrapper script.
+/// This creates a simple pre-commit hook template that users can extend.
 /// The file is created with 644 permissions.
 ///
 /// # Arguments
@@ -326,8 +387,9 @@ fn create_sample_pre_commit(samoyed_dir: &Path) -> Result<(), String> {
     let pre_commit_path = samoyed_dir.join("pre-commit");
 
     let content = r#"#!/usr/bin/env sh
-. "$(dirname "$0")/_/samoyed"
-
+# Add your pre-commit checks here. For example:
+# echo "Running Samoyed sample pre-commit"
+# exit 0
 "#;
 
     // Write the sample pre-commit hook
@@ -450,13 +512,13 @@ mod tests {
         let git_root = temp_dir.path();
 
         // Test with simple directory name
-        let result = validate_samoyed_dir(git_root, ".samoyed");
+        let result = validate_samoyed_dir(git_root, git_root, ".samoyed");
         assert!(result.is_ok());
         let path = result.unwrap();
         assert_eq!(path, git_root.join(".samoyed"));
 
         // Test with nested directory
-        let result = validate_samoyed_dir(git_root, "hooks/samoyed");
+        let result = validate_samoyed_dir(git_root, git_root, "hooks/samoyed");
         assert!(result.is_ok());
     }
 
@@ -467,11 +529,11 @@ mod tests {
         let git_root = temp_dir.path();
 
         // Test with path outside git root
-        let result = validate_samoyed_dir(git_root, "..");
+        let result = validate_samoyed_dir(git_root, git_root, "..");
         assert!(result.is_err());
 
         // Test with absolute path outside git root
-        let result = validate_samoyed_dir(git_root, "/tmp/outside");
+        let result = validate_samoyed_dir(git_root, git_root, "/tmp/outside");
         assert!(result.is_err());
     }
 
@@ -515,7 +577,7 @@ mod tests {
         {
             let metadata = fs::metadata(&wrapper_path).unwrap();
             let mode = metadata.permissions().mode();
-            assert_eq!(mode & 0o777, 0o644);
+            assert_eq!(mode & 0o777, 0o755);
         }
     }
 
@@ -536,7 +598,7 @@ mod tests {
 
             // Check content
             let content = fs::read_to_string(&hook_path).unwrap();
-            assert!(content.contains("${base_name} hook"));
+            assert!(content.contains("exec \"$(dirname \"$0\")/samoyed\""));
 
             // Check permissions on Unix
             #[cfg(unix)]
@@ -569,7 +631,7 @@ mod tests {
         // Check content
         let content = fs::read_to_string(&pre_commit_path).unwrap();
         assert!(content.contains("#!/usr/bin/env sh"));
-        assert!(content.contains(". \"$(dirname \"$0\")/_/samoyed\""));
+        assert!(content.contains("Add your pre-commit checks"));
 
         // Check permissions on Unix
         #[cfg(unix)]
@@ -864,7 +926,7 @@ mod tests {
         fs::create_dir(&subdir).unwrap();
 
         // Test with path that goes up and back down
-        let result = validate_samoyed_dir(git_root, "subdir/../.samoyed");
+        let result = validate_samoyed_dir(git_root, &subdir, "../.samoyed");
         assert!(result.is_ok());
 
         // The resulting path should be inside git root
@@ -877,9 +939,7 @@ mod tests {
     fn test_main_no_command() {
         // This will trigger the help display
         let args = vec!["samoyed"];
-        let result = std::panic::catch_unwind(|| {
-            Cli::try_parse_from(args)
-        });
+        let result = std::panic::catch_unwind(|| Cli::try_parse_from(args));
 
         // When no command is given, clap returns an error (which shows help)
         // but our main function still returns SUCCESS

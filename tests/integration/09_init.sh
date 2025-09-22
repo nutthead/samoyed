@@ -13,10 +13,12 @@ cd "$integration_repo_root"
 unset integration_script_dir
 unset integration_repo_root
 
+parse_common_args "$@"
+
 # Build Samoyed binary if needed
 build_samoyed
 
-# Set up test environment in ./tmp
+# Set up isolated test environment
 setup
 
 # Test: Basic init command execution
@@ -146,12 +148,11 @@ done
 # Test: Wrapper script permissions
 echo "Testing: Wrapper script permissions"
 
-# The wrapper script should be readable but doesn't need to be executable
-# since it's sourced, not executed
-if [ -r ".samoyed/_/samoyed" ]; then
-    ok "Wrapper script is readable"
+# The wrapper script must be executable because hook stubs exec into it
+if [ -x ".samoyed/_/samoyed" ]; then
+    ok "Wrapper script is executable"
 else
-    error "Wrapper script is not readable"
+    error "Wrapper script is not executable"
 fi
 
 # Test: Sample pre-commit hook content
@@ -163,11 +164,10 @@ else
     error "Sample pre-commit missing or incorrect shebang"
 fi
 
-# shellcheck disable=SC2016 # Keep the subshell expression literal for matching
-if grep -q '\. "$(dirname "$0")/_/samoyed"' ".samoyed/pre-commit"; then
-    ok "Sample pre-commit sources wrapper correctly"
+if grep -q "Add your pre-commit checks" ".samoyed/pre-commit"; then
+    ok "Sample pre-commit includes guidance comment"
 else
-    error "Sample pre-commit doesn't source wrapper"
+    error "Sample pre-commit is missing guidance comment"
 fi
 
 echo

@@ -17,10 +17,12 @@ cd "$integration_repo_root"
 unset integration_script_dir
 unset integration_repo_root
 
+parse_common_args "$@"
+
 # Build Samoyed binary if needed
 build_samoyed
 
-# Set up test environment in ./tmp
+# Set up isolated test environment
 setup
 
 # Test: Save original PATH
@@ -158,8 +160,8 @@ mkdir -p "$unusual_git_dir"
 real_git=$(command -v git)
 ln -s "$real_git" "$unusual_git_dir/git"
 
-# Set PATH to only include unusual location
-PATH="$unusual_git_dir:$(dirname "$SAMOYED_BIN")"
+# Set PATH to prioritise the unusual location while keeping system tools available
+PATH="$unusual_git_dir:$(dirname "$SAMOYED_BIN"):$ORIGINAL_PATH"
 export PATH
 
 # Clean up for fresh test

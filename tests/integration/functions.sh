@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # Integration test helper functions for Samoyed
 # Adapted from Husky's test suite for testing Git hooks managers
-# All tests run in the ./tmp directory to avoid modifying the Samoyed repository itself
+# Each test runs in a temporary workspace outside the Samoyed repository
 
 # Exit on error and undefined variables
 set -eu
@@ -22,7 +22,20 @@ SAMOYED_BIN="${SAMOYED_BIN:-$(pwd)/target/release/samoyed}"
 ORIGINAL_WORKDIR="$(pwd)"
 
 # Setup function - creates a clean test environment
-# Creates a new git repository in ./tmp for each test
+# Creates a new git repository inside a throwaway mktemp workspace
+parse_common_args() {
+    KEEP_WORKDIR="false"
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --keep)
+                KEEP_WORKDIR="true"
+                ;;
+        esac
+        shift
+    done
+}
+
 setup() {
     # Get the test name from the script filename
     setup_test_name="$(basename "$0" .sh)"
@@ -48,6 +61,10 @@ setup() {
     mkdir -p "$test_dir"
     cd "$test_dir"
 
+    if [ "${KEEP_WORKDIR:-false}" = "true" ]; then
+        echo "Keeping workspace for debugging: $test_root_dir"
+    fi
+
     # Initialize a new git repository for testing
     git init --quiet
 
@@ -68,8 +85,12 @@ setup() {
 cleanup() {
     if [ -n "${test_root_dir:-}" ] && [ -d "${test_root_dir:-}" ]; then
         cd "$ORIGINAL_WORKDIR"
-        rm -rf "$test_root_dir"
-        echo "Cleaned up: $test_root_dir"
+        if [ "${KEEP_WORKDIR:-false}" = "true" ]; then
+            echo "Preserving workspace: $test_root_dir"
+        else
+            rm -rf "$test_root_dir"
+            echo "Cleaned up: $test_root_dir"
+        fi
         unset test_root_dir
         unset test_dir
     fi
@@ -190,12 +211,10 @@ create_hook() {
         error "Hook directory '$create_hook_dir' does not exist"
     fi
 
-    # Create the hook file with proper shebang
+    # Create the hook file with user-provided content
     {
         echo "#!/usr/bin/env sh"
-        echo ". \"\$(dirname \"\$0\")/_/samoyed\""
-        echo ""
-        echo "$create_hook_content"
+        printf '%s\n' "$create_hook_content"
     } > "$create_hook_path"
 
     # Make it executable (required for some tests)

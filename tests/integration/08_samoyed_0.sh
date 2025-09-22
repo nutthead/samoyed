@@ -19,10 +19,12 @@ cd "$integration_repo_root"
 unset integration_script_dir
 unset integration_repo_root
 
+parse_common_args "$@"
+
 # Build Samoyed binary if needed
 build_samoyed
 
-# Set up test environment in ./tmp
+# Set up isolated test environment
 setup
 
 # Test: SAMOYED=0 during init should bypass initialization
@@ -121,6 +123,9 @@ git add test.txt
 # All hooks should be bypassed
 SAMOYED=0 expect 0 "git commit -m 'All hooks bypassed'"
 ok "SAMOYED=0 bypasses all hook types"
+
+# Remove the failing hooks so later tests see normal behaviour
+rm -f .samoyed/prepare-commit-msg .samoyed/commit-msg
 
 # Test: SAMOYED=1 does NOT bypass hooks
 echo "Testing: SAMOYED=1 does not bypass hooks"

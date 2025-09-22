@@ -13,10 +13,12 @@ cd "$integration_repo_root"
 unset integration_script_dir
 unset integration_repo_root
 
+parse_common_args "$@"
+
 # Build Samoyed binary if needed
 build_samoyed
 
-# Set up test environment in ./tmp
+# Set up isolated test environment
 setup
 
 # Initialize Samoyed
