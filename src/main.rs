@@ -320,7 +320,7 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
         let metadata = fs::metadata(&wrapper_path)
             .map_err(|e| format!("Error: Failed to get file metadata: {}", e))?;
         let mut permissions = metadata.permissions();
-        permissions.set_mode(0o755);
+        permissions.set_mode(0o644);
         fs::set_permissions(&wrapper_path, permissions)
             .map_err(|e| format!("Error: Failed to set file permissions: {}", e))?;
     }
@@ -346,10 +346,9 @@ fn create_hook_scripts(samoyed_dir: &Path) -> Result<(), String> {
     for hook_name in GIT_HOOKS {
         let hook_path = underscore_dir.join(hook_name);
 
-        // Create hook script content that delegates to the wrapper while
-        // preserving the original hook path for context.
+        // Create hook script content that sources the shared wrapper.
         let content = r#"#!/usr/bin/env sh
-exec "$(dirname "$0")/samoyed" "$0" "$@"
+. "$(dirname "$0")/samoyed"
 "#;
 
         // Write the hook script
@@ -568,7 +567,6 @@ mod tests {
         let wrapper_path = samoyed_dir.join("_").join("samoyed");
         assert!(wrapper_path.exists());
 
-        // Check file contents
         let contents = fs::read(&wrapper_path).unwrap();
         assert_eq!(contents, SAMOYED_WRAPPER_SCRIPT);
 
@@ -577,7 +575,7 @@ mod tests {
         {
             let metadata = fs::metadata(&wrapper_path).unwrap();
             let mode = metadata.permissions().mode();
-            assert_eq!(mode & 0o777, 0o755);
+            assert_eq!(mode & 0o777, 0o644);
         }
     }
 
@@ -598,7 +596,7 @@ mod tests {
 
             // Check content
             let content = fs::read_to_string(&hook_path).unwrap();
-            assert!(content.contains("exec \"$(dirname \"$0\")/samoyed\""));
+            assert!(content.contains(". \"$(dirname \"$0\")/samoyed\""));
 
             // Check permissions on Unix
             #[cfg(unix)]

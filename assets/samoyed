@@ -14,18 +14,11 @@ fi
 # HOOK IDENTIFICATION
 # ============================================================================
 # Determine which Git hook is being executed (e.g., pre-commit, pre-push)
-if [ -n "${1-}" ]; then
-    samoyed_stub_path="$1"
-    shift
-else
-    samoyed_stub_path="$0"
-fi
-
-hook_name=$(basename "$samoyed_stub_path")
+hook_name=$(basename "$0")
 
 # Find the actual user-defined hook script
 # Structure: .samoyed/_/pre-commit calls .samoyed/pre-commit
-hook_directory=$(dirname "$(dirname "$samoyed_stub_path")")
+hook_directory=$(dirname "$(dirname "$0")")
 user_hook_script="${hook_directory}/${hook_name}"
 
 # ============================================================================
@@ -33,7 +26,6 @@ user_hook_script="${hook_directory}/${hook_name}"
 # ============================================================================
 # Exit gracefully if no user-defined hook exists
 if [ ! -f "$user_hook_script" ]; then
-    echo "I am the ${hook_name} hook. Change me at: ${user_hook_script}."
     exit 0
 fi
 
