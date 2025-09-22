@@ -201,7 +201,7 @@ jobs:
           Copy-Item 'README.md' $staging
           $archivePath = Join-Path -Path 'dist' -ChildPath "$artifactName.zip"
           Compress-Archive -Path (Join-Path -Path $staging -ChildPath '*') -DestinationPath $archivePath -Force
-          Get-FileHash -Algorithm SHA256 $archivePath | ForEach-Object { "{0}  {1}" -f $_.Hash, $_.Path } > (Join-Path -Path 'dist' -ChildPath "$artifactName.sha256")
+          Get-FileHash -Algorithm SHA256 $archivePath | ForEach-Object { "{0}  {1}" -f $_.Hash, (Split-Path -Leaf $_.Path) } > (Join-Path -Path 'dist' -ChildPath "$artifactName.sha256")
           Remove-Item -Recurse -Force $staging
 
       - name: Upload build artifact
