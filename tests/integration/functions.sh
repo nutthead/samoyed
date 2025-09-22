@@ -10,14 +10,16 @@ set -eu
 # helper-scoped variables with the function name and explicitly unset
 # anything that should not leak into the global namespace.  The
 # `test_dir` variable is intentionally global so that setup/cleanup and
-# individual tests can share the active repository path.
+# individual tests can share the active repository path.  Each test now
+# runs inside a dedicated `mktemp -d` workspace outside the Samoyed repo
+# to avoid accidentally touching the project Git state.
 
 # Get the absolute path to the Samoyed binary
 # We build it in release mode for testing real-world performance
 SAMOYED_BIN="${SAMOYED_BIN:-$(pwd)/target/release/samoyed}"
 
-# Base directory for all test operations - MUST be in ./tmp
-TEST_BASE_DIR="$(pwd)/tmp"
+# Remember the repository root so cleanup can return before deleting temp dirs
+ORIGINAL_WORKDIR="$(pwd)"
 
 # Setup function - creates a clean test environment
 # Creates a new git repository in ./tmp for each test
@@ -25,8 +27,14 @@ setup() {
     # Get the test name from the script filename
     setup_test_name="$(basename "$0" .sh)"
 
-    # Create test directory inside ./tmp
-    test_dir="${TEST_BASE_DIR}/samoyed-test-${setup_test_name}-$$"
+    # Create an isolated workspace outside the repository
+    setup_temp_root=$(mktemp -d "${TMPDIR:-/tmp}/samoyed-${setup_test_name}.XXXXXX")
+    if [ ! -d "$setup_temp_root" ]; then
+        error "Failed to create temporary workspace"
+    fi
+
+    test_root_dir="$setup_temp_root"
+    test_dir="$test_root_dir/repo"
 
     # Print test header for clarity
     echo
@@ -35,15 +43,6 @@ setup() {
     echo "DIR:  $test_dir"
     echo "========================================"
     echo
-
-    # Ensure we're working in ./tmp directory
-    if [ ! -d "$TEST_BASE_DIR" ]; then
-        echo "ERROR: ./tmp directory does not exist"
-        exit 1
-    fi
-
-    # Clean up any previous test directory with same name
-    rm -rf "$test_dir"
 
     # Create fresh test directory
     mkdir -p "$test_dir"
@@ -62,14 +61,17 @@ setup() {
     git commit -m "Initial commit" --quiet
 
     unset setup_test_name
+    unset setup_temp_root
 }
 
 # Cleanup function - removes test directory after test completion
 cleanup() {
-    if [ -n "${test_dir:-}" ] && [ -d "${test_dir:-}" ]; then
-        cd "$TEST_BASE_DIR"
-        rm -rf "$test_dir"
-        echo "Cleaned up: $test_dir"
+    if [ -n "${test_root_dir:-}" ] && [ -d "${test_root_dir:-}" ]; then
+        cd "$ORIGINAL_WORKDIR"
+        rm -rf "$test_root_dir"
+        echo "Cleaned up: $test_root_dir"
+        unset test_root_dir
+        unset test_dir
     fi
 }
 
@@ -253,12 +255,27 @@ verify_test_safety() {
     if [ -f "$verify_current_dir/Cargo.toml" ] && grep -q "name = \"samoyed\"" "$verify_current_dir/Cargo.toml" 2>/dev/null; then
         verify_repo_root="$(git rev-parse --show-toplevel 2>/dev/null || echo "$verify_current_dir")"
         if [ "$verify_current_dir" = "$verify_repo_root" ]; then
-            error "Tests must not run in the Samoyed repository root! Run from ./tmp directory."
+            error "Tests must not run in the Samoyed repository root!"
         fi
     fi
 
     unset verify_repo_root
     unset verify_current_dir
+}
+
+# Create an isolated temporary directory and print its path
+create_temp_dir() {
+    create_temp_dir_prefix="${1:-samoyed}"
+    create_temp_dir_path=$(mktemp -d "${TMPDIR:-/tmp}/${create_temp_dir_prefix}.XXXXXX")
+
+    if [ ! -d "$create_temp_dir_path" ]; then
+        error "Failed to create temporary directory"
+    fi
+
+    printf '%s\n' "$create_temp_dir_path"
+
+    unset create_temp_dir_prefix
+    unset create_temp_dir_path
 }
 
 # Set up signal handlers for cleanup

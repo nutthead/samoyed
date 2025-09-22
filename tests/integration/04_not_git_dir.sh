@@ -19,7 +19,8 @@ build_samoyed
 
 # Create a test directory that is NOT a git repository
 test_name="$(basename "$0" .sh)"
-test_dir="${TEST_BASE_DIR}/samoyed-test-${test_name}-$$"
+test_root_dir=$(create_temp_dir "samoyed-not-git-${test_name}")
+test_dir="${test_root_dir}/workspace"
 
 echo
 echo "========================================"
@@ -27,9 +28,6 @@ echo "TEST: $test_name"
 echo "DIR:  $test_dir"
 echo "========================================"
 echo
-
-# Clean up any previous test directory
-rm -rf "$test_dir"
 
 # Create fresh test directory WITHOUT git init
 mkdir -p "$test_dir"
@@ -130,8 +128,8 @@ fi
 echo "Testing: Subdirectory of non-git directory"
 
 # Create a new non-git directory with subdirectories
-cd "$TEST_BASE_DIR"
-non_git_dir="${TEST_BASE_DIR}/non-git-${test_name}-$$"
+cd "$test_root_dir"
+non_git_dir="${test_root_dir}/non-git-${test_name}-$$"
 rm -rf "$non_git_dir"
 mkdir -p "$non_git_dir/src/components"
 cd "$non_git_dir/src/components"
@@ -153,8 +151,7 @@ else
 fi
 
 # Cleanup
-cd "$TEST_BASE_DIR"
-rm -rf "$test_dir"
+cd "$test_root_dir"
 rm -rf "$non_git_dir"
 
 echo
