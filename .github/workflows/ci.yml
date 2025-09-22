@@ -94,7 +94,7 @@ jobs:
         shell: bash
 
       - name: Generate coverage report
-        run: cargo tarpaulin --out Html --out Json --out Cobertura --out Lcov -- --test-threads=1
+        run: cargo tarpaulin --out Html --out Json --out Xml --out Lcov -- --test-threads=1
         shell: bash
 
       - name: Upload coverage artifacts

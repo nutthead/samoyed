@@ -97,10 +97,10 @@ cargo install cargo-tarpaulin
 cargo tarpaulin -- --test-threads=1
 
 # Output locations:
-# - HTML: target/tarpaulin/tarpaulin-report.html
-# - XML: target/tarpaulin/cobertura.xml
-# - JSON: target/tarpaulin/tarpaulin-report.json
-# - LCOV: target/tarpaulin/lcov.info
+# - HTML: target/tarpaulin/tarpaulin-report.html (flag : `-Html`)
+# - XML: target/tarpaulin/cobertura.xml (flag: `-Xml`)
+# - JSON: target/tarpaulin/tarpaulin-report.json (flag: `-Json`)
+# - LCOV: target/tarpaulin/lcov.info (flag: `-Lcov`)
 ```
 
 ## Project Structure
