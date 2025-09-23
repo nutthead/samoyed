@@ -3,6 +3,13 @@
 //! This is a single-binary tool that simplifies and streamlines how users work with
 //! client-side Git hooks. The entire implementation fits in this single file to maintain
 //! simplicity and avoid feature creep.
+//!
+//! ## Cross-Platform Support
+//!
+//! Samoyed works seamlessly across Unix (Linux, macOS) and Windows systems with:
+//! - Platform-specific file permissions (Unix mode bits vs Windows defaults)
+//! - Path normalization for Windows extended-length paths
+//! - Graceful handling of Git execution differences across platforms
 
 use clap::{Parser, Subcommand};
 use std::env;
@@ -296,7 +303,9 @@ fn create_directory_structure(samoyed_dir: &Path) -> Result<(), String> {
 
 /// Copy the embedded wrapper script to _/samoyed
 ///
-/// The script is copied with 644 permissions.
+/// The script is copied with platform-appropriate permissions:
+/// - Unix: 644 permissions (rw-r--r--) since the wrapper is sourced, not executed
+/// - Windows: Default filesystem permissions (no Unix-style permission bits)
 ///
 /// # Arguments
 ///
@@ -334,7 +343,10 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
 
 /// Create hook scripts in the _ directory
 ///
-/// Creates all Git hook scripts with 755 permissions.
+/// Creates all Git hook scripts with platform-appropriate permissions:
+/// - Unix: 755 permissions (rwxr-xr-x) to make scripts executable
+/// - Windows: Default filesystem permissions (executable attribute handled automatically)
+///
 /// Each script sources the shared wrapper so user hooks run consistently.
 ///
 /// # Arguments
@@ -416,6 +428,11 @@ fn create_sample_pre_commit(samoyed_dir: &Path) -> Result<(), String> {
 /// Set the git config core.hooksPath to point to the _ directory
 ///
 /// Uses `git config core.hooksPath` to configure Git to use our hooks.
+/// Performs cross-platform path normalization:
+/// - Windows: Converts forward slashes to backslashes to maintain Windows extended-length path format
+/// - Unix: Uses paths as-is (no normalization needed)
+///
+/// This prevents Git execution issues with mixed path separators on Windows.
 ///
 /// # Arguments
 ///
@@ -430,12 +447,12 @@ fn set_git_hooks_path(samoyed_dir: &Path) -> Result<(), String> {
         .to_str()
         .ok_or_else(|| "Error: Invalid path for hooks directory".to_string())?;
 
-    // On Windows, normalize path separators to avoid Git execution issues
-    // Git on Windows can have trouble with mixed path separators
+    // On Windows, normalize path separators to use consistent Windows backslashes
+    // Git may introduce forward slashes that break Windows extended-length paths
     let normalized_path_str = {
         #[cfg(windows)]
         {
-            hooks_path_str.replace('\\', "/")
+            hooks_path_str.replace('/', "\\")
         }
         #[cfg(not(windows))]
         {
