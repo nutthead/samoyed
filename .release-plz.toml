@@ -21,12 +21,6 @@ allow_dirty = false
 # Disable initial changelog generation (we'll use git-cliff)
 changelog_update = true
 
-# Commit message format for version bumps
-version_commit_message = "chore(release): prepare for v{{version}}"
-
-# PR title format
-pr_title = "chore(release): prepare v{{version}}"
-
 # PR body template
 pr_body = """
 ## 🚀 Release PR for v{{version}}
@@ -65,6 +59,10 @@ name = "samoyed"
 # Changelog configuration using git-cliff
 changelog_include = ["samoyed"]
 changelog_path = "CHANGELOG.md"
+
+# Release configuration
+publish = true
+release = true
 
 # Use git-cliff for changelog generation
 [package.git_cliff]
@@ -144,26 +142,6 @@ skip_tags = ""
 ignore_tags = "rc|beta|alpha"
 topo_order = false
 sort_commits = "oldest"
-
-# ============================================================================
-# Release configuration
-# ============================================================================
-[package.release]
-# Publish to crates.io
-publish = true
-
-# Create GitHub releases
-release = true
-
-# Push to the default branch
-push = true
-
-# Push tags
-push_tags = true
-
-# Sign commits and tags
-sign_commit = false
-sign_tag = false
 
 # ============================================================================
 # Version bump rules
