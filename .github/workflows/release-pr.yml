@@ -1,0 +1,52 @@
+# ============================================================================
+# Release PR Workflow - Creates and manages release pull requests
+# ============================================================================
+# This workflow uses release-plz to automatically create release PRs based on
+# conventional commits. The actual release happens in a separate workflow
+# triggered by tag pushes after PR merge.
+
+name: Release PR
+
+on:
+  push:
+    branches: [master]
+
+# Minimal permissions - only what's needed for PR creation
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  RUST_VERSION: stable
+  CARGO_TERM_COLOR: always
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  create-release-pr:
+    name: Create Release PR
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          prefix-key: "v2-rust"
+          key: release-plz
+
+      - name: Run release-plz
+        uses: MarcoIeni/release-plz-action@v0.5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          command: release-pr
+          config_file: .release-plz.toml

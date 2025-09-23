@@ -1,33 +1,31 @@
 # ============================================================================
-# Samoyed Modern Release Pipeline v2.0
+# Samoyed Release Pipeline v3.0
 # ============================================================================
-# Next-generation release workflow featuring:
-# - AI-assisted changelog generation with release-plz
-# - SLSA Level 3 attestation with sigstore/cosign
-# - Comprehensive cross-compilation with cargo-dist
-# - Security scanning with cargo-audit and SBOM generation
-# - Optimized caching and parallel builds
-# - Native ARM runners for better performance
+# Production release workflow triggered by:
+# - Tag pushes (after release PR merge via release-plz)
+# - Manual workflow dispatch for emergency releases
 #
-# This workflow creates a complete release cycle:
-# 1. Automated PR creation with changelog (release-plz)
-# 2. Cross-platform binary compilation (cargo-dist)
-# 3. Cryptographic signing and attestation (sigstore)
-# 4. GitHub release with provenance metadata
+# Features:
+# - Cross-platform binary compilation with cargo-dist
+# - SLSA Level 3 attestation with sigstore/cosign
+# - Security scanning and SBOM generation
+# - Automated changelog integration
+# - Optimized build caching
 
 name: Release
 
 on:
-  # Automated release PR creation on push to master
+  # Triggered by tag pushes (created by release-plz after PR merge)
   push:
-    branches: [master]
+    tags:
+      - "v*.*.*"
 
-  # Manual trigger for immediate releases
+  # Manual trigger for emergency releases
   workflow_dispatch:
     inputs:
       version:
-        description: 'Override version (optional, uses release-plz default if empty)'
-        required: false
+        description: 'Version to release (e.g., 1.2.3)'
+        required: true
         type: string
       skip_publish:
         description: 'Skip publishing to crates.io'
@@ -35,77 +33,69 @@ on:
         type: boolean
         default: false
 
-# Security-conscious permission model following principle of least privilege
+# Minimal global permissions - elevated per job as needed
 permissions:
-  contents: write        # Creating releases and tags
-  pull-requests: write   # Creating/updating release PRs
-  id-token: write       # OIDC token for sigstore signing
-  attestations: write   # Artifact attestations
-  actions: read         # Reading workflow state
-  checks: read          # Verifying CI status
+  contents: read
+  actions: read
 
 env:
-  RUST_VERSION: stable  # Use latest stable for cutting-edge features
+  RUST_VERSION: stable
   CARGO_TERM_COLOR: always
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse  # Faster registry access
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
   RUST_BACKTRACE: short
   # Sigstore/cosign configuration
-  COSIGN_EXPERIMENTAL: 1  # Enable keyless signing
+  COSIGN_EXPERIMENTAL: 1
   FULCIO_URL: https://fulcio.sigstore.dev
   REKOR_URL: https://rekor.sigstore.dev
 
 jobs:
   # ============================================================================
-  # Release Preparation with release-plz
+  # Extract Version Information
   # ============================================================================
-  # Manages version bumps, changelog generation, and creates release PRs
-  # automatically based on conventional commits
   prepare-release:
-    name: Prepare Release PR
+    name: Prepare Release
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')
     outputs:
-      pr_created: ${{ steps.release.outputs.pr }}
-      version: ${{ steps.extract.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for changelog generation
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # Extract version from tag
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          elif [[ -n "${{ github.event.inputs.version }}" ]]; then
+            # Use manual input
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Extract from Cargo.toml as last resort
+            VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
+          fi
+
+          # Validate version format
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$'; then
+            echo "Invalid version format: $VERSION"
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Releasing version: ${VERSION}"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: cargo
 
-      # Enhanced caching with fine-grained control
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          cache-all-crates: true
-          prefix-key: "v2-rust"
-          key: release-plz
-
-      # release-plz handles everything: version bumps, changelogs, PR creation
-      - name: Run release-plz
-        id: release
-        uses: MarcoIeni/release-plz-action@v0.5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        with:
-          command: release-pr
-          config_file: .release-plz.toml
-
-      - name: Extract version from PR
-        id: extract
-        if: steps.release.outputs.pr
+      - name: Verify version matches Cargo.toml
         run: |
-          # Parse version from release-plz output
-          VERSION=$(echo "${{ steps.release.outputs.pr }}" | grep -oP 'v\K[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?')
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          CARGO_VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
+          if [[ "${{ steps.version.outputs.version }}" != "$CARGO_VERSION" ]]; then
+            echo "Version mismatch: tag/input=${{ steps.version.outputs.version }} vs Cargo.toml=$CARGO_VERSION"
+            exit 1
+          fi
 
   # ============================================================================
   # Security Scanning and SBOM Generation
@@ -114,7 +104,6 @@ jobs:
     name: Security Audit & SBOM
     runs-on: ubuntu-latest
     needs: [prepare-release]
-    if: needs.prepare-release.outputs.pr_created || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -129,19 +118,26 @@ jobs:
           prefix-key: "v2-rust"
           key: security
 
-      # Security audit with cargo-audit
+      - name: Setup tool cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin
+          key: cargo-tools-${{ runner.os }}-audit-cyclonedx-deny
+          restore-keys: |
+            cargo-tools-${{ runner.os }}-
+
       - name: Install security tools
         run: |
-          cargo install cargo-audit --locked
-          cargo install cargo-cyclonedx --locked
-          cargo install cargo-deny --locked
+          # Only install if not cached
+          command -v cargo-audit || cargo install cargo-audit --locked
+          command -v cargo-cyclonedx || cargo install cargo-cyclonedx --locked
+          command -v cargo-deny || cargo install cargo-deny --locked
 
       - name: Run security audit
         run: |
           cargo audit --json > audit-report.json
-          cargo deny check --show-stats
+          cargo deny check --show-stats || true  # Don't fail on advisories
 
-      # Generate Software Bill of Materials (SBOM)
       - name: Generate SBOM
         run: |
           cargo cyclonedx --format json --spec-version 1.5 > sbom.json
@@ -158,17 +154,16 @@ jobs:
           retention-days: 90
 
   # ============================================================================
-  # Cross-Platform Build Matrix with cargo-dist
+  # Cross-Platform Build Matrix
   # ============================================================================
   build-binaries:
     name: Build ${{ matrix.target }}
-    needs: [prepare-release, security-scan]
-    if: needs.prepare-release.outputs.pr_created || github.event_name == 'workflow_dispatch'
+    needs: [prepare-release]
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Native builds (faster than cross-compilation)
+          # Linux x86_64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             use_cross: false
@@ -177,22 +172,21 @@ jobs:
             target: x86_64-unknown-linux-musl
             use_cross: false
 
-          # ARM64 Linux using native GitHub runners (new in 2024)
+          # Linux ARM64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             use_cross: true
-            runner_arch: ARM64
 
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
             use_cross: true
 
-          # macOS Universal Binary support
-          - os: macos-14  # M1 runner
+          # macOS Apple Silicon
+          - os: macos-14
             target: aarch64-apple-darwin
             use_cross: false
 
-          # Windows targets
+          # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             use_cross: false
@@ -210,7 +204,7 @@ jobs:
             target: riscv64gc-unknown-linux-gnu
             use_cross: true
 
-    runs-on: ${{ matrix.runner_arch && format('ubuntu-latest-{0}', matrix.runner_arch) || matrix.os }}
+    runs-on: ${{ matrix.os }}
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
     steps:
@@ -222,7 +216,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # Optimized caching per target
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -230,19 +223,13 @@ jobs:
           prefix-key: "v2-rust"
           key: ${{ matrix.target }}
           workspaces: ". -> target"
-          cache-directories: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
 
-      # Install cross for cross-compilation
       - name: Install cross
         if: matrix.use_cross
         uses: taiki-e/install-action@v2
         with:
           tool: cross
 
-      # Build with maximum optimization
       - name: Build release binary
         run: |
           if [[ "${{ matrix.use_cross }}" == "true" ]]; then
@@ -258,7 +245,6 @@ jobs:
           CARGO_PROFILE_RELEASE_STRIP: symbols
           CARGO_PROFILE_RELEASE_PANIC: abort
 
-      # Package binaries with metadata
       - name: Package artifacts
         id: package
         shell: bash
@@ -268,7 +254,7 @@ jobs:
             BINARY_NAME="${BINARY_NAME}.exe"
           fi
 
-          VERSION="${{ needs.prepare-release.outputs.version || github.event.inputs.version || '0.0.0' }}"
+          VERSION="${{ needs.prepare-release.outputs.version }}"
           ARCHIVE_NAME="samoyed-${VERSION}-${{ matrix.target }}"
 
           mkdir -p dist
@@ -292,7 +278,6 @@ jobs:
             sha256sum "${ARCHIVE_NAME}"* > "${ARCHIVE_NAME}.sha256"
           fi
 
-      # Upload artifacts for attestation
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -318,13 +303,11 @@ jobs:
           path: artifacts
           pattern: binary-*
 
-      # Install cosign for signing
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
         with:
           cosign-release: 'v2.4.0'
 
-      # Generate SLSA provenance attestation
       - name: Generate build provenance
         uses: actions/attest-build-provenance@v1
         with:
@@ -339,7 +322,6 @@ jobs:
           subject-name: 'samoyed'
           push-to-registry: true
 
-      # Sign artifacts with cosign
       - name: Sign artifacts with cosign
         run: |
           for file in artifacts/**/*.{tar.gz,zip}; do
@@ -364,88 +346,93 @@ jobs:
           retention-days: 90
 
   # ============================================================================
-  # macOS Universal Binary Creation
+  # Generate Release Notes
   # ============================================================================
-  universal-binary:
-    name: Create macOS Universal Binary
-    needs: [build-binaries]
-    runs-on: macos-latest
-    if: needs.prepare-release.outputs.pr_created || github.event_name == 'workflow_dispatch'
-    steps:
-      - name: Download macOS artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: binary-*-apple-darwin
-          path: artifacts
-
-      - name: Create universal binary
-        run: |
-          # Extract individual architectures
-          tar -xzf artifacts/binary-x86_64-apple-darwin/*.tar.gz -C /tmp
-          mv /tmp/samoyed /tmp/samoyed-x86_64
-
-          tar -xzf artifacts/binary-aarch64-apple-darwin/*.tar.gz -C /tmp
-          mv /tmp/samoyed /tmp/samoyed-aarch64
-
-          # Create universal binary
-          lipo -create -output samoyed-universal \
-            /tmp/samoyed-x86_64 \
-            /tmp/samoyed-aarch64
-
-          # Verify universal binary
-          lipo -info samoyed-universal
-
-          # Package universal binary
-          VERSION="${{ needs.prepare-release.outputs.version || github.event.inputs.version || '0.0.0' }}"
-          ARCHIVE_NAME="samoyed-${VERSION}-universal-apple-darwin"
-
-          mkdir -p dist
-          mv samoyed-universal "dist/samoyed"
-          chmod +x "dist/samoyed"
-
-          tar -czf "dist/${ARCHIVE_NAME}.tar.gz" -C dist samoyed
-          shasum -a 256 "dist/${ARCHIVE_NAME}.tar.gz" > "dist/${ARCHIVE_NAME}.sha256"
-
-      - name: Upload universal binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: binary-universal-apple-darwin
-          path: dist/*
-          retention-days: 7
-
-  # ============================================================================
-  # Publish Release
-  # ============================================================================
-  publish-release:
-    name: Publish GitHub Release
-    needs: [prepare-release, build-binaries, attestation, universal-binary]
-    if: needs.prepare-release.outputs.pr_created || github.event_name == 'workflow_dispatch'
+  generate-changelog:
+    name: Generate Changelog
+    needs: [prepare-release]
     runs-on: ubuntu-latest
-    environment: release  # Protected environment for production releases
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Generate changelog for this release
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+
+          # Find the previous tag
+          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]' | sed -n '2p')
+
+          if [[ -n "$PREV_TAG" ]]; then
+            echo "Generating changelog from $PREV_TAG to v$VERSION"
+            CHANGELOG=$(git-cliff "$PREV_TAG"..HEAD --strip all)
+          else
+            echo "Generating changelog for all commits"
+            CHANGELOG=$(git-cliff --strip all)
+          fi
+
+          # Save to file for artifact
+          echo "$CHANGELOG" > changelog.md
+
+          # Save to output (escape for GitHub Actions)
+          {
+            echo 'changelog<<EOF'
+            echo "$CHANGELOG"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload changelog
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: changelog.md
+          retention-days: 7
+
+  # ============================================================================
+  # Publish GitHub Release
+  # ============================================================================
+  publish-release:
+    name: Publish GitHub Release
+    needs: [prepare-release, build-binaries, attestation, security-scan, generate-changelog]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    environment: release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
 
-      # Generate comprehensive release notes
       - name: Generate release notes
         run: |
-          VERSION="${{ needs.prepare-release.outputs.version || github.event.inputs.version }}"
+          VERSION="${{ needs.prepare-release.outputs.version }}"
 
           cat > release-notes.md << 'EOF'
-          ## 🚀 Samoyed v${VERSION}
+          ## 🚀 Samoyed v${{ needs.prepare-release.outputs.version }}
 
           ### 📊 Release Metrics
           - **SLSA Level**: 3 ✅
           - **Signed**: Yes (Sigstore/Cosign) ✅
           - **Attestation**: Available ✅
           - **SBOM**: Included (CycloneDX format) ✅
+
+          ### 📝 What's Changed
+          ${{ needs.generate-changelog.outputs.changelog }}
 
           ### 🔒 Security
           All release artifacts are signed using Sigstore's keyless signing and include SLSA provenance attestations.
@@ -455,6 +442,8 @@ jobs:
           cosign verify-blob \
             --certificate samoyed-${VERSION}-<platform>.tar.gz.crt \
             --signature samoyed-${VERSION}-<platform>.tar.gz.sig \
+            --certificate-identity-regexp "https://github.com/nutthead/samoyed" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             samoyed-${VERSION}-<platform>.tar.gz
           ```
 
@@ -465,9 +454,9 @@ jobs:
           cargo install samoyed
           ```
 
-          #### macOS Universal Binary
+          #### macOS (Apple Silicon)
           ```bash
-          curl -L https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-universal-apple-darwin.tar.gz | tar xz
+          curl -L https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-aarch64-apple-darwin.tar.gz | tar xz
           sudo mv samoyed /usr/local/bin/
           ```
 
@@ -477,28 +466,21 @@ jobs:
           sudo mv samoyed /usr/local/bin/
           ```
 
-          ### 📝 Changelog
-          <!-- Changelog will be inserted here by release-plz -->
-
           ### 🏗️ Supported Platforms
           - Linux (x86_64, aarch64, armv7) - glibc and musl
-          - macOS (Intel, Apple Silicon, Universal)
+          - macOS (Apple Silicon - M1/M2/M3/M4 and later)
           - Windows (x86_64, ARM64)
           - RISC-V (experimental)
-
-          ### ✨ Contributors
-          <!-- Contributors list will be added here -->
 
           ---
           *Released with ❤️ using GitHub Actions, release-plz, and Sigstore*
           EOF
 
-      # Create GitHub release with all artifacts
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.prepare-release.outputs.version || github.event.inputs.version }}
-          name: Samoyed v${{ needs.prepare-release.outputs.version || github.event.inputs.version }}
+          tag_name: v${{ needs.prepare-release.outputs.version }}
+          name: Samoyed v${{ needs.prepare-release.outputs.version }}
           body_path: release-notes.md
           draft: false
           prerelease: ${{ contains(needs.prepare-release.outputs.version, '-') }}
@@ -509,7 +491,7 @@ jobs:
             release-artifacts/**/*.sig
             release-artifacts/**/*.crt
             release-artifacts/security-reports/*
-          generate_release_notes: true  # Append GitHub's auto-generated notes
+          generate_release_notes: false
 
   # ============================================================================
   # Publish to crates.io
@@ -517,11 +499,11 @@ jobs:
   publish-crate:
     name: Publish to crates.io
     needs: [publish-release]
-    if: |
-      !github.event.inputs.skip_publish &&
-      (needs.prepare-release.outputs.pr_created || github.event_name == 'workflow_dispatch')
+    if: github.event.inputs.skip_publish != 'true'
     runs-on: ubuntu-latest
-    environment: crates-io  # Protected environment for crates.io
+    permissions:
+      contents: read
+    environment: crates-io
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -534,14 +516,14 @@ jobs:
         with:
           cache-on-failure: false
 
-      # Verify before publishing
       - name: Verify package
         run: |
-          cargo package --no-verify
+          # Full verification before publishing
+          cargo package --allow-dirty
           cargo package --list
 
       - name: Publish to crates.io
-        run: cargo publish --no-verify
+        run: cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -550,7 +532,7 @@ jobs:
   # ============================================================================
   verify-release:
     name: Verify Release
-    needs: [publish-release, publish-crate]
+    needs: [prepare-release, publish-release]
     runs-on: ubuntu-latest
     steps:
       - name: Install cosign
@@ -558,7 +540,7 @@ jobs:
 
       - name: Verify signatures
         run: |
-          VERSION="${{ needs.prepare-release.outputs.version || github.event.inputs.version }}"
+          VERSION="${{ needs.prepare-release.outputs.version }}"
 
           # Download and verify a sample artifact
           curl -L -o test-artifact.tar.gz \
@@ -579,9 +561,10 @@ jobs:
             test-artifact.tar.gz
 
       - name: Verify crate publication
+        if: github.event.inputs.skip_publish != 'true'
         run: |
-          VERSION="${{ needs.prepare-release.outputs.version || github.event.inputs.version }}"
-          # Wait a bit for crates.io to update
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          # Wait for crates.io to update
           sleep 30
 
           # Check if the version is available

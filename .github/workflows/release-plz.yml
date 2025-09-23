@@ -1,0 +1,77 @@
+# ============================================================================
+# Release-plz Tag Creation Workflow
+# ============================================================================
+# This workflow runs when release PRs are merged and creates the actual release
+# tags using release-plz, which then triggers the main release workflow.
+
+name: Release-plz Tag
+
+on:
+  push:
+    branches: [master]
+
+# Permissions needed to create tags
+permissions:
+  contents: write
+
+env:
+  RUST_VERSION: stable
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release-tag:
+    name: Create Release Tag
+    runs-on: ubuntu-latest
+    # Only run when a release PR is merged (detected by version bump in Cargo.toml)
+    if: |
+      github.event.pusher.name != 'github-actions[bot]' &&
+      !contains(github.event.head_commit.message, '[skip ci]')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for version change
+        id: check
+        run: |
+          # Check if Cargo.toml was modified in this commit
+          if git diff HEAD~1 HEAD --name-only | grep -q "^Cargo.toml$"; then
+            # Extract versions
+            PREV_VERSION=$(git show HEAD~1:Cargo.toml | grep '^version' | head -1 | cut -d'"' -f2)
+            CURR_VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
+
+            if [[ "$PREV_VERSION" != "$CURR_VERSION" ]]; then
+              echo "Version changed from $PREV_VERSION to $CURR_VERSION"
+              echo "should_release=true" >> "$GITHUB_OUTPUT"
+              echo "version=$CURR_VERSION" >> "$GITHUB_OUTPUT"
+            else
+              echo "No version change detected"
+              echo "should_release=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "Cargo.toml not modified"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Rust toolchain
+        if: steps.check.outputs.should_release == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust cache
+        if: steps.check.outputs.should_release == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          prefix-key: "v2-rust"
+          key: release-plz
+
+      - name: Run release-plz release
+        if: steps.check.outputs.should_release == 'true'
+        uses: MarcoIeni/release-plz-action@v0.5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          command: release
+          config_file: .release-plz.toml
