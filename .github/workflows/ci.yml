@@ -52,6 +52,7 @@ jobs:
       # pollution between platforms.
       - name: Cache cargo directories
         uses: actions/cache@v4.2.4
+        if: runner.os != 'Windows'
         with:
           path: |
             ~/.cargo/registry
