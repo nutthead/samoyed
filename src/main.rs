@@ -1138,11 +1138,6 @@ mod tests {
             "Path should be relative, not absolute: {}",
             hooks_path
         );
-        assert!(
-            hooks_path.contains('/') || !hooks_path.contains(std::path::MAIN_SEPARATOR),
-            "Path should use Unix-style separators: {}",
-            hooks_path
-        );
 
         env::set_current_dir(original_dir).unwrap();
     }

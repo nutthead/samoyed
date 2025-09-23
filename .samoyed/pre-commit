@@ -22,14 +22,14 @@ fi
 echo "✅ Clippy linting passed"
 echo
 
-# Rust: Formatting (format staged files and re-add them)
+# Rust: Formatting (format only staged files and re-add them)
 echo "📝 Formatting staged Rust files with cargo fmt…"
-staged_rust_files=$(git ls-files --cached '*.rs')
+# Use git diff --staged to get only staged Rust files (reviewer's suggestion)
+staged_rust_files=$(git diff --staged --name-only --diff-filter=ACMRT -- '*.rs')
 if [ -n "$staged_rust_files" ]; then
     echo "  Formatting: $staged_rust_files"
-    # Format the specific staged files
-    # shellcheck disable=SC2086 # We want word splitting here
-    cargo fmt -- $staged_rust_files
+    # Format the specific staged files using null-delimited input for safety
+    git diff --staged --name-only -z --diff-filter=ACMRT -- '*.rs' | xargs -0 -r cargo fmt --
     # Modern way to re-stage files that were modified by the hook
     git update-index --again
     echo "✅ Staged Rust files formatted and re-staged"
@@ -72,15 +72,15 @@ else
 fi
 echo
 
-# Shell: Formatting (format staged files and re-add them)
+# Shell: Formatting (format only staged files and re-add them)
 echo "📐 Formatting staged shell scripts with shfmt…"
 if command -v shfmt >/dev/null 2>&1; then
-    staged_shell_files=$(git ls-files --cached '*.sh')
+    # Use git diff --staged to get only staged shell files (reviewer's suggestion)
+    staged_shell_files=$(git diff --staged --name-only --diff-filter=ACMRT -- '*.sh')
     if [ -n "$staged_shell_files" ]; then
         echo "  Formatting: $staged_shell_files"
-        # Format the specific staged files with 4-space indentation
-        # shellcheck disable=SC2086 # We want word splitting here
-        shfmt -i 4 -w $staged_shell_files
+        # Format the specific staged files with 4-space indentation using null-delimited input
+        git diff --staged --name-only -z --diff-filter=ACMRT -- '*.sh' | xargs -0 -r shfmt -i 4 -w
         # Modern way to re-stage files that were modified by the hook
         git update-index --again
         echo "✅ Staged shell scripts formatted and re-staged"

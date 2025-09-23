@@ -148,23 +148,61 @@ expect_hooks_path_to_be() {
     # Git may store the path as absolute or relative
     # On Windows, paths may have \\?\ prefix and use backslashes
 
-    # First, normalize Windows paths by removing \\?\ prefix if present
+    # Handle Windows extended-length paths (\\?\...) which are used for paths > 260 chars
     expect_hooks_normalized_actual="$expect_hooks_actual_path"
+
+    # First, check if we have a Windows extended-length path
     case "$expect_hooks_actual_path" in
-    '\\?\'"$test_dir"'\'"$expect_hooks_expected_path" | '\\?\'"$test_dir"'\\'"$expect_hooks_expected_path"'\'*)
-        # Windows extended-length path that ends with our expected path
-        unset expect_hooks_expected_path
-        unset expect_hooks_actual_path
-        unset expect_hooks_normalized_actual
-        return 0
-        ;;
     '\\?\'*)
-        # Remove Windows extended-length path prefix for comparison
-        expect_hooks_normalized_actual="${expect_hooks_actual_path#'\\?\'}"
+        # This is a Windows extended-length path starting with \\?\
+        # We need to check if it matches our expected test directory pattern
+
+        # Build the expected Windows path patterns we're looking for
+        # We expect either:
+        #   \\?\<test_dir>\<expected_path>
+        #   \\?\<test_dir>\\<expected_path>  (with double backslash)
+        #   \\?\<test_dir>\\<expected_path>\...  (with trailing content)
+
+        # Create a temporary variable to check the path after the \\?\ prefix
+        expect_hooks_path_after_prefix="${expect_hooks_actual_path#'\\?\'}"
+
+        # Check if this path matches our test directory + expected hooks path
+        # We need to handle both single and double backslash separators
+        expect_hooks_test_pattern1="${test_dir}\\${expect_hooks_expected_path}"
+        expect_hooks_test_pattern2="${test_dir}\\\\${expect_hooks_expected_path}"
+
+        case "$expect_hooks_path_after_prefix" in
+        "$expect_hooks_test_pattern1" | "$expect_hooks_test_pattern2" | "$expect_hooks_test_pattern2"'\'*)
+            # Perfect match! This Windows path points exactly to our expected hooks directory
+            # Clean up and return success
+            unset expect_hooks_expected_path
+            unset expect_hooks_actual_path
+            unset expect_hooks_normalized_actual
+            unset expect_hooks_path_after_prefix
+            unset expect_hooks_test_pattern1
+            unset expect_hooks_test_pattern2
+            return 0
+            ;;
+        *)
+            # It's a Windows extended path, but not an exact match
+            # Remove the \\?\ prefix and continue with normalization
+            expect_hooks_normalized_actual="$expect_hooks_path_after_prefix"
+            ;;
+        esac
+
+        # Clean up temporary variables
+        unset expect_hooks_path_after_prefix
+        unset expect_hooks_test_pattern1
+        unset expect_hooks_test_pattern2
+        ;;
+    *)
+        # Not a Windows extended-length path, use as-is for normalization
+        expect_hooks_normalized_actual="$expect_hooks_actual_path"
         ;;
     esac
 
-    # Convert backslashes to forward slashes for comparison
+    # Normalize paths by converting all backslashes to forward slashes
+    # This allows cross-platform comparison regardless of OS path separators
     expect_hooks_normalized_actual=$(printf '%s\n' "$expect_hooks_normalized_actual" | tr '\\' '/')
     expect_hooks_normalized_expected=$(printf '%s\n' "$expect_hooks_expected_path" | tr '\\' '/')
 
