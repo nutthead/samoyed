@@ -146,18 +146,44 @@ expect_hooks_path_to_be() {
     fi
 
     # Git may store the path as absolute or relative
-    # Check if paths end with the same suffix (handles both cases)
+    # On Windows, paths may have \\?\ prefix and use backslashes
+
+    # First, normalize Windows paths by removing \\?\ prefix if present
+    expect_hooks_normalized_actual="$expect_hooks_actual_path"
     case "$expect_hooks_actual_path" in
-        *"$expect_hooks_expected_path")
+        '\\?\'"$test_dir"'\'"$expect_hooks_expected_path" | '\\?\'"$test_dir"'\\'"$expect_hooks_expected_path"'\'*)
+            # Windows extended-length path that ends with our expected path
+            unset expect_hooks_expected_path
+            unset expect_hooks_actual_path
+            unset expect_hooks_normalized_actual
+            return 0
+            ;;
+        '\\?\'*)
+            # Remove Windows extended-length path prefix for comparison
+            expect_hooks_normalized_actual="${expect_hooks_actual_path#'\\?\'}"
+            ;;
+    esac
+
+    # Convert backslashes to forward slashes for comparison
+    expect_hooks_normalized_actual=$(printf '%s\n' "$expect_hooks_normalized_actual" | tr '\\' '/')
+    expect_hooks_normalized_expected=$(printf '%s\n' "$expect_hooks_expected_path" | tr '\\' '/')
+
+    # Check if paths match or if actual ends with expected
+    case "$expect_hooks_normalized_actual" in
+        *"$expect_hooks_normalized_expected")
             # Path ends with expected path - this is ok
             unset expect_hooks_expected_path
             unset expect_hooks_actual_path
+            unset expect_hooks_normalized_actual
+            unset expect_hooks_normalized_expected
             return 0
             ;;
-        "$expect_hooks_expected_path")
+        "$expect_hooks_normalized_expected")
             # Exact match
             unset expect_hooks_expected_path
             unset expect_hooks_actual_path
+            unset expect_hooks_normalized_actual
+            unset expect_hooks_normalized_expected
             return 0
             ;;
         *)
@@ -171,14 +197,33 @@ expect_hooks_path_to_be() {
                     unset expect_hooks_actual_canonical
                     unset expect_hooks_expected_path
                     unset expect_hooks_actual_path
+                    unset expect_hooks_normalized_actual
+                    unset expect_hooks_normalized_expected
                     return 0
                 fi
                 unset expect_hooks_expected_canonical
                 unset expect_hooks_actual_canonical
             fi
+
+            # For Windows, also try stripping the path down to just the ending
+            # since Git on Windows may return absolute paths
+            case "$expect_hooks_actual_path" in
+                *'\'"$expect_hooks_expected_path" | *'/'"$expect_hooks_expected_path")
+                    # Windows or Unix path that ends with expected (after conversion)
+                    unset expect_hooks_expected_path
+                    unset expect_hooks_actual_path
+                    unset expect_hooks_normalized_actual
+                    unset expect_hooks_normalized_expected
+                    return 0
+                    ;;
+            esac
+
             error "Expected core.hooksPath to be '$expect_hooks_expected_path', but was '$expect_hooks_actual_path'"
             ;;
     esac
+
+    unset expect_hooks_normalized_actual
+    unset expect_hooks_normalized_expected
 }
 
 # Report an error and exit with failure
