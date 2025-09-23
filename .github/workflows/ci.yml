@@ -62,42 +62,40 @@ jobs:
           key: ${{ runner.os }}-cargo-1.90.0-${{ hashFiles('**/Cargo.lock') }}
 
       # Formatting check enforces consistent code style across contributions.
-      # Bash shell ensures consistent behavior across all platforms.
+      # POSIX shell for maximum portability across all platforms.
       - name: Check formatting
         run: cargo fmt --all -- --check
-        shell: bash
+        shell: sh
 
       # Clippy with -D warnings ensures no linting issues slip through.
       # all-targets includes tests, benches, and examples in analysis.
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
-        shell: bash
+        shell: sh
 
       # Serial test execution required to prevent race conditions in file
       # operations, particularly for hook installation tests.
       - name: Run unit tests
         run: cargo test -- --test-threads=1
-        shell: bash
+        shell: sh
 
-      # Integration tests skipped on Windows due to shell script incompatibility.
       # Release build ensures tests run against optimized binary matching
-      # production behavior.
+      # production behavior. Now enabled for all platforms including Windows.
       - name: Build release binary for integration tests
-        if: matrix.os != 'windows-latest'
         run: cargo build --release
-        shell: bash
+        shell: sh
 
-      # Shell scripts require Unix environment. set -euo pipefail ensures
-      # script failures are properly detected and reported.
+      # POSIX-compliant shell scripts should work across all platforms with
+      # Git Bash on Windows. set -eu ensures script failures are properly
+      # detected (pipefail is bash-specific, not POSIX).
       - name: Run integration tests
-        if: matrix.os != 'windows-latest'
         run: |
-          set -euo pipefail
+          set -eu
           for script in tests/integration/*.sh; do
             echo "Running ${script}"
-            "$script"
+            sh "$script"
           done
-        shell: bash
+        shell: sh
 
   # ============================================================================
   # Code Coverage Analysis
@@ -136,14 +134,14 @@ jobs:
       # updates and platform-specific compilation requirements.
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin --locked
-        shell: bash
+        shell: sh
 
       # Multiple output formats for different consumers: HTML for human review,
       # XML for PR comments, JSON for custom processing, LCOV for IDE integration.
       # Serial test execution maintains consistency with test job.
       - name: Generate coverage report
         run: cargo tarpaulin --out Html --out Json --out Xml --out Lcov -- --test-threads=1
-        shell: bash
+        shell: sh
 
       # Artifacts retained for manual inspection and debugging. 7-day retention
       # balances storage costs with debugging needs.
@@ -159,7 +157,7 @@ jobs:
       # Node.js available by default on GitHub runners.
       - name: Install xml2js
         run: npm install xml2js
-        shell: bash
+        shell: sh
 
       # Automated coverage reporting provides immediate feedback on PR impact.
       # Only runs for PRs to avoid noise on direct pushes.
