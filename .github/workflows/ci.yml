@@ -89,10 +89,23 @@ jobs:
       - name: Run integration tests
         run: |
           set -eu
+          exit_code=0
           for script in tests/integration/*.sh; do
             echo "Running ${script}"
-            sh "$script"
+            if ! sh "$script"; then
+              echo "❌ Test failed: $script"
+              exit_code=1
+            else
+              echo "✅ Test passed: $script"
+            fi
           done
+
+          # Force cleanup and exit with proper code
+          if [ $exit_code -ne 0 ]; then
+            echo "Some tests failed"
+            exit 1
+          fi
+          echo "All integration tests passed"
         shell: sh
 
   # ============================================================================
