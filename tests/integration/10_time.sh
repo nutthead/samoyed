@@ -186,7 +186,10 @@ echo "debug timing" >>test.txt
 git add test.txt
 
 echo "Executing with debug mode enabled..."
-SAMOYED=2 git commit -m "Debug mode timing" 2>&1 | head -20
+debug_output=$(mktemp)
+SAMOYED=2 git commit -m "Debug mode timing" >"$debug_output" 2>&1
+head -20 "$debug_output"
+rm -f "$debug_output"
 ok "Debug mode execution completed"
 
 # Test: Rapid successive commits
