@@ -72,40 +72,16 @@ echo "modified content" >> test.txt
 git add test.txt
 
 # Test: Verify that the failing hook blocks the commit
-# Redirect stderr to stdout and ignore "cannot spawn" errors on Windows
-if git commit -m 'Test commit that should be blocked' 2>&1 | grep -q "cannot spawn"; then
-    # On Windows, Git might not be able to spawn shell scripts directly
-    # This is treated as a hook failure (exit code 1) which is what we want
-    ok "Failing pre-commit hook blocked commit (Windows: hook not executable)"
-else
-    # Normal case: hook executed and returned exit code 1
-    expect 1 "git commit -m 'Test commit that should be blocked'"
-    ok "Failing pre-commit hook blocked commit"
-fi
+expect 1 "git commit -m 'Test commit that should be blocked'"
+ok "Failing pre-commit hook blocked commit"
 
 # Test: Create a successful pre-commit hook
 echo "Testing: Successful pre-commit hook allows commits"
 create_hook "pre-commit" "echo 'pre-commit hook executed' && exit 0"
 
 # Test: Verify that the successful hook allows the commit
-# Check if we're on Windows and having execution issues
-set +e
-git_commit_output=$(git commit -m 'Test commit that should succeed' 2>&1)
-git_commit_exit_code=$?
-set -e
-
-if echo "$git_commit_output" | grep -q "cannot spawn"; then
-    # Git on Windows can't execute the shell script hook
-    # This is a known limitation when Git Bash isn't properly configured
-    echo "⚠️  WARNING: Git cannot execute shell script hooks on this Windows environment"
-    echo "   This is expected in some Windows CI environments"
-    echo "   Git for Windows with Git Bash is required for full hook functionality"
-    ok "Hook execution test skipped (Windows environment limitation)"
-elif [ "$git_commit_exit_code" = "0" ]; then
-    ok "Successful pre-commit hook allowed commit"
-else
-    error "Expected commit to succeed with exit code 0, got $git_commit_exit_code"
-fi
+expect 0 "git commit -m 'Test commit that should succeed'"
+ok "Successful pre-commit hook allowed commit"
 
 # Test: Verify .gitignore was created in _ directory
 echo "Testing: .gitignore in _ directory"

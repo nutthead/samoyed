@@ -312,7 +312,9 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
     fs::write(&wrapper_path, SAMOYED_WRAPPER_SCRIPT)
         .map_err(|e| format!("Error: Failed to write wrapper script: {}", e))?;
 
-    // Set permissions to 644 (rw-r--r--) because the wrapper is sourced
+    // Set permissions based on platform:
+    // - Unix: 644 (rw-r--r--) because the wrapper is sourced, not executed
+    // - Windows: Would need executable permissions if Git tries to execute directly
     #[cfg(unix)]
     {
         let metadata = fs::metadata(&wrapper_path)
@@ -322,6 +324,10 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
         fs::set_permissions(&wrapper_path, permissions)
             .map_err(|e| format!("Error: Failed to set file permissions: {}", e))?;
     }
+
+    // On Windows, file permissions work differently than Unix
+    // The Windows filesystem will handle executable attributes automatically
+    // No additional configuration needed for our use case
 
     Ok(())
 }
@@ -424,8 +430,15 @@ fn set_git_hooks_path(samoyed_dir: &Path) -> Result<(), String> {
         .to_str()
         .ok_or_else(|| "Error: Invalid path for hooks directory".to_string())?;
 
+    // On Windows, normalize path separators to avoid Git execution issues
+    // Git on Windows can have trouble with mixed path separators
+    #[cfg(windows)]
+    let normalized_path = hooks_path_str.replace('\\', "/");
+    #[cfg(not(windows))]
+    let normalized_path = hooks_path_str;
+
     let status = Command::new("git")
-        .args(["config", "core.hooksPath", hooks_path_str])
+        .args(["config", "core.hooksPath", normalized_path])
         .status()
         .map_err(|_| "Error: Failed to set git config".to_string())?;
 
