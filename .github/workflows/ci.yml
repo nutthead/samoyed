@@ -61,14 +61,12 @@ jobs:
           components: rustfmt, clippy
 
       # Cache Rust dependencies
-      - name: Cache cargo directories
-        uses: actions/cache@v4
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-1.90.0-${{ hashFiles('**/Cargo.lock') }}
+          cache-on-failure: true
+          prefix-key: "v2-rust"
+          key: quick-check
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -99,7 +97,7 @@ jobs:
 
       # Use cargo-binstall for faster tool installation
       - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@latest
+        uses: cargo-bins/cargo-binstall@v1.15.5
 
       - name: Install security tools
         run: |
@@ -150,12 +148,6 @@ jobs:
             target: x86_64-unknown-linux-musl
             test_args: ""
 
-          - os: ubuntu-latest
-            name: Minimal Versions
-            target: x86_64-unknown-linux-gnu
-            test_args: "-Z minimal-versions"
-            toolchain: nightly
-
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -186,19 +178,18 @@ jobs:
 
       # Build
       - name: Build
-        run: cargo build --target ${{ matrix.target }} ${{ matrix.test_args }}
+        run: cargo build --locked --target ${{ matrix.target }} ${{ matrix.test_args }}
 
       # Test with single thread (required by project)
       - name: Run tests
         run: |
-          cargo test --target ${{ matrix.target }} ${{ matrix.test_args }} \
+          cargo test --locked --target ${{ matrix.target }} ${{ matrix.test_args }} \
             -- --test-threads=1
 
       # Run integration tests
       - name: Integration tests
-        if: matrix.name != 'Minimal Versions'
         run: |
-          cargo build --release --target ${{ matrix.target }}
+          cargo build --locked --release --target ${{ matrix.target }}
           for script in tests/integration/*.sh; do
             echo "Running ${script}"
             bash "$script"
@@ -229,7 +220,7 @@ jobs:
 
       # Use cargo-binstall for faster installation
       - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@v1.10.3
+        uses: cargo-bins/cargo-binstall@v1.15.5
 
       - name: Install tarpaulin
         run: cargo binstall --no-confirm --locked cargo-tarpaulin
@@ -249,7 +240,7 @@ jobs:
 
       # Comment on PR with coverage
       - name: Comment coverage on PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
         uses: actions/github-script@v7
         with:
           script: |

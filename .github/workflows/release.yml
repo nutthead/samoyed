@@ -59,7 +59,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -106,7 +106,7 @@ jobs:
     needs: [prepare-release]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -209,7 +209,7 @@ jobs:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -233,9 +233,9 @@ jobs:
       - name: Build release binary
         run: |
           if [[ "${{ matrix.use_cross }}" == "true" ]]; then
-            cross build --release --target ${{ matrix.target }}
+            cross build --locked --release --target ${{ matrix.target }}
           else
-            cargo build --release --target ${{ matrix.target }}
+            cargo build --locked --release --target ${{ matrix.target }}
           fi
         shell: bash
         env:
@@ -356,7 +356,7 @@ jobs:
       changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -411,7 +411,7 @@ jobs:
     environment: release
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -506,7 +506,7 @@ jobs:
     environment: crates-io
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -519,8 +519,8 @@ jobs:
       - name: Verify package
         run: |
           # Full verification before publishing
-          cargo package --allow-dirty
-          cargo package --list
+          cargo package --locked --allow-dirty
+          cargo package --locked --list
 
       - name: Publish to crates.io
         run: cargo publish
