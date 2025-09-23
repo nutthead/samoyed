@@ -428,11 +428,8 @@ fn create_sample_pre_commit(samoyed_dir: &Path) -> Result<(), String> {
 /// Set the git config core.hooksPath to point to the _ directory
 ///
 /// Uses `git config core.hooksPath` to configure Git to use our hooks.
-/// Performs cross-platform path normalization:
-/// - Windows: Converts forward slashes to backslashes to maintain Windows extended-length path format
-/// - Unix: Uses paths as-is (no normalization needed)
-///
-/// This prevents Git execution issues with mixed path separators on Windows.
+/// Sets a relative path from the git repository root to avoid Windows extended-length path issues.
+/// The path is normalized to use Unix-style separators for Git configuration compatibility.
 ///
 /// # Arguments
 ///
@@ -442,26 +439,22 @@ fn create_sample_pre_commit(samoyed_dir: &Path) -> Result<(), String> {
 ///
 /// Returns Ok(()) on success, or an error message on failure
 fn set_git_hooks_path(samoyed_dir: &Path) -> Result<(), String> {
-    let hooks_path = samoyed_dir.join("_");
-    let hooks_path_str = hooks_path
-        .to_str()
-        .ok_or_else(|| "Error: Invalid path for hooks directory".to_string())?;
+    // Get git root to calculate relative path
+    let git_root = get_git_root()?;
 
-    // On Windows, normalize path separators to use consistent Windows backslashes
-    // Git may introduce forward slashes that break Windows extended-length paths
-    let normalized_path_str = {
-        #[cfg(windows)]
-        {
-            hooks_path_str.replace('/', "\\")
-        }
-        #[cfg(not(windows))]
-        {
-            hooks_path_str.to_string()
-        }
-    };
+    // Calculate relative path from git root to hooks directory
+    let hooks_path = samoyed_dir.join("_");
+    let relative_hooks_path = hooks_path.strip_prefix(&git_root)
+        .map_err(|_| "Error: Hooks path is not within git repository".to_string())?;
+
+    // Convert to string with Unix-style separators for Git config
+    let hooks_path_str = relative_hooks_path
+        .to_str()
+        .ok_or_else(|| "Error: Invalid path for hooks directory".to_string())?
+        .replace('\\', "/");
 
     let status = Command::new("git")
-        .args(["config", "core.hooksPath", &normalized_path_str])
+        .args(["config", "core.hooksPath", &hooks_path_str])
         .status()
         .map_err(|_| "Error: Failed to set git config".to_string())?;
 
@@ -998,5 +991,80 @@ mod tests {
         // When no command is given, clap returns an error (which shows help)
         // but our main function still returns SUCCESS
         assert!(result.is_ok());
+    }
+
+    /// Test Windows-specific path normalization in set_git_hooks_path
+    /// This test only runs on Windows to verify backslash to forward slash conversion
+    #[cfg(windows)]
+    #[test]
+    fn test_set_git_hooks_path_windows_normalization() {
+        let git_repo = create_test_git_repo();
+        let original_dir = env::current_dir().unwrap();
+        env::set_current_dir(git_repo.path()).unwrap();
+
+        // Create a path that would naturally have backslashes on Windows
+        let samoyed_dir = git_repo.path().join(".samoyed");
+        fs::create_dir_all(samoyed_dir.join("_")).unwrap();
+
+        let result = set_git_hooks_path(&samoyed_dir);
+        assert!(result.is_ok());
+
+        // Verify git config was set with Unix-style separators
+        let output = StdCommand::new("git")
+            .args(["config", "core.hooksPath"])
+            .output()
+            .unwrap();
+
+        assert!(output.status.success());
+        let hooks_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        // On Windows, the path should be normalized to use forward slashes
+        // and should be relative (not contain drive letters or backslashes)
+        assert!(!hooks_path.contains('\\'), "Path should not contain backslashes: {}", hooks_path);
+        assert!(!hooks_path.contains("C:"), "Path should be relative, not absolute: {}", hooks_path);
+        assert!(hooks_path.contains('/') || !hooks_path.contains(std::path::MAIN_SEPARATOR),
+                "Path should use Unix-style separators: {}", hooks_path);
+
+        env::set_current_dir(original_dir).unwrap();
+    }
+
+    /// Test cross-platform path normalization behavior
+    /// This test runs on all platforms to verify consistent behavior
+    #[test]
+    fn test_set_git_hooks_path_cross_platform() {
+        let git_repo = create_test_git_repo();
+        let original_dir = env::current_dir().unwrap();
+        env::set_current_dir(git_repo.path()).unwrap();
+
+        let samoyed_dir = git_repo.path().join(".samoyed");
+        fs::create_dir_all(samoyed_dir.join("_")).unwrap();
+
+        let result = set_git_hooks_path(&samoyed_dir);
+        assert!(result.is_ok());
+
+        // Verify git config was set
+        let output = StdCommand::new("git")
+            .args(["config", "core.hooksPath"])
+            .output()
+            .unwrap();
+
+        assert!(output.status.success());
+        let hooks_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        // The path should be relative regardless of platform
+        assert!(!hooks_path.is_empty(), "Hooks path should not be empty");
+
+        // Should not contain absolute path indicators
+        #[cfg(windows)]
+        assert!(!hooks_path.contains(":\\"), "Should not contain Windows drive letter: {}", hooks_path);
+
+        #[cfg(unix)]
+        assert!(!hooks_path.starts_with('/'), "Should not be absolute Unix path: {}", hooks_path);
+
+        // Should end with our expected relative path structure
+        assert!(hooks_path.ends_with("_") || hooks_path.ends_with("_/"),
+                "Should end with underscore directory: {}", hooks_path);
+
+        env::set_current_dir(original_dir).unwrap();
     }
 }
