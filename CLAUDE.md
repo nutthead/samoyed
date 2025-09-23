@@ -37,6 +37,7 @@ Samoyed is a single-binary, minimal, cross-platform Git hooks manager written in
 - Cognitive complexity threshold: 21 (enforced by clippy)
 - No runtime dependencies (only clap for CLI)
 - Must be cross-platform (Unix/Windows)
+- **Cross-platform linting**: Code must pass Clippy on both Unix and Windows; use conditional `#[allow(clippy::...)]` for platform-specific type conflicts
 - Follow DRY principle and maintain testability
 - Rust 2024 edition with four-space indent, trailing commas
 - Functions and variables use `snake_case`, types use `UpperCamelCase`
@@ -79,7 +80,16 @@ cargo fmt --all
 cargo fmt --all -- --check
 
 # Run Clippy linter (cognitive complexity limit: 21)
+# NOTE: Cross-platform projects may have platform-specific lint differences
 cargo clippy --all-targets --all-features -- -D warnings
+
+# For cross-platform development, test Clippy on multiple platforms:
+# - Linux/macOS: cargo clippy --all-targets --all-features -- -D warnings
+# - Windows: Same command, but may require different code due to type differences
+# - If platform-specific warnings conflict, use conditional #[allow(clippy::...)]
+
+# Alternative: Allow specific cross-platform lint conflicts
+# cargo clippy --all-targets --all-features -- -D warnings -A clippy::needless-borrow
 
 # Generate documentation
 cargo doc --no-deps --verbose
@@ -103,9 +113,28 @@ cargo tarpaulin -- --test-threads=1
 # - LCOV: target/tarpaulin/lcov.info (flag: `-Lcov`)
 ```
 
+## Cross-Platform Development
+
+### Conditional Compilation
+Samoyed uses `#[cfg(windows)]` and `#[cfg(unix)]` attributes for platform-specific code:
+- **File permissions**: Unix uses mode bits (0o644, 0o755), Windows uses different permission model
+- **Path handling**: Windows may require backslash normalization for extended-length paths
+- **Type differences**: Platform-specific APIs may return different types (String vs &str)
+
+### Clippy Cross-Platform Considerations
+Due to conditional compilation, Clippy may produce different warnings on different platforms:
+- **Type conflicts**: `&str` vs `String` differences between platforms
+- **Needless borrow**: May be needed on one platform but not another
+- **Solution**: Use unified types (convert both to `String`) or conditional `#[allow(clippy::...)]`
+
+### Testing Strategy
+- All unit tests must pass on both Unix and Windows
+- Integration tests use graceful degradation for platform-specific limitations
+- CI runs on Linux, macOS, and Windows to catch platform-specific issues
+
 ## Project Structure
 
-```
+```text
 .
 ├── src/
 │   └── main.rs                     # Complete implementation (init, hook management)
@@ -125,10 +154,12 @@ Currently implemented:
 - Git repository detection
 - Hook directory structure creation
 - Wrapper script installation
-- Git config management
+- Git config management with cross-platform path normalization
 - Sample pre-commit hook generation
-- Cross-platform path handling
-- Comprehensive error handling
+- Cross-platform path handling (Windows extended-length path support)
+- Platform-specific file permissions (Unix mode bits, Windows defaults)
+- Comprehensive error handling and graceful degradation
+- Cross-platform testing with CI coverage (Linux, macOS, Windows)
 
 ## Environment Variables
 
@@ -146,16 +177,23 @@ Currently implemented:
 - `copy_wrapper_script()` - Install wrapper script
 - `create_hook_scripts()` - Generate hook stub scripts
 - `create_sample_pre_commit()` - Example hook creation
-- `set_git_hooks_path()` - Configure Git to use hooks
+- `set_git_hooks_path()` - Configure Git to use hooks with cross-platform path normalization
 - `create_gitignore()` - Ignore wrapper directory
 
 ## Testing Approach
 
 Tests are integrated into `main.rs` using `#[cfg(test)]` modules. Key test areas:
-- Path validation
+- Path validation and cross-platform path handling
 - Git repository detection
-- Hook script generation
-- Cross-platform compatibility
+- Hook script generation with proper permissions
+- Cross-platform compatibility (Unix/Windows)
+- Git hooks execution with graceful degradation on unsupported environments
+
+Integration tests in `tests/integration/` cover:
+- End-to-end hook management workflows
+- Cross-platform Git configuration handling
+- Windows extended-length path support
+- Platform-specific error handling and recovery
 
 Run tests with `cargo test --verbose` to see all test output.
 

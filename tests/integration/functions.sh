@@ -28,9 +28,9 @@ parse_common_args() {
 
     while [ "$#" -gt 0 ]; do
         case "$1" in
-            --keep)
-                KEEP_WORKDIR="true"
-                ;;
+        --keep)
+            KEEP_WORKDIR="true"
+            ;;
         esac
         shift
     done
@@ -73,7 +73,7 @@ setup() {
     git config user.name "Samoyed Test"
 
     # Create a dummy file for commits
-    echo "test content" > test.txt
+    echo "test content" >test.txt
     git add test.txt
     git commit -m "Initial commit" --quiet
 
@@ -146,39 +146,122 @@ expect_hooks_path_to_be() {
     fi
 
     # Git may store the path as absolute or relative
-    # Check if paths end with the same suffix (handles both cases)
+    # On Windows, paths may have \\?\ prefix and use backslashes
+
+    # Handle Windows extended-length paths (\\?\...) which are used for paths > 260 chars
+    expect_hooks_normalized_actual="$expect_hooks_actual_path"
+
+    # First, check if we have a Windows extended-length path
     case "$expect_hooks_actual_path" in
-        *"$expect_hooks_expected_path")
-            # Path ends with expected path - this is ok
+    '\\?\'*)
+        # This is a Windows extended-length path starting with \\?\
+        # We need to check if it matches our expected test directory pattern
+
+        # Build the expected Windows path patterns we're looking for
+        # We expect either:
+        #   \\?\<test_dir>\<expected_path>
+        #   \\?\<test_dir>\\<expected_path>  (with double backslash)
+        #   \\?\<test_dir>\\<expected_path>\...  (with trailing content)
+
+        # Create a temporary variable to check the path after the \\?\ prefix
+        expect_hooks_path_after_prefix="${expect_hooks_actual_path#'\\?\'}"
+
+        # Check if this path matches our test directory + expected hooks path
+        # We need to handle both single and double backslash separators
+        expect_hooks_test_pattern1="${test_dir}\\${expect_hooks_expected_path}"
+        expect_hooks_test_pattern2="${test_dir}\\\\${expect_hooks_expected_path}"
+
+        case "$expect_hooks_path_after_prefix" in
+        "$expect_hooks_test_pattern1" | "$expect_hooks_test_pattern2" | "$expect_hooks_test_pattern2"'\'*)
+            # Perfect match! This Windows path points exactly to our expected hooks directory
+            # Clean up and return success
             unset expect_hooks_expected_path
             unset expect_hooks_actual_path
-            return 0
-            ;;
-        "$expect_hooks_expected_path")
-            # Exact match
-            unset expect_hooks_expected_path
-            unset expect_hooks_actual_path
+            unset expect_hooks_normalized_actual
+            unset expect_hooks_path_after_prefix
+            unset expect_hooks_test_pattern1
+            unset expect_hooks_test_pattern2
             return 0
             ;;
         *)
-            # Also check if they resolve to the same directory
-            if [ -d "$expect_hooks_expected_path" ] && [ -d "$expect_hooks_actual_path" ]; then
-                # Compare canonical paths
-                expect_hooks_expected_canonical=$(cd "$expect_hooks_expected_path" 2>/dev/null && pwd)
-                expect_hooks_actual_canonical=$(cd "$expect_hooks_actual_path" 2>/dev/null && pwd)
-                if [ "$expect_hooks_expected_canonical" = "$expect_hooks_actual_canonical" ]; then
-                    unset expect_hooks_expected_canonical
-                    unset expect_hooks_actual_canonical
-                    unset expect_hooks_expected_path
-                    unset expect_hooks_actual_path
-                    return 0
-                fi
+            # It's a Windows extended path, but not an exact match
+            # Remove the \\?\ prefix and continue with normalization
+            expect_hooks_normalized_actual="$expect_hooks_path_after_prefix"
+            ;;
+        esac
+
+        # Clean up temporary variables
+        unset expect_hooks_path_after_prefix
+        unset expect_hooks_test_pattern1
+        unset expect_hooks_test_pattern2
+        ;;
+    *)
+        # Not a Windows extended-length path, use as-is for normalization
+        expect_hooks_normalized_actual="$expect_hooks_actual_path"
+        ;;
+    esac
+
+    # Normalize paths by converting all backslashes to forward slashes
+    # This allows cross-platform comparison regardless of OS path separators
+    expect_hooks_normalized_actual=$(printf '%s\n' "$expect_hooks_normalized_actual" | tr '\\' '/')
+    expect_hooks_normalized_expected=$(printf '%s\n' "$expect_hooks_expected_path" | tr '\\' '/')
+
+    # Check if paths match or if actual ends with expected
+    case "$expect_hooks_normalized_actual" in
+    *"$expect_hooks_normalized_expected")
+        # Path ends with expected path - this is ok
+        unset expect_hooks_expected_path
+        unset expect_hooks_actual_path
+        unset expect_hooks_normalized_actual
+        unset expect_hooks_normalized_expected
+        return 0
+        ;;
+    "$expect_hooks_normalized_expected")
+        # Exact match
+        unset expect_hooks_expected_path
+        unset expect_hooks_actual_path
+        unset expect_hooks_normalized_actual
+        unset expect_hooks_normalized_expected
+        return 0
+        ;;
+    *)
+        # Also check if they resolve to the same directory
+        if [ -d "$expect_hooks_expected_path" ] && [ -d "$expect_hooks_actual_path" ]; then
+            # Compare canonical paths
+            expect_hooks_expected_canonical=$(cd "$expect_hooks_expected_path" 2>/dev/null && pwd)
+            expect_hooks_actual_canonical=$(cd "$expect_hooks_actual_path" 2>/dev/null && pwd)
+            if [ "$expect_hooks_expected_canonical" = "$expect_hooks_actual_canonical" ]; then
                 unset expect_hooks_expected_canonical
                 unset expect_hooks_actual_canonical
+                unset expect_hooks_expected_path
+                unset expect_hooks_actual_path
+                unset expect_hooks_normalized_actual
+                unset expect_hooks_normalized_expected
+                return 0
             fi
-            error "Expected core.hooksPath to be '$expect_hooks_expected_path', but was '$expect_hooks_actual_path'"
+            unset expect_hooks_expected_canonical
+            unset expect_hooks_actual_canonical
+        fi
+
+        # For Windows, also try stripping the path down to just the ending
+        # since Git on Windows may return absolute paths
+        case "$expect_hooks_actual_path" in
+        *'\'"$expect_hooks_expected_path" | *'/'"$expect_hooks_expected_path")
+            # Windows or Unix path that ends with expected (after conversion)
+            unset expect_hooks_expected_path
+            unset expect_hooks_actual_path
+            unset expect_hooks_normalized_actual
+            unset expect_hooks_normalized_expected
+            return 0
             ;;
+        esac
+
+        error "Expected core.hooksPath to be '$expect_hooks_expected_path', but was '$expect_hooks_actual_path'"
+        ;;
     esac
+
+    unset expect_hooks_normalized_actual
+    unset expect_hooks_normalized_expected
 }
 
 # Report an error and exit with failure
@@ -215,7 +298,7 @@ create_hook() {
     {
         echo "#!/usr/bin/env sh"
         printf '%s\n' "$create_hook_content"
-    } > "$create_hook_path"
+    } >"$create_hook_path"
 
     # Make it executable (required for some tests)
     chmod +x "$create_hook_path"

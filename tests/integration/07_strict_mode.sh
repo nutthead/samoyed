@@ -39,7 +39,7 @@ ok "core.hooksPath set correctly"
 echo "Testing: Basic hook without set -u"
 create_hook "pre-commit" "echo 'pre-commit executed'"
 
-echo "test" >> test.txt
+echo "test" >>test.txt
 git add test.txt
 
 # Should work without set -u
@@ -54,7 +54,7 @@ config_dir="${test_dir}/config"
 mkdir -p "$config_dir/samoyed"
 
 # Create init.sh with set -u
-cat > "$config_dir/samoyed/init.sh" << 'EOF'
+cat >"$config_dir/samoyed/init.sh" <<'EOF'
 #!/bin/sh
 # User configuration with strict mode
 set -u
@@ -64,7 +64,7 @@ echo "User init.sh loaded with set -u"
 EOF
 
 # Test with XDG_CONFIG_HOME pointing to our config
-echo "test with set -u" >> test.txt
+echo "test with set -u" >>test.txt
 git add test.txt
 
 # Run with custom config
@@ -74,14 +74,14 @@ ok "Hook works with set -u in user init.sh"
 # Test: init.sh that uses unset variables (should fail)
 echo "Testing: init.sh with unset variable reference"
 
-cat > "$config_dir/samoyed/init.sh" << 'EOF'
+cat >"$config_dir/samoyed/init.sh" <<'EOF'
 #!/bin/sh
 set -u
 # This will fail because UNDEFINED_VAR is not set
 echo "Value is: $UNDEFINED_VAR"
 EOF
 
-echo "unset var test" >> test.txt
+echo "unset var test" >>test.txt
 git add test.txt
 
 # This should fail due to unset variable in init.sh
@@ -98,7 +98,7 @@ ok "Hook correctly failed with unset variable error"
 # Test: init.sh with proper variable handling under set -u
 echo "Testing: init.sh with proper variable handling"
 
-cat > "$config_dir/samoyed/init.sh" << 'EOF'
+cat >"$config_dir/samoyed/init.sh" <<'EOF'
 #!/bin/sh
 set -u
 
@@ -121,7 +121,7 @@ EOF
 # shellcheck disable=SC2016 # The variable expands later when the hook runs
 create_hook "pre-commit" 'echo "HOOK_ENV is: ${HOOK_ENV:-not_set}"'
 
-echo "proper handling test" >> test.txt
+echo "proper handling test" >>test.txt
 git add test.txt
 
 # Should work with proper variable handling
@@ -131,7 +131,7 @@ ok "Hook works with proper variable handling under set -u"
 # Test: Verify SAMOYED variable is handled correctly with set -u
 echo "Testing: SAMOYED variable handling with set -u"
 
-cat > "$config_dir/samoyed/init.sh" << 'EOF'
+cat >"$config_dir/samoyed/init.sh" <<'EOF'
 #!/bin/sh
 set -u
 
@@ -142,7 +142,7 @@ EOF
 
 # Test without SAMOYED set
 unset SAMOYED
-echo "SAMOYED unset test" >> test.txt
+echo "SAMOYED unset test" >>test.txt
 git add test.txt
 
 XDG_CONFIG_HOME="$config_dir" expect 0 "git commit -m 'Test SAMOYED unset with set -u'"
@@ -150,7 +150,7 @@ ok "Works with SAMOYED unset under set -u"
 
 # Test with SAMOYED=0 (bypass mode)
 export SAMOYED=0
-echo "SAMOYED=0 test" >> test.txt
+echo "SAMOYED=0 test" >>test.txt
 git add test.txt
 
 # Create a failing hook to verify bypass works
@@ -164,7 +164,7 @@ unset SAMOYED
 # Test: Multiple environment variables with set -u
 echo "Testing: Multiple env vars with set -u"
 
-cat > "$config_dir/samoyed/init.sh" << 'EOF'
+cat >"$config_dir/samoyed/init.sh" <<'EOF'
 #!/bin/sh
 set -u
 set -e
@@ -178,7 +178,7 @@ CUSTOM="${CUSTOM:-default}"
 echo "Environment configured with set -u"
 EOF
 
-echo "multi env test" >> test.txt
+echo "multi env test" >>test.txt
 git add test.txt
 
 # Create successful hook
@@ -193,7 +193,7 @@ echo "Testing: Normal hook execution after set -u tests"
 # Remove custom config
 rm -rf "$config_dir"
 
-echo "final test" >> test.txt
+echo "final test" >>test.txt
 git add test.txt
 
 # Should work normally without custom config

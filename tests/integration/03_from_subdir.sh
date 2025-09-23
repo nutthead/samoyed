@@ -88,7 +88,7 @@ create_hook "pre-commit" "echo 'pre-commit from root' && exit 1" ".hooks"
 cd src/components
 
 # Create a file in subdirectory
-echo "component code" > Button.js
+echo "component code" >Button.js
 git add Button.js
 
 # Test that hook blocks commit from subdirectory

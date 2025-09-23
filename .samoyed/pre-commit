@@ -1,11 +1,104 @@
 #!/usr/bin/env sh
-echo "Pre-commit: start"
+set -e # Exit on any error
 
-echo "Type-checking with cargo check…"
-cargo check
+echo "🚀 Pre-commit: start"
+echo
 
-echo "Formatting with cargo fmt…"
-cargo fmt --all
+# Rust: Type checking
+echo "🔍 Type-checking with cargo check…"
+if ! cargo check --quiet; then
+    echo "❌ Type checking failed"
+    exit 1
+fi
+echo "✅ Type checking passed"
+echo
 
-echo "Pre-commit: finish"
+# Rust: Linting
+echo "🧹 Linting with cargo clippy…"
+if ! cargo clippy --all-targets --all-features -- -D warnings; then
+    echo "❌ Clippy linting failed"
+    exit 1
+fi
+echo "✅ Clippy linting passed"
+echo
 
+# Rust: Formatting (format only staged files and re-add them)
+echo "📝 Formatting staged Rust files with cargo fmt…"
+# Use git diff --staged to get only staged Rust files (reviewer's suggestion)
+staged_rust_files=$(git diff --staged --name-only --diff-filter=ACMRT -- '*.rs')
+if [ -n "$staged_rust_files" ]; then
+    echo "  Formatting: $staged_rust_files"
+    # Format the specific staged files using null-delimited input for safety
+    git diff --staged --name-only -z --diff-filter=ACMRT -- '*.rs' | xargs -0 -r cargo fmt --
+    # Modern way to re-stage files that were modified by the hook
+    git update-index --again
+    echo "✅ Staged Rust files formatted and re-staged"
+else
+    echo "ℹ️  No staged Rust files to format"
+fi
+echo
+
+# Shell: Shellcheck validation
+echo "🐚 Checking shell scripts with shellcheck…"
+shell_scripts_found=false
+
+# Check integration test scripts
+for script in tests/integration/*.sh; do
+    if [ -f "$script" ]; then
+        shell_scripts_found=true
+        echo "  Checking $script"
+        # Only fail on errors and warnings, ignore info-level issues
+        if ! shellcheck -x -s sh -S warning "$script"; then
+            echo "❌ Shellcheck failed for $script"
+            exit 1
+        fi
+    fi
+done
+
+# Check this pre-commit hook itself
+if [ -f ".samoyed/pre-commit" ]; then
+    shell_scripts_found=true
+    echo "  Checking .samoyed/pre-commit"
+    if ! shellcheck -s sh -S warning ".samoyed/pre-commit"; then
+        echo "❌ Shellcheck failed for .samoyed/pre-commit"
+        exit 1
+    fi
+fi
+
+if [ "$shell_scripts_found" = true ]; then
+    echo "✅ All shell scripts passed shellcheck"
+else
+    echo "ℹ️  No shell scripts found to check"
+fi
+echo
+
+# Shell: Formatting (format only staged files and re-add them)
+echo "📐 Formatting staged shell scripts with shfmt…"
+if command -v shfmt >/dev/null 2>&1; then
+    # Use git diff --staged to get only staged shell files (reviewer's suggestion)
+    staged_shell_files=$(git diff --staged --name-only --diff-filter=ACMRT -- '*.sh')
+    if [ -n "$staged_shell_files" ]; then
+        echo "  Formatting: $staged_shell_files"
+        # Format the specific staged files with 4-space indentation using null-delimited input
+        git diff --staged --name-only -z --diff-filter=ACMRT -- '*.sh' | xargs -0 -r shfmt -i 4 -w
+        # Modern way to re-stage files that were modified by the hook
+        git update-index --again
+        echo "✅ Staged shell scripts formatted and re-staged"
+    else
+        echo "ℹ️  No staged shell scripts to format"
+    fi
+else
+    echo "ℹ️  shfmt not found, skipping shell script formatting"
+fi
+echo
+
+# Rust: Unit tests
+echo "🧪 Running unit tests…"
+if ! cargo test --quiet -- --test-threads=1; then
+    echo "❌ Unit tests failed"
+    exit 1
+fi
+echo "✅ Unit tests passed"
+echo
+
+echo "🎉 Pre-commit: all checks passed!"

@@ -3,6 +3,13 @@
 //! This is a single-binary tool that simplifies and streamlines how users work with
 //! client-side Git hooks. The entire implementation fits in this single file to maintain
 //! simplicity and avoid feature creep.
+//!
+//! ## Cross-Platform Support
+//!
+//! Samoyed works seamlessly across Unix (Linux, macOS) and Windows systems with:
+//! - Platform-specific file permissions (Unix mode bits vs Windows defaults)
+//! - Path normalization for Windows extended-length paths
+//! - Graceful handling of Git execution differences across platforms
 
 use clap::{Parser, Subcommand};
 use std::env;
@@ -296,7 +303,9 @@ fn create_directory_structure(samoyed_dir: &Path) -> Result<(), String> {
 
 /// Copy the embedded wrapper script to _/samoyed
 ///
-/// The script is copied with 644 permissions.
+/// The script is copied with platform-appropriate permissions:
+/// - Unix: 644 permissions (rw-r--r--) since the wrapper is sourced, not executed
+/// - Windows: Default filesystem permissions (no Unix-style permission bits)
 ///
 /// # Arguments
 ///
@@ -312,7 +321,9 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
     fs::write(&wrapper_path, SAMOYED_WRAPPER_SCRIPT)
         .map_err(|e| format!("Error: Failed to write wrapper script: {}", e))?;
 
-    // Set permissions to 644 (rw-r--r--) because the wrapper is sourced
+    // Set permissions based on platform:
+    // - Unix: 644 (rw-r--r--) because the wrapper is sourced, not executed
+    // - Windows: Allow default permissions (may be executable, which is acceptable)
     #[cfg(unix)]
     {
         let metadata = fs::metadata(&wrapper_path)
@@ -323,12 +334,19 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
             .map_err(|e| format!("Error: Failed to set file permissions: {}", e))?;
     }
 
+    // On Windows, file permissions work differently than Unix
+    // The Windows filesystem will handle executable attributes automatically
+    // It's acceptable for the wrapper to be executable on Windows
+
     Ok(())
 }
 
 /// Create hook scripts in the _ directory
 ///
-/// Creates all Git hook scripts with 755 permissions.
+/// Creates all Git hook scripts with platform-appropriate permissions:
+/// - Unix: 755 permissions (rwxr-xr-x) to make scripts executable
+/// - Windows: Default filesystem permissions (executable attribute handled automatically)
+///
 /// Each script sources the shared wrapper so user hooks run consistently.
 ///
 /// # Arguments
@@ -410,6 +428,8 @@ fn create_sample_pre_commit(samoyed_dir: &Path) -> Result<(), String> {
 /// Set the git config core.hooksPath to point to the _ directory
 ///
 /// Uses `git config core.hooksPath` to configure Git to use our hooks.
+/// Sets a relative path from the git repository root to avoid Windows extended-length path issues.
+/// The path is normalized to use Unix-style separators for Git configuration compatibility.
 ///
 /// # Arguments
 ///
@@ -419,13 +439,31 @@ fn create_sample_pre_commit(samoyed_dir: &Path) -> Result<(), String> {
 ///
 /// Returns Ok(()) on success, or an error message on failure
 fn set_git_hooks_path(samoyed_dir: &Path) -> Result<(), String> {
-    let hooks_path = samoyed_dir.join("_");
-    let hooks_path_str = hooks_path
+    // Get git root to calculate relative path
+    let git_root = get_git_root()?;
+
+    // Canonicalize both paths to ensure consistent path representation
+    let git_root_canonical = git_root
+        .canonicalize()
+        .map_err(|e| format!("Error: Failed to canonicalize git root: {}", e))?;
+
+    let samoyed_dir_canonical = canonicalize_allowing_nonexistent(samoyed_dir)
+        .map_err(|e| format!("Error: Failed to canonicalize samoyed directory: {}", e))?;
+
+    // Calculate relative path from git root to hooks directory
+    let hooks_path = samoyed_dir_canonical.join("_");
+    let relative_hooks_path = hooks_path
+        .strip_prefix(&git_root_canonical)
+        .map_err(|_| "Error: Hooks path is not within git repository".to_string())?;
+
+    // Convert to string with Unix-style separators for Git config
+    let hooks_path_str = relative_hooks_path
         .to_str()
-        .ok_or_else(|| "Error: Invalid path for hooks directory".to_string())?;
+        .ok_or_else(|| "Error: Invalid path for hooks directory".to_string())?
+        .replace('\\', "/");
 
     let status = Command::new("git")
-        .args(["config", "core.hooksPath", hooks_path_str])
+        .args(["config", "core.hooksPath", &hooks_path_str])
         .status()
         .map_err(|_| "Error: Failed to set git config".to_string())?;
 
@@ -744,27 +782,69 @@ mod tests {
 
     /// Helper function to create a test git repository
     fn create_test_git_repo() -> TempDir {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
+
+        // Verify the temp directory exists before proceeding
+        assert!(
+            temp_dir.path().exists(),
+            "Temporary directory does not exist: {:?}",
+            temp_dir.path()
+        );
 
         // Initialize git repo
-        StdCommand::new("git")
+        let init_output = StdCommand::new("git")
             .args(["init"])
             .current_dir(temp_dir.path())
             .output()
-            .expect("Failed to init git repo");
+            .expect("Failed to execute git init command");
+
+        if !init_output.status.success() {
+            panic!(
+                "Failed to init git repo: {}",
+                String::from_utf8_lossy(&init_output.stderr)
+            );
+        }
 
         // Configure git user (required for some operations)
-        StdCommand::new("git")
+        let email_output = StdCommand::new("git")
             .args(["config", "user.email", "test@example.com"])
             .current_dir(temp_dir.path())
             .output()
-            .expect("Failed to set git user email");
+            .expect("Failed to execute git config user.email command");
 
-        StdCommand::new("git")
+        if !email_output.status.success() {
+            panic!(
+                "Failed to set git user email: {}",
+                String::from_utf8_lossy(&email_output.stderr)
+            );
+        }
+
+        let name_output = StdCommand::new("git")
             .args(["config", "user.name", "Test User"])
             .current_dir(temp_dir.path())
             .output()
-            .expect("Failed to set git user name");
+            .expect("Failed to execute git config user.name command");
+
+        if !name_output.status.success() {
+            panic!(
+                "Failed to set git user name: {}",
+                String::from_utf8_lossy(&name_output.stderr)
+            );
+        }
+
+        // Verify the git repo was created successfully
+        let verify_output = StdCommand::new("git")
+            .args(["rev-parse", "--is-inside-work-tree"])
+            .current_dir(temp_dir.path())
+            .output()
+            .expect("Failed to verify git repository");
+
+        if !verify_output.status.success() {
+            panic!(
+                "Git repository verification failed: {}",
+                String::from_utf8_lossy(&verify_output.stderr)
+            );
+        }
 
         temp_dir
     }
@@ -774,7 +854,18 @@ mod tests {
     fn test_init_samoyed_full() {
         let git_repo = create_test_git_repo();
         let original_dir = env::current_dir().unwrap();
-        env::set_current_dir(git_repo.path()).unwrap();
+        assert!(
+            git_repo.path().exists(),
+            "Git repo directory should exist: {:?}",
+            git_repo.path()
+        );
+        env::set_current_dir(git_repo.path()).unwrap_or_else(|e| {
+            panic!(
+                "Failed to change to git repo directory {:?}: {}",
+                git_repo.path(),
+                e
+            )
+        });
 
         // Run init
         let result = init_samoyed(".samoyed");
@@ -829,7 +920,18 @@ mod tests {
     fn test_init_samoyed_custom_dir() {
         let git_repo = create_test_git_repo();
         let original_dir = env::current_dir().unwrap();
-        env::set_current_dir(git_repo.path()).unwrap();
+        assert!(
+            git_repo.path().exists(),
+            "Git repo directory should exist: {:?}",
+            git_repo.path()
+        );
+        env::set_current_dir(git_repo.path()).unwrap_or_else(|e| {
+            panic!(
+                "Failed to change to git repo directory {:?}: {}",
+                git_repo.path(),
+                e
+            )
+        });
 
         // Run init with custom directory
         let result = init_samoyed(".hooks");
@@ -848,7 +950,18 @@ mod tests {
     fn test_init_samoyed_idempotent() {
         let git_repo = create_test_git_repo();
         let original_dir = env::current_dir().unwrap();
-        env::set_current_dir(git_repo.path()).unwrap();
+        assert!(
+            git_repo.path().exists(),
+            "Git repo directory should exist: {:?}",
+            git_repo.path()
+        );
+        env::set_current_dir(git_repo.path()).unwrap_or_else(|e| {
+            panic!(
+                "Failed to change to git repo directory {:?}: {}",
+                git_repo.path(),
+                e
+            )
+        });
 
         // Run init first time
         let result1 = init_samoyed(".samoyed");
@@ -870,7 +983,18 @@ mod tests {
     fn test_set_git_hooks_path() {
         let git_repo = create_test_git_repo();
         let original_dir = env::current_dir().unwrap();
-        env::set_current_dir(git_repo.path()).unwrap();
+        assert!(
+            git_repo.path().exists(),
+            "Git repo directory should exist: {:?}",
+            git_repo.path()
+        );
+        env::set_current_dir(git_repo.path()).unwrap_or_else(|e| {
+            panic!(
+                "Failed to change to git repo directory {:?}: {}",
+                git_repo.path(),
+                e
+            )
+        });
 
         let samoyed_dir = git_repo.path().join(".samoyed");
         fs::create_dir_all(samoyed_dir.join("_")).unwrap();
@@ -881,6 +1005,7 @@ mod tests {
         // Verify git config was set
         let output = StdCommand::new("git")
             .args(["config", "core.hooksPath"])
+            .current_dir(git_repo.path())
             .output()
             .unwrap();
 
@@ -962,5 +1087,121 @@ mod tests {
         // When no command is given, clap returns an error (which shows help)
         // but our main function still returns SUCCESS
         assert!(result.is_ok());
+    }
+
+    /// Test Windows-specific path normalization in set_git_hooks_path
+    /// This test only runs on Windows to verify backslash to forward slash conversion
+    #[cfg(windows)]
+    #[test]
+    fn test_set_git_hooks_path_windows_normalization() {
+        let git_repo = create_test_git_repo();
+        let original_dir = env::current_dir().unwrap();
+        assert!(
+            git_repo.path().exists(),
+            "Git repo directory should exist: {:?}",
+            git_repo.path()
+        );
+        env::set_current_dir(git_repo.path()).unwrap_or_else(|e| {
+            panic!(
+                "Failed to change to git repo directory {:?}: {}",
+                git_repo.path(),
+                e
+            )
+        });
+
+        // Create a path that would naturally have backslashes on Windows
+        let samoyed_dir = git_repo.path().join(".samoyed");
+        fs::create_dir_all(samoyed_dir.join("_")).unwrap();
+
+        let result = set_git_hooks_path(&samoyed_dir);
+        assert!(result.is_ok());
+
+        // Verify git config was set with Unix-style separators
+        let output = StdCommand::new("git")
+            .args(["config", "core.hooksPath"])
+            .current_dir(git_repo.path())
+            .output()
+            .unwrap();
+
+        assert!(output.status.success());
+        let hooks_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        // On Windows, the path should be normalized to use forward slashes
+        // and should be relative (not contain drive letters or backslashes)
+        assert!(
+            !hooks_path.contains('\\'),
+            "Path should not contain backslashes: {}",
+            hooks_path
+        );
+        assert!(
+            !hooks_path.contains("C:"),
+            "Path should be relative, not absolute: {}",
+            hooks_path
+        );
+
+        env::set_current_dir(original_dir).unwrap();
+    }
+
+    /// Test cross-platform path normalization behavior
+    /// This test runs on all platforms to verify consistent behavior
+    #[test]
+    fn test_set_git_hooks_path_cross_platform() {
+        let git_repo = create_test_git_repo();
+        let original_dir = env::current_dir().unwrap();
+        assert!(
+            git_repo.path().exists(),
+            "Git repo directory should exist: {:?}",
+            git_repo.path()
+        );
+        env::set_current_dir(git_repo.path()).unwrap_or_else(|e| {
+            panic!(
+                "Failed to change to git repo directory {:?}: {}",
+                git_repo.path(),
+                e
+            )
+        });
+
+        let samoyed_dir = git_repo.path().join(".samoyed");
+        fs::create_dir_all(samoyed_dir.join("_")).unwrap();
+
+        let result = set_git_hooks_path(&samoyed_dir);
+        assert!(result.is_ok());
+
+        // Verify git config was set
+        let output = StdCommand::new("git")
+            .args(["config", "core.hooksPath"])
+            .current_dir(git_repo.path())
+            .output()
+            .unwrap();
+
+        assert!(output.status.success());
+        let hooks_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        // The path should be relative regardless of platform
+        assert!(!hooks_path.is_empty(), "Hooks path should not be empty");
+
+        // Should not contain absolute path indicators
+        #[cfg(windows)]
+        assert!(
+            !hooks_path.contains(":\\"),
+            "Should not contain Windows drive letter: {}",
+            hooks_path
+        );
+
+        #[cfg(unix)]
+        assert!(
+            !hooks_path.starts_with('/'),
+            "Should not be absolute Unix path: {}",
+            hooks_path
+        );
+
+        // Should end with our expected relative path structure
+        assert!(
+            hooks_path.ends_with("_") || hooks_path.ends_with("_/"),
+            "Should end with underscore directory: {}",
+            hooks_path
+        );
+
+        env::set_current_dir(original_dir).unwrap();
     }
 }

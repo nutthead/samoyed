@@ -1,3 +1,11 @@
+# ============================================================================
+# Samoyed Release Workflow
+# ============================================================================
+# Orchestrates the complete release process: version validation, changelog
+# generation, multi-platform binary compilation, and GitHub release creation.
+# Manually triggered via workflow_dispatch to maintain full control over
+# release timing and versioning strategy.
+
 name: Release
 
 on:
@@ -11,15 +19,25 @@ on:
         default: master
         required: true
 
+# Minimum permissions required for release operations. Write access needed
+# for creating tags and releases, read access for verifying workflow state.
 permissions:
   contents: write
   actions: read
   checks: read
 
+# Pinned Rust version ensures reproducible builds across all platforms and
+# prevents unexpected compilation issues from toolchain updates.
 env:
   RUST_VERSION: 1.90.0
 
 jobs:
+  # ============================================================================
+  # Release Preparation Phase
+  # ============================================================================
+  # Validates input, updates version strings, runs quality checks, generates
+  # changelog, and creates the release commit. This job acts as a gate,
+  # ensuring all prerequisites are met before expensive build operations begin.
   prepare:
     name: Prepare Release
     runs-on: ubuntu-24.04
@@ -31,6 +49,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
+          # Full history required for changelog generation to analyze all commits
           fetch-depth: 0
           ref: ${{ github.event.inputs.branch }}
 
@@ -41,11 +60,29 @@ jobs:
           profile: minimal
           components: clippy, rustfmt
 
-      - name: Install release tooling
-        run: |
-          cargo install cargo-edit --locked
-          cargo install git-cliff --locked
+      # Cache release tools to avoid 3-5 minute installation time per tool.
+      # Using locked versions ensures deterministic builds.
+      - name: Cache cargo-edit
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-edit
+          locked: true
 
+      - name: Cache git-cliff
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: git-cliff
+          locked: true
+
+      # Python not available by default on GitHub runners; required for
+      # semver validation regex below
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      # Fail-fast validation prevents invalid versions from triggering
+      # expensive build operations
       - name: Validate version input
         env:
           VERSION: ${{ github.event.inputs.version }}
@@ -64,6 +101,15 @@ jobs:
         run: |
           cargo set-version --workspace "$VERSION"
 
+      # Dependency caching saves 10-15 minutes on subsequent runs. cache-on-failure
+      # ensures partial builds are cached even if tests fail.
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      # Quality gates ensure only properly formatted, warning-free code is released.
+      # Serial test execution prevents race conditions in file system operations.
       - name: Format, lint, and test
         run: |
           cargo fmt --all
@@ -83,12 +129,29 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Prevent empty commits that would fail or create inconsistent state
           git add Cargo.toml Cargo.lock CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "::error::No changes to commit. Version may already be set."
+            exit 1
+          fi
+
           git commit -m "chore(release): v${VERSION}"
+
+          # Fail if tag exists to prevent accidental overwrites of published releases.
+          # This ensures each version is immutable once released.
+          if git ls-remote --tags origin | grep -q "refs/tags/v${VERSION}"; then
+            echo "::error::Tag v${VERSION} already exists. Aborting release."
+            exit 1
+          fi
+
           git tag "v${VERSION}"
           git push origin "HEAD:${{ github.event.inputs.branch }}"
           git push origin "v${VERSION}"
 
+      # Export values for downstream jobs. Using the exact SHA ensures all
+      # builds use the same commit even if branch moves during workflow execution.
       - name: Export metadata
         id: meta
         env:
@@ -105,6 +168,13 @@ jobs:
           path: release-notes.md
           if-no-files-found: error
 
+  # ============================================================================
+  # Multi-Platform Build Phase
+  # ============================================================================
+  # Compiles optimized binaries for all supported platforms. Uses matrix
+  # strategy for parallel builds, cross-compilation for ARM targets, and
+  # platform-specific packaging. fail-fast disabled to ensure all platforms
+  # are attempted even if one fails.
   build:
     name: Build ${{ matrix.artifact_prefix }}
     needs: prepare
@@ -117,6 +187,8 @@ jobs:
             artifact_prefix: samoyed-linux-x86_64
             archive: tar.gz
             use_cross: false
+          # ARM Linux requires cross-compilation toolchain as GitHub doesn't
+          # provide native ARM runners for Linux
           - os: ubuntu-24.04
             target: aarch64-unknown-linux-gnu
             artifact_prefix: samoyed-linux-aarch64
@@ -141,6 +213,8 @@ jobs:
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
+      # Use exact SHA rather than branch to ensure consistency across all
+      # builds even if branch is updated during workflow
       - name: Checkout release commit
         uses: actions/checkout@v5
         with:
@@ -154,21 +228,37 @@ jobs:
           profile: minimal
           target: ${{ matrix.target }}
 
-      - name: Install cross
-        if: matrix.use_cross
-        run: cargo install cross --locked
+      # Target-specific caches prevent cache pollution between architectures,
+      # which can cause linking errors
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          cache-on-failure: true
 
+      # Cross tool enables compilation for architectures that can't run natively
+      # on GitHub runners (e.g., ARM on x86)
+      - name: Cache cross tool
+        if: matrix.use_cross
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cross
+          locked: true
+
+      # Cross uses Docker/QEMU for targets that can't compile natively.
+      # Bash shell ensures consistent behavior across all platforms.
       - name: Build binary
         run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cargo build --release --target "${{ matrix.target }}"
-          elif [[ "${{ matrix.use_cross }}" == "true" ]]; then
+          if [[ "${{ matrix.use_cross }}" == "true" ]]; then
             cross build --release --target "${{ matrix.target }}"
           else
             cargo build --release --target "${{ matrix.target }}"
           fi
         shell: bash
 
+      # Unix packaging uses tar.gz (standard for Linux/macOS) and preserves
+      # executable permissions via install command. shasum works on both
+      # Linux and macOS (sha256sum not available on macOS by default).
       - name: Package archive (Unix)
         if: runner.os != 'Windows'
         run: |
@@ -185,6 +275,8 @@ jobs:
           rm -rf "$STAGING"
         shell: bash
 
+      # Windows requires PowerShell for proper path handling and ZIP creation.
+      # Separate step needed due to different shell and archive format.
       - name: Package archive (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -213,6 +305,12 @@ jobs:
             dist/${{ matrix.artifact_prefix }}-v${{ needs.prepare.outputs.version }}.sha256
           if-no-files-found: error
 
+  # ============================================================================
+  # Release Publication Phase
+  # ============================================================================
+  # Creates the GitHub release with all platform binaries attached. Waits for
+  # all builds to complete (success or failure) before proceeding. Automatically
+  # marks as prerelease if version contains hyphen (e.g., 1.0.0-beta.1).
   release:
     name: Publish Release
     runs-on: ubuntu-24.04
@@ -233,6 +331,8 @@ jobs:
           pattern: samoyed-*
           merge-multiple: true
 
+      # Glob patterns ensure all artifacts are included regardless of platform.
+      # Automatic prerelease detection follows semver conventions.
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2.3.3
         with:

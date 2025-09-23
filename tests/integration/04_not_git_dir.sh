@@ -64,7 +64,7 @@ fi
 echo "Testing: samoyed init with .git file (not directory)"
 
 # Create a .git file instead of directory (like git submodules or worktrees)
-echo "gitdir: /some/other/location" > .git
+echo "gitdir: /some/other/location" >.git
 
 # Samoyed should still fail since this isn't a valid git repository
 set +e

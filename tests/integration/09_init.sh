@@ -37,9 +37,9 @@ expect_file_exists ".samoyed/_/.gitignore"
 
 # Check all hook scripts were created
 for hook in applypatch-msg commit-msg post-applypatch post-checkout \
-            post-commit post-merge post-rewrite pre-applypatch \
-            pre-auto-gc pre-commit pre-merge-commit pre-push \
-            pre-rebase prepare-commit-msg; do
+    post-commit post-merge post-rewrite pre-applypatch \
+    pre-auto-gc pre-commit pre-merge-commit pre-push \
+    pre-rebase prepare-commit-msg; do
     expect_file_exists ".samoyed/_/$hook"
 done
 
@@ -148,10 +148,15 @@ done
 # Test: Wrapper script permissions
 echo "Testing: Wrapper script permissions"
 
-# The wrapper script intentionally ships without the executable bit; the hooks
-# invoke it via their own shebang.
+# The wrapper script intentionally ships without the executable bit on Unix;
+# On Windows, it may be executable, which is acceptable
 if [ -x ".samoyed/_/samoyed" ]; then
-    error "Wrapper script unexpectedly has execute permission"
+    # Check if we're on Windows (detect cmd.exe or MSYS environment)
+    if command -v cmd.exe >/dev/null 2>&1 || [ -n "${MSYSTEM:-}" ]; then
+        ok "Wrapper script is executable on Windows (acceptable)"
+    else
+        error "Wrapper script unexpectedly has execute permission on Unix"
+    fi
 else
     ok "Wrapper script is non-executable as expected"
 fi

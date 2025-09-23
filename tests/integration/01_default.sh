@@ -46,9 +46,9 @@ ok "Wrapper script exists"
 # Test: Verify all git hooks were created
 echo "Testing: Git hook scripts"
 for hook in applypatch-msg commit-msg post-applypatch post-checkout \
-            post-commit post-merge post-rewrite pre-applypatch \
-            pre-auto-gc pre-commit pre-merge-commit pre-push \
-            pre-rebase prepare-commit-msg; do
+    post-commit post-merge post-rewrite pre-applypatch \
+    pre-auto-gc pre-commit pre-merge-commit pre-push \
+    pre-rebase prepare-commit-msg; do
     expect_file_exists ".samoyed/_/$hook"
 done
 ok "All git hooks created"
@@ -68,7 +68,7 @@ echo "Testing: Failing pre-commit hook blocks commits"
 create_hook "pre-commit" "echo 'pre-commit hook executed' && exit 1"
 
 # Modify a file to have something to commit
-echo "modified content" >> test.txt
+echo "modified content" >>test.txt
 git add test.txt
 
 # Test: Verify that the failing hook blocks the commit

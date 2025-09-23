@@ -12,7 +12,8 @@
 # Load test helper functions regardless of current working directory
 integration_script_dir="$(cd "$(dirname "$0")" && pwd)"
 integration_repo_root="$(cd "$integration_script_dir/../.." && pwd)"
-cd "$integration_repo_root"
+cd "$integration_repo_root" || exit 1
+# shellcheck source=tests/integration/functions.sh
 . "$integration_repo_root/tests/integration/functions.sh"
 unset integration_script_dir
 unset integration_repo_root
@@ -37,12 +38,41 @@ temp_bin_dir="${test_dir}/fake-bin"
 mkdir -p "$temp_bin_dir"
 
 # Create a fake git that always fails
-cat > "$temp_bin_dir/git" << 'EOF'
+if command -v cmd.exe >/dev/null 2>&1; then
+    # We're on Windows - create batch files
+    cat >"$temp_bin_dir/git.bat" <<'EOF'
+@echo off
+echo git: command not found >&2
+exit /b 127
+EOF
+
+    cat >"$temp_bin_dir/git.cmd" <<'EOF'
+@echo off
+echo git: command not found >&2
+exit /b 127
+EOF
+
+    cat >"$temp_bin_dir/git.exe" <<'EOF'
+@echo off
+echo git: command not found >&2
+exit /b 127
+EOF
+
+    # Also create the plain "git" as a batch file on Windows
+    cat >"$temp_bin_dir/git" <<'EOF'
+@echo off
+echo git: command not found >&2
+exit /b 127
+EOF
+else
+    # We're on Unix - create shell script
+    cat >"$temp_bin_dir/git" <<'EOF'
 #!/bin/sh
 echo "git: command not found" >&2
 exit 127
 EOF
-chmod +x "$temp_bin_dir/git"
+    chmod +x "$temp_bin_dir/git"
+fi
 
 # Put fake git first in PATH
 PATH="$temp_bin_dir:$ORIGINAL_PATH"
@@ -50,16 +80,25 @@ export PATH
 
 # Verify our fake git is being used
 if ! git --version 2>&1 | grep -q "command not found"; then
-    # Restore PATH and skip test if we can't override git
+    # Restore PATH and try a more aggressive approach
     PATH="$ORIGINAL_PATH"
     export PATH
-    echo "WARNING: Cannot override git command, skipping some tests"
-    echo "Testing: Alternative approach - empty PATH"
+    echo "WARNING: Cannot override git command with fake script, trying more aggressive approach"
 
-    # Try completely empty PATH instead
-    # shellcheck disable=SC2123 # Intentionally clear PATH to simulate missing git
-    PATH=""
-    export PATH
+    # On Windows, try to modify PATH more aggressively
+    if command -v cmd.exe >/dev/null 2>&1; then
+        # We're on Windows - try setting PATH to only include essential Windows directories
+        # but exclude any directory that might contain git
+        PATH="/c/Windows/System32:/c/Windows"
+        export PATH
+        echo "Testing: Windows-specific PATH restriction"
+    else
+        # On Unix, try completely empty PATH
+        echo "Testing: Alternative approach - empty PATH"
+        # shellcheck disable=SC2123 # Intentionally clear PATH to simulate missing git
+        PATH=""
+        export PATH
+    fi
 fi
 
 # Test: Try to run samoyed init without git available
@@ -123,12 +162,41 @@ rm -rf .samoyed
 git config --unset core.hooksPath
 
 # Create a git wrapper that always returns error
-cat > "$temp_bin_dir/git" << 'EOF'
+if command -v cmd.exe >/dev/null 2>&1; then
+    # We're on Windows - create batch files
+    cat >"$temp_bin_dir/git.bat" <<'EOF'
+@echo off
+echo fatal: git internal error >&2
+exit /b 128
+EOF
+
+    cat >"$temp_bin_dir/git.cmd" <<'EOF'
+@echo off
+echo fatal: git internal error >&2
+exit /b 128
+EOF
+
+    cat >"$temp_bin_dir/git.exe" <<'EOF'
+@echo off
+echo fatal: git internal error >&2
+exit /b 128
+EOF
+
+    # Also create the plain "git" as a batch file on Windows
+    cat >"$temp_bin_dir/git" <<'EOF'
+@echo off
+echo fatal: git internal error >&2
+exit /b 128
+EOF
+else
+    # We're on Unix - create shell script
+    cat >"$temp_bin_dir/git" <<'EOF'
 #!/bin/sh
 echo "fatal: git internal error" >&2
 exit 128
 EOF
-chmod +x "$temp_bin_dir/git"
+    chmod +x "$temp_bin_dir/git"
+fi
 
 # Use the failing git
 PATH="$temp_bin_dir:$ORIGINAL_PATH"
