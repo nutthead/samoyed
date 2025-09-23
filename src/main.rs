@@ -323,7 +323,7 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
 
     // Set permissions based on platform:
     // - Unix: 644 (rw-r--r--) because the wrapper is sourced, not executed
-    // - Windows: Would need executable permissions if Git tries to execute directly
+    // - Windows: Allow default permissions (may be executable, which is acceptable)
     #[cfg(unix)]
     {
         let metadata = fs::metadata(&wrapper_path)
@@ -336,7 +336,7 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
 
     // On Windows, file permissions work differently than Unix
     // The Windows filesystem will handle executable attributes automatically
-    // No additional configuration needed for our use case
+    // It's acceptable for the wrapper to be executable on Windows
 
     Ok(())
 }
