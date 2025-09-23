@@ -37,9 +37,9 @@ expect_file_exists ".samoyed/_/.gitignore"
 
 # Check all hook scripts were created
 for hook in applypatch-msg commit-msg post-applypatch post-checkout \
-            post-commit post-merge post-rewrite pre-applypatch \
-            pre-auto-gc pre-commit pre-merge-commit pre-push \
-            pre-rebase prepare-commit-msg; do
+    post-commit post-merge post-rewrite pre-applypatch \
+    pre-auto-gc pre-commit pre-merge-commit pre-push \
+    pre-rebase prepare-commit-msg; do
     expect_file_exists ".samoyed/_/$hook"
 done
 

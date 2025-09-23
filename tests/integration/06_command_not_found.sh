@@ -42,7 +42,7 @@ echo "Testing: Hook with exit code 127 (command not found)"
 create_hook "pre-commit" "exit 127"
 
 # Modify a file to have something to commit
-echo "test modification" >> test.txt
+echo "test modification" >>test.txt
 git add test.txt
 
 # Capture the output when the hook fails
@@ -79,7 +79,7 @@ echo "Testing: Hook calling non-existent command"
 create_hook "pre-commit" "nonexistent_command_xyz123"
 
 # Try to commit again
-echo "another modification" >> test.txt
+echo "another modification" >>test.txt
 git add test.txt
 
 set +e
@@ -105,7 +105,7 @@ echo "Testing: Command in subdirectory not in PATH"
 
 # Create a local command that's not in PATH
 mkdir -p local_bin
-cat > local_bin/my_checker << 'EOF'
+cat >local_bin/my_checker <<'EOF'
 #!/bin/sh
 echo "my_checker executed successfully"
 exit 0
@@ -115,7 +115,7 @@ chmod +x local_bin/my_checker
 # Create hook that tries to run it without path
 create_hook "pre-commit" "my_checker"
 
-echo "path test" >> test.txt
+echo "path test" >>test.txt
 git add test.txt
 
 set +e
@@ -136,7 +136,7 @@ echo "Testing: Command works with explicit path"
 # Update hook to use full path
 create_hook "pre-commit" "./local_bin/my_checker"
 
-echo "explicit path test" >> test.txt
+echo "explicit path test" >>test.txt
 git add test.txt
 
 # Now it should work
@@ -153,7 +153,7 @@ export PATH
 # Create hook using just command name
 create_hook "pre-commit" "my_checker"
 
-echo "in PATH test" >> test.txt
+echo "in PATH test" >>test.txt
 git add test.txt
 
 # Should work now
@@ -166,7 +166,7 @@ echo "Testing: Exit code 127 in post-commit hook"
 # Create a post-commit hook with exit code 127
 create_hook "post-commit" "echo 'Post-commit running' && exit 127"
 
-echo "post-commit test" >> test.txt
+echo "post-commit test" >>test.txt
 git add test.txt
 
 # The commit should succeed but show error from post-commit

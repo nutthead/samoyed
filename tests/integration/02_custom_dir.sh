@@ -53,7 +53,7 @@ echo "Testing: Pre-commit hook in custom directory"
 create_hook "pre-commit" "echo 'custom dir pre-commit' && exit 1" "my-hooks"
 
 # Modify file for commit
-echo "test modification" >> test.txt
+echo "test modification" >>test.txt
 git add test.txt
 
 # Test that hook from custom directory blocks commit
@@ -90,7 +90,7 @@ echo "Testing: Pre-commit hook in nested directory"
 create_hook "pre-commit" "echo 'nested dir pre-commit' && exit 1" "hooks/samoyed"
 
 # Modify file again
-echo "another modification" >> test.txt
+echo "another modification" >>test.txt
 git add test.txt
 
 # Test that hook from nested directory blocks commit

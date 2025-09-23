@@ -66,7 +66,7 @@ echo "Testing: Create failing pre-commit hook"
 create_hook "pre-commit" "echo 'pre-commit hook executed' && exit 1"
 
 # Test that hook blocks commit normally
-echo "test content" >> test.txt
+echo "test content" >>test.txt
 git add test.txt
 
 expect 1 "git commit -m 'Should be blocked by hook'"
@@ -74,7 +74,7 @@ ok "Hook blocks commit normally"
 
 # Test: SAMOYED=0 bypasses the failing hook
 echo "Testing: SAMOYED=0 bypasses failing hook"
-echo "bypass test" >> test.txt
+echo "bypass test" >>test.txt
 git add test.txt
 
 SAMOYED=0 expect 0 "git commit -m 'Should succeed with SAMOYED=0'"
@@ -88,7 +88,7 @@ config_dir="${test_dir}/config"
 mkdir -p "$config_dir/samoyed"
 
 # Create init.sh that sets SAMOYED=0
-cat > "$config_dir/samoyed/init.sh" << 'EOF'
+cat >"$config_dir/samoyed/init.sh" <<'EOF'
 #!/bin/sh
 # User config that disables all hooks
 export SAMOYED=0
@@ -98,7 +98,7 @@ EOF
 # Create another failing hook
 create_hook "pre-commit" "echo 'This should be bypassed' && exit 1"
 
-echo "config bypass test" >> test.txt
+echo "config bypass test" >>test.txt
 git add test.txt
 
 # Hook should be bypassed due to init.sh setting SAMOYED=0
@@ -117,7 +117,7 @@ create_hook "pre-commit" "echo 'pre-commit' && exit 1"
 create_hook "prepare-commit-msg" "echo 'prepare-commit-msg' && exit 1"
 create_hook "commit-msg" "echo 'commit-msg' && exit 1"
 
-echo "multiple hooks test" >> test.txt
+echo "multiple hooks test" >>test.txt
 git add test.txt
 
 # All hooks should be bypassed
@@ -130,7 +130,7 @@ rm -f .samoyed/prepare-commit-msg .samoyed/commit-msg
 # Test: SAMOYED=1 does NOT bypass hooks
 echo "Testing: SAMOYED=1 does not bypass hooks"
 
-echo "SAMOYED=1 test" >> test.txt
+echo "SAMOYED=1 test" >>test.txt
 git add test.txt
 
 SAMOYED=1 expect 1 "git commit -m 'Should fail with SAMOYED=1'"
@@ -142,7 +142,7 @@ echo "Testing: SAMOYED=2 debug mode"
 # Create a simple hook that will show debug output
 create_hook "pre-commit" "echo 'Debug mode hook' && exit 0"
 
-echo "debug mode test" >> test.txt
+echo "debug mode test" >>test.txt
 git add test.txt
 
 # Capture output to check for debug traces
@@ -163,7 +163,7 @@ echo "Testing: Empty SAMOYED does not bypass"
 
 create_hook "pre-commit" "echo 'checking empty' && exit 1"
 
-echo "empty SAMOYED test" >> test.txt
+echo "empty SAMOYED test" >>test.txt
 git add test.txt
 
 SAMOYED="" expect 1 "git commit -m 'Empty SAMOYED should not bypass'"
@@ -172,7 +172,7 @@ ok "Empty SAMOYED value does not bypass hooks"
 # Test: Case sensitivity - samoyed=0 should NOT bypass
 echo "Testing: Case sensitivity of SAMOYED variable"
 
-echo "case test" >> test.txt
+echo "case test" >>test.txt
 git add test.txt
 
 samoyed=0 expect 1 "git commit -m 'Lowercase should not work'"
@@ -185,7 +185,7 @@ echo "Testing: SAMOYED=0 init on existing installation"
 SAMOYED=0 "$SAMOYED_BIN" init 2>&1 | grep -q "Bypassing"
 
 # Existing hooks should still work
-echo "existing test" >> test.txt
+echo "existing test" >>test.txt
 git add test.txt
 
 # Without SAMOYED=0, hooks should still block
@@ -198,7 +198,7 @@ echo "Testing: SAMOYED=0 bypasses even successful hooks"
 # Create a successful hook that modifies files
 create_hook "pre-commit" "echo 'Hook executed' > hook_was_run.txt && exit 0"
 
-echo "successful hook test" >> test.txt
+echo "successful hook test" >>test.txt
 git add test.txt
 
 # With SAMOYED=0, even successful hooks shouldn't run
@@ -217,7 +217,7 @@ echo "Testing: Normal operation after bypass tests"
 # Create a simple successful hook
 create_hook "pre-commit" "echo 'Normal hook executed' && exit 0"
 
-echo "final normal test" >> test.txt
+echo "final normal test" >>test.txt
 git add test.txt
 
 expect 0 "git commit -m 'Normal operation restored'"

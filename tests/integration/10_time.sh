@@ -32,7 +32,7 @@ echo "Testing: Timing of simple echo hook"
 
 create_hook "pre-commit" "echo 'pre-commit hook executed'"
 
-echo "timing test" >> test.txt
+echo "timing test" >>test.txt
 git add test.txt
 
 # Measure the time for a commit with a simple hook
@@ -73,7 +73,7 @@ echo "Testing: Overhead comparison"
 
 # Create a script that measures its own execution time
 test_script="${test_dir}/time_test.sh"
-cat > "$test_script" << 'EOF'
+cat >"$test_script" <<'EOF'
 #!/bin/sh
 start=$(date +%s%N 2>/dev/null || date +%s)
 echo "Direct execution"
@@ -99,7 +99,7 @@ echo "Direct execution:"
 # Run through a hook
 create_hook "pre-commit" "$test_script"
 
-echo "another timing test" >> test.txt
+echo "another timing test" >>test.txt
 git add test.txt
 
 echo "Execution through Samoyed wrapper:"
@@ -114,7 +114,7 @@ echo "Testing: Multiple hooks execution time"
 create_hook "pre-commit" "echo 'Hook 1: pre-commit'"
 
 # Create prepare-commit-msg hook
-cat > ".samoyed/prepare-commit-msg" << 'EOF'
+cat >".samoyed/prepare-commit-msg" <<'EOF'
 #!/usr/bin/env sh
 . "$(dirname "$0")/_/samoyed"
 
@@ -123,7 +123,7 @@ EOF
 chmod +x ".samoyed/prepare-commit-msg"
 
 # Create commit-msg hook
-cat > ".samoyed/commit-msg" << 'EOF'
+cat >".samoyed/commit-msg" <<'EOF'
 #!/usr/bin/env sh
 . "$(dirname "$0")/_/samoyed"
 
@@ -131,7 +131,7 @@ echo "Hook 3: commit-msg"
 EOF
 chmod +x ".samoyed/commit-msg"
 
-echo "multiple hooks timing" >> test.txt
+echo "multiple hooks timing" >>test.txt
 git add test.txt
 
 # Time execution of multiple hooks
@@ -157,7 +157,7 @@ done
 echo "Workload completed after 100 iterations"
 '
 
-echo "workload test" >> test.txt
+echo "workload test" >>test.txt
 git add test.txt
 
 echo "Executing hook with workload..."
@@ -170,7 +170,7 @@ echo "Testing: Empty hook overhead"
 # Create an empty hook (just sources wrapper)
 create_hook "pre-commit" "# Empty hook"
 
-echo "empty hook test" >> test.txt
+echo "empty hook test" >>test.txt
 git add test.txt
 
 echo "Executing empty hook..."
@@ -182,7 +182,7 @@ echo "Testing: Debug mode performance impact"
 
 create_hook "pre-commit" "echo 'Debug timing test'"
 
-echo "debug timing" >> test.txt
+echo "debug timing" >>test.txt
 git add test.txt
 
 echo "Executing with debug mode enabled..."
@@ -197,7 +197,7 @@ create_hook "pre-commit" "exit 0"
 
 # Make several commits in quick succession
 for i in 1 2 3 4 5; do
-    echo "rapid test $i" >> test.txt
+    echo "rapid test $i" >>test.txt
     git add test.txt
     git commit -m "Rapid commit $i" --quiet
 done

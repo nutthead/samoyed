@@ -28,9 +28,9 @@ parse_common_args() {
 
     while [ "$#" -gt 0 ]; do
         case "$1" in
-            --keep)
-                KEEP_WORKDIR="true"
-                ;;
+        --keep)
+            KEEP_WORKDIR="true"
+            ;;
         esac
         shift
     done
@@ -73,7 +73,7 @@ setup() {
     git config user.name "Samoyed Test"
 
     # Create a dummy file for commits
-    echo "test content" > test.txt
+    echo "test content" >test.txt
     git add test.txt
     git commit -m "Initial commit" --quiet
 
@@ -151,17 +151,17 @@ expect_hooks_path_to_be() {
     # First, normalize Windows paths by removing \\?\ prefix if present
     expect_hooks_normalized_actual="$expect_hooks_actual_path"
     case "$expect_hooks_actual_path" in
-        '\\?\'"$test_dir"'\'"$expect_hooks_expected_path" | '\\?\'"$test_dir"'\\'"$expect_hooks_expected_path"'\'*)
-            # Windows extended-length path that ends with our expected path
-            unset expect_hooks_expected_path
-            unset expect_hooks_actual_path
-            unset expect_hooks_normalized_actual
-            return 0
-            ;;
-        '\\?\'*)
-            # Remove Windows extended-length path prefix for comparison
-            expect_hooks_normalized_actual="${expect_hooks_actual_path#'\\?\'}"
-            ;;
+    '\\?\'"$test_dir"'\'"$expect_hooks_expected_path" | '\\?\'"$test_dir"'\\'"$expect_hooks_expected_path"'\'*)
+        # Windows extended-length path that ends with our expected path
+        unset expect_hooks_expected_path
+        unset expect_hooks_actual_path
+        unset expect_hooks_normalized_actual
+        return 0
+        ;;
+    '\\?\'*)
+        # Remove Windows extended-length path prefix for comparison
+        expect_hooks_normalized_actual="${expect_hooks_actual_path#'\\?\'}"
+        ;;
     esac
 
     # Convert backslashes to forward slashes for comparison
@@ -170,56 +170,56 @@ expect_hooks_path_to_be() {
 
     # Check if paths match or if actual ends with expected
     case "$expect_hooks_normalized_actual" in
-        *"$expect_hooks_normalized_expected")
-            # Path ends with expected path - this is ok
-            unset expect_hooks_expected_path
-            unset expect_hooks_actual_path
-            unset expect_hooks_normalized_actual
-            unset expect_hooks_normalized_expected
-            return 0
-            ;;
-        "$expect_hooks_normalized_expected")
-            # Exact match
-            unset expect_hooks_expected_path
-            unset expect_hooks_actual_path
-            unset expect_hooks_normalized_actual
-            unset expect_hooks_normalized_expected
-            return 0
-            ;;
-        *)
-            # Also check if they resolve to the same directory
-            if [ -d "$expect_hooks_expected_path" ] && [ -d "$expect_hooks_actual_path" ]; then
-                # Compare canonical paths
-                expect_hooks_expected_canonical=$(cd "$expect_hooks_expected_path" 2>/dev/null && pwd)
-                expect_hooks_actual_canonical=$(cd "$expect_hooks_actual_path" 2>/dev/null && pwd)
-                if [ "$expect_hooks_expected_canonical" = "$expect_hooks_actual_canonical" ]; then
-                    unset expect_hooks_expected_canonical
-                    unset expect_hooks_actual_canonical
-                    unset expect_hooks_expected_path
-                    unset expect_hooks_actual_path
-                    unset expect_hooks_normalized_actual
-                    unset expect_hooks_normalized_expected
-                    return 0
-                fi
+    *"$expect_hooks_normalized_expected")
+        # Path ends with expected path - this is ok
+        unset expect_hooks_expected_path
+        unset expect_hooks_actual_path
+        unset expect_hooks_normalized_actual
+        unset expect_hooks_normalized_expected
+        return 0
+        ;;
+    "$expect_hooks_normalized_expected")
+        # Exact match
+        unset expect_hooks_expected_path
+        unset expect_hooks_actual_path
+        unset expect_hooks_normalized_actual
+        unset expect_hooks_normalized_expected
+        return 0
+        ;;
+    *)
+        # Also check if they resolve to the same directory
+        if [ -d "$expect_hooks_expected_path" ] && [ -d "$expect_hooks_actual_path" ]; then
+            # Compare canonical paths
+            expect_hooks_expected_canonical=$(cd "$expect_hooks_expected_path" 2>/dev/null && pwd)
+            expect_hooks_actual_canonical=$(cd "$expect_hooks_actual_path" 2>/dev/null && pwd)
+            if [ "$expect_hooks_expected_canonical" = "$expect_hooks_actual_canonical" ]; then
                 unset expect_hooks_expected_canonical
                 unset expect_hooks_actual_canonical
+                unset expect_hooks_expected_path
+                unset expect_hooks_actual_path
+                unset expect_hooks_normalized_actual
+                unset expect_hooks_normalized_expected
+                return 0
             fi
+            unset expect_hooks_expected_canonical
+            unset expect_hooks_actual_canonical
+        fi
 
-            # For Windows, also try stripping the path down to just the ending
-            # since Git on Windows may return absolute paths
-            case "$expect_hooks_actual_path" in
-                *'\'"$expect_hooks_expected_path" | *'/'"$expect_hooks_expected_path")
-                    # Windows or Unix path that ends with expected (after conversion)
-                    unset expect_hooks_expected_path
-                    unset expect_hooks_actual_path
-                    unset expect_hooks_normalized_actual
-                    unset expect_hooks_normalized_expected
-                    return 0
-                    ;;
-            esac
-
-            error "Expected core.hooksPath to be '$expect_hooks_expected_path', but was '$expect_hooks_actual_path'"
+        # For Windows, also try stripping the path down to just the ending
+        # since Git on Windows may return absolute paths
+        case "$expect_hooks_actual_path" in
+        *'\'"$expect_hooks_expected_path" | *'/'"$expect_hooks_expected_path")
+            # Windows or Unix path that ends with expected (after conversion)
+            unset expect_hooks_expected_path
+            unset expect_hooks_actual_path
+            unset expect_hooks_normalized_actual
+            unset expect_hooks_normalized_expected
+            return 0
             ;;
+        esac
+
+        error "Expected core.hooksPath to be '$expect_hooks_expected_path', but was '$expect_hooks_actual_path'"
+        ;;
     esac
 
     unset expect_hooks_normalized_actual
@@ -260,7 +260,7 @@ create_hook() {
     {
         echo "#!/usr/bin/env sh"
         printf '%s\n' "$create_hook_content"
-    } > "$create_hook_path"
+    } >"$create_hook_path"
 
     # Make it executable (required for some tests)
     chmod +x "$create_hook_path"
