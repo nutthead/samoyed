@@ -432,13 +432,19 @@ fn set_git_hooks_path(samoyed_dir: &Path) -> Result<(), String> {
 
     // On Windows, normalize path separators to avoid Git execution issues
     // Git on Windows can have trouble with mixed path separators
-    #[cfg(windows)]
-    let normalized_path = hooks_path_str.replace('\\', "/");
-    #[cfg(not(windows))]
-    let normalized_path = hooks_path_str;
+    let normalized_path_str = {
+        #[cfg(windows)]
+        {
+            hooks_path_str.replace('\\', "/")
+        }
+        #[cfg(not(windows))]
+        {
+            hooks_path_str.to_string()
+        }
+    };
 
     let status = Command::new("git")
-        .args(["config", "core.hooksPath", normalized_path])
+        .args(["config", "core.hooksPath", &normalized_path_str])
         .status()
         .map_err(|_| "Error: Failed to set git config".to_string())?;
 
