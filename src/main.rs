@@ -444,7 +444,8 @@ fn set_git_hooks_path(samoyed_dir: &Path) -> Result<(), String> {
 
     // Calculate relative path from git root to hooks directory
     let hooks_path = samoyed_dir.join("_");
-    let relative_hooks_path = hooks_path.strip_prefix(&git_root)
+    let relative_hooks_path = hooks_path
+        .strip_prefix(&git_root)
         .map_err(|_| "Error: Hooks path is not within git repository".to_string())?;
 
     // Convert to string with Unix-style separators for Git config
@@ -1020,10 +1021,21 @@ mod tests {
 
         // On Windows, the path should be normalized to use forward slashes
         // and should be relative (not contain drive letters or backslashes)
-        assert!(!hooks_path.contains('\\'), "Path should not contain backslashes: {}", hooks_path);
-        assert!(!hooks_path.contains("C:"), "Path should be relative, not absolute: {}", hooks_path);
-        assert!(hooks_path.contains('/') || !hooks_path.contains(std::path::MAIN_SEPARATOR),
-                "Path should use Unix-style separators: {}", hooks_path);
+        assert!(
+            !hooks_path.contains('\\'),
+            "Path should not contain backslashes: {}",
+            hooks_path
+        );
+        assert!(
+            !hooks_path.contains("C:"),
+            "Path should be relative, not absolute: {}",
+            hooks_path
+        );
+        assert!(
+            hooks_path.contains('/') || !hooks_path.contains(std::path::MAIN_SEPARATOR),
+            "Path should use Unix-style separators: {}",
+            hooks_path
+        );
 
         env::set_current_dir(original_dir).unwrap();
     }
@@ -1056,14 +1068,25 @@ mod tests {
 
         // Should not contain absolute path indicators
         #[cfg(windows)]
-        assert!(!hooks_path.contains(":\\"), "Should not contain Windows drive letter: {}", hooks_path);
+        assert!(
+            !hooks_path.contains(":\\"),
+            "Should not contain Windows drive letter: {}",
+            hooks_path
+        );
 
         #[cfg(unix)]
-        assert!(!hooks_path.starts_with('/'), "Should not be absolute Unix path: {}", hooks_path);
+        assert!(
+            !hooks_path.starts_with('/'),
+            "Should not be absolute Unix path: {}",
+            hooks_path
+        );
 
         // Should end with our expected relative path structure
-        assert!(hooks_path.ends_with("_") || hooks_path.ends_with("_/"),
-                "Should end with underscore directory: {}", hooks_path);
+        assert!(
+            hooks_path.ends_with("_") || hooks_path.ends_with("_/"),
+            "Should end with underscore directory: {}",
+            hooks_path
+        );
 
         env::set_current_dir(original_dir).unwrap();
     }
