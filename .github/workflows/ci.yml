@@ -1,3 +1,11 @@
+# ============================================================================
+# Continuous Integration Workflow
+# ============================================================================
+# Ensures code quality and correctness across all supported platforms.
+# Runs on every push to master, pull request, and can be manually triggered.
+# Tests matrix covers Linux, macOS, and Windows to catch platform-specific
+# issues before release.
+
 name: CI
 
 on:
@@ -7,11 +15,19 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Write permissions needed for uploading coverage artifacts, PR write access
+# required for posting coverage comments on pull requests.
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
+  # ============================================================================
+  # Cross-Platform Testing
+  # ============================================================================
+  # Validates formatting, linting, and tests across all target platforms.
+  # fail-fast disabled to see all platform results even if one fails, helping
+  # identify platform-specific issues versus general bugs.
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -25,12 +41,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      # Pinned version ensures consistent behavior across CI and release builds.
+      # Components needed for formatting and linting checks.
       - name: Install Rust 1.90.0
         uses: actions-rust-lang/setup-rust-toolchain@v1.15.0
         with:
           toolchain: 1.90.0
           components: clippy, rustfmt
 
+      # Manual cache configuration instead of Swatinem/rust-cache for finer
+      # control over cache keys and paths. OS-specific key prevents cache
+      # pollution between platforms.
       - name: Cache cargo directories
         uses: actions/cache@v4.2.4
         with:
@@ -40,23 +61,34 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-1.90.0-${{ hashFiles('**/Cargo.lock') }}
 
+      # Formatting check enforces consistent code style across contributions.
+      # Bash shell ensures consistent behavior across all platforms.
       - name: Check formatting
         run: cargo fmt --all -- --check
         shell: bash
 
+      # Clippy with -D warnings ensures no linting issues slip through.
+      # all-targets includes tests, benches, and examples in analysis.
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
         shell: bash
 
+      # Serial test execution required to prevent race conditions in file
+      # operations, particularly for hook installation tests.
       - name: Run unit tests
         run: cargo test -- --test-threads=1
         shell: bash
 
+      # Integration tests skipped on Windows due to shell script incompatibility.
+      # Release build ensures tests run against optimized binary matching
+      # production behavior.
       - name: Build release binary for integration tests
         if: matrix.os != 'windows-latest'
         run: cargo build --release
         shell: bash
 
+      # Shell scripts require Unix environment. set -euo pipefail ensures
+      # script failures are properly detected and reported.
       - name: Run integration tests
         if: matrix.os != 'windows-latest'
         run: |
@@ -67,6 +99,12 @@ jobs:
           done
         shell: bash
 
+  # ============================================================================
+  # Code Coverage Analysis
+  # ============================================================================
+  # Generates coverage metrics to track test completeness. Runs after tests
+  # to avoid blocking on coverage tool issues. Ubuntu-only as tarpaulin
+  # requires Linux-specific instrumentation.
   coverage:
     name: Coverage (tarpaulin)
     runs-on: ubuntu-24.04
@@ -82,6 +120,9 @@ jobs:
         with:
           toolchain: 1.90.0
 
+      # Manual cache configuration instead of Swatinem/rust-cache for finer
+      # control over cache keys and paths. OS-specific key prevents cache
+      # pollution between platforms.
       - name: Cache cargo directories
         uses: actions/cache@v4.2.4
         with:
@@ -91,14 +132,21 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-1.90.0-${{ hashFiles('**/Cargo.lock') }}
 
+      # Direct installation instead of caching due to tarpaulin's frequent
+      # updates and platform-specific compilation requirements.
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin --locked
         shell: bash
 
+      # Multiple output formats for different consumers: HTML for human review,
+      # XML for PR comments, JSON for custom processing, LCOV for IDE integration.
+      # Serial test execution maintains consistency with test job.
       - name: Generate coverage report
         run: cargo tarpaulin --out Html --out Json --out Xml --out Lcov -- --test-threads=1
         shell: bash
 
+      # Artifacts retained for manual inspection and debugging. 7-day retention
+      # balances storage costs with debugging needs.
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4.6.2
         with:
@@ -107,10 +155,14 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+      # xml2js required for parsing Cobertura XML in JavaScript environment.
+      # Node.js available by default on GitHub runners.
       - name: Install xml2js
         run: npm install xml2js
         shell: bash
 
+      # Automated coverage reporting provides immediate feedback on PR impact.
+      # Only runs for PRs to avoid noise on direct pushes.
       - name: Comment PR with coverage
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -141,16 +193,17 @@ jobs:
                     
                     const comment = dedent(`
                     ## 📊 Code Coverage Report
-                      
+
                     **Coverage:** ${coveragePercent}% (${linesCovered}/${linesValid} lines)
-                    
+
                     📈 [View detailed coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-                    
+
                     ---
                     *Generated by [cargo-tarpaulin](https://github.com/xd009642/tarpaulin)*
                     `);
 
-                    // Helper function to de-indent template literals
+                    // Dedent preserves readability in source while producing clean output.
+                    // Calculates minimum indentation to strip from all lines.
                     function dedent(str) {
                       const lines = str.split('\n');
                       const nonEmptyLines = lines.filter(line => line.trim() !== '');

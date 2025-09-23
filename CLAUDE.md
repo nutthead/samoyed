@@ -105,7 +105,7 @@ cargo tarpaulin -- --test-threads=1
 
 ## Project Structure
 
-```
+```text
 .
 ├── src/
 │   └── main.rs                     # Complete implementation (init, hook management)

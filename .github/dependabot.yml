@@ -1,18 +1,26 @@
-# Dependabot configuration for Samoid
-# Automatically creates PRs to update dependencies when new versions are available
-# Implements AC11.9 from issue #11
+# ============================================================================
+# Dependabot Dependency Management
+# ============================================================================
+# Automates dependency updates to address security vulnerabilities and maintain
+# currency with upstream changes. Weekly schedule balances staying current with
+# avoiding update fatigue. Implements AC11.9 from issue #11.
 
 version: 2
 updates:
-  # Enable version updates for Rust/Cargo dependencies
+  # ============================================================================
+  # Rust/Cargo Dependencies
+  # ============================================================================
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
+      # Weekly on Monday mornings provides a predictable update cadence that
+      # aligns with typical work weeks, allowing review before midweek deploys
       interval: "weekly"
       day: "monday"
       time: "08:00"
       timezone: "UTC"
-    # Configure how updates are grouped
+    # Grouping minor/patch updates reduces PR noise while keeping major updates
+    # separate for careful review of breaking changes
     groups:
       dependencies:
         patterns:
@@ -20,34 +28,42 @@ updates:
         update-types:
           - "minor"
           - "patch"
-    # Separate group for major updates (breaking changes)
+    # All dependency types allowed but major updates create separate PRs due to
+    # grouping rules above, ensuring breaking changes get individual attention
     allow:
       - dependency-type: "all"
-    # Labels to add to PRs
     labels:
       - "dependencies"
       - "rust"
-    # Prefix for commit messages
+    # Conventional commits format maintains consistency with project standards.
+    # "chore" prefix indicates non-functional changes
     commit-message:
       prefix: "chore"
       prefix-development: "chore"
       include: "scope"
-    # Limit the number of open PRs
+    # PR limit prevents overwhelming maintainers while ensuring critical updates
+    # aren't blocked by a backlog
     open-pull-requests-limit: 5
-    # Assignees and reviewers for dependency PRs
+    # Direct assignment ensures dependency updates receive timely attention
     assignees:
       - "nutthead"
     milestone: 1
 
-  # Enable version updates for GitHub Actions
+  # ============================================================================
+  # GitHub Actions Dependencies
+  # ============================================================================
+  # Actions updates are critical for security and compatibility with GitHub's
+  # evolving platform. Keeping these current prevents workflow failures from
+  # deprecated features.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
+      # Synchronized with Cargo updates for consistent review schedule
       interval: "weekly"
       day: "monday"
       time: "08:00"
       timezone: "UTC"
-    # Group all Actions updates together
+    # Single PR for all Actions updates simplifies testing of workflow changes
     groups:
       github-actions:
         patterns:
@@ -55,6 +71,8 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    # "ci" prefix distinguishes workflow updates from code dependencies,
+    # following conventional commits for CI/CD changes
     commit-message:
       prefix: "ci"
       include: "scope"
