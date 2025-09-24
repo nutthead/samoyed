@@ -239,20 +239,28 @@ jobs:
           cp "target/${{ matrix.target }}/release/${BINARY_NAME}" "dist/${BINARY_NAME}"
           cp README.md LICENSE dist/
 
+          ARCHIVE_BASENAME="${ARCHIVE_NAME}.tar.gz"
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            7z a "dist/${ARCHIVE_NAME}.zip" ./dist/*
-            echo "archive=${ARCHIVE_NAME}.zip" >> "$GITHUB_OUTPUT"
-          else
-            tar -czf "dist/${ARCHIVE_NAME}.tar.gz" -C dist .
-            echo "archive=${ARCHIVE_NAME}.tar.gz" >> "$GITHUB_OUTPUT"
+            ARCHIVE_BASENAME="${ARCHIVE_NAME}.zip"
           fi
 
-          cd dist
-          if [[ "${{ matrix.os }}" == "macos-14" ]]; then
-            shasum -a 256 "${ARCHIVE_NAME}"* > "${ARCHIVE_NAME}.sha256"
+          pushd dist >/dev/null
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            7z a "../${ARCHIVE_BASENAME}" ./*
           else
-            sha256sum "${ARCHIVE_NAME}"* > "${ARCHIVE_NAME}.sha256"
+            tar -czf "../${ARCHIVE_BASENAME}" .
           fi
+
+          if [[ "${{ matrix.os }}" == "macos-14" ]]; then
+            shasum -a 256 "../${ARCHIVE_BASENAME}" > "../${ARCHIVE_NAME}.sha256"
+          else
+            sha256sum "../${ARCHIVE_BASENAME}" > "../${ARCHIVE_NAME}.sha256"
+          fi
+          popd >/dev/null
+
+          mv "${ARCHIVE_BASENAME}" dist/
+          mv "${ARCHIVE_NAME}.sha256" dist/
+          echo "archive=${ARCHIVE_BASENAME}" >> "$GITHUB_OUTPUT"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
