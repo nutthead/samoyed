@@ -157,7 +157,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
         with:
           toolchain: ${{ matrix.toolchain || '1.90.0' }}
-          targets: ${{ matrix.target }}
+          target: ${{ matrix.target }}
           components: clippy, rustfmt
 
       # Platform-specific caching
@@ -182,9 +182,7 @@ jobs:
 
       # Test with single thread (required by project)
       - name: Run tests
-        run: |
-          cargo test --locked --target ${{ matrix.target }} ${{ matrix.test_args }} \
-            -- --test-threads=1
+        run: cargo test --locked --target ${{ matrix.target }} ${{ matrix.test_args }} -- --test-threads=1
 
       # Run integration tests
       - name: Integration tests
