@@ -101,10 +101,14 @@ jobs:
 
       - name: Install security tools
         run: |
+          # Ensure cargo bin directory is in PATH
+          export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
           cargo binstall --no-confirm --locked cargo-audit cargo-deny || cargo install cargo-audit cargo-deny
 
       - name: Security audit
         run: |
+          # Ensure cargo bin directory is in PATH
+          export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
           cargo audit --json | tee audit.json
           cargo deny check advisories
 
@@ -225,6 +229,8 @@ jobs:
 
       - name: Generate coverage
         run: |
+          # Ensure cargo bin directory is in PATH
+          export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
           # Using settings from .tarpaulin.toml
           cargo tarpaulin --timeout 120 --avoid-cfg-tarpaulin
 
