@@ -116,7 +116,7 @@ jobs:
           toolchain: 1.90.0
 
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
           cache-on-failure: true
           prefix-key: "v2-rust"
@@ -222,7 +222,7 @@ jobs:
           target: ${{ matrix.target }}
 
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
           cache-on-failure: true
           prefix-key: "v2-rust"
@@ -314,14 +314,14 @@ jobs:
           cosign-release: 'v2.4.0'
 
       - name: Generate build provenance
-        uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6ac1a86eb42ae # v1.4.5
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
         with:
           subject-path: 'artifacts/**/*.tar.gz'
           subject-name: 'samoyed'
           push-to-registry: true
 
       - name: Generate Windows provenance
-        uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6ac1a86eb42ae # v1.4.5
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
         with:
           subject-path: 'artifacts/**/*.zip'
           subject-name: 'samoyed'
@@ -413,7 +413,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    environment: release
+    # environment: release # Uncomment after creating 'release' environment in GitHub repo settings
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -508,7 +508,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    environment: crates-io
+    # environment: crates-io # Uncomment after creating 'crates-io' environment in GitHub repo settings
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -519,7 +519,7 @@ jobs:
           toolchain: 1.90.0
 
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
           cache-on-failure: false
 

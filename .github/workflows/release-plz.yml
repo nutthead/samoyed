@@ -63,7 +63,7 @@ jobs:
 
       - name: Setup Rust cache
         if: steps.check.outputs.should_release == 'true'
-        uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
           cache-on-failure: true
           prefix-key: "v2-rust"

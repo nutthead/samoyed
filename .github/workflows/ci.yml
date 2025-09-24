@@ -62,7 +62,7 @@ jobs:
 
       # Cache Rust dependencies
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
           cache-on-failure: true
           prefix-key: "v2-rust"
@@ -95,13 +95,14 @@ jobs:
         with:
           toolchain: 1.90.0
 
-      # Use cargo-binstall for faster tool installation
+      # Install cargo-binstall for faster tool installation
       - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@20aa316bab4942180bbbabe93237858e8d77f1ed # v1.15.5
+        run: |
+          curl --retry 10 -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 
       - name: Install security tools
         run: |
-          cargo binstall --no-confirm --locked cargo-audit cargo-deny
+          cargo binstall --no-confirm --locked cargo-audit cargo-deny || cargo install cargo-audit cargo-deny
 
       - name: Security audit
         run: |
@@ -156,13 +157,13 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
         with:
-          toolchain: ${{ matrix.toolchain || '1.90.0' }}
+          toolchain: 1.90.0
           target: ${{ matrix.target }}
           components: clippy, rustfmt
 
       # Platform-specific caching
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
           cache-on-failure: true
           prefix-key: "v2-rust"
@@ -211,7 +212,7 @@ jobs:
           toolchain: 1.90.0
 
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
           cache-on-failure: false
           save-if: false
