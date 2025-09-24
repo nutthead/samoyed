@@ -99,16 +99,12 @@ jobs:
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@20aa316bab4942180bbbabe93237858e8d77f1ed # v1.15.5
 
-      - name: Install security tools
+      - name: Install and run security audit
         run: |
-          # Ensure cargo bin directory is in PATH
-          export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+          # Install security tools with cargo-binstall
           cargo binstall --no-confirm --locked cargo-audit cargo-deny || cargo install cargo-audit cargo-deny
 
-      - name: Security audit
-        run: |
-          # Ensure cargo bin directory is in PATH
-          export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+          # Run security audit (tools are available in the same shell session)
           cargo audit --json | tee audit.json
           cargo deny check advisories
 
@@ -224,13 +220,12 @@ jobs:
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@20aa316bab4942180bbbabe93237858e8d77f1ed # v1.15.5
 
-      - name: Install tarpaulin
-        run: cargo binstall --no-confirm --locked cargo-tarpaulin
-
-      - name: Generate coverage
+      - name: Install and run tarpaulin
         run: |
-          # Ensure cargo bin directory is in PATH
-          export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+          # Install tarpaulin with cargo-binstall
+          cargo binstall --no-confirm --locked cargo-tarpaulin
+
+          # Run coverage generation (tarpaulin is available in the same shell session)
           # Using settings from .tarpaulin.toml
           cargo tarpaulin --timeout 120 --avoid-cfg-tarpaulin
 
