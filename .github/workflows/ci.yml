@@ -1,15 +1,15 @@
 # ============================================================================
-# Enhanced CI Pipeline with Modern Optimizations
+# CI Pipeline
 # ============================================================================
-# High-performance CI workflow featuring:
-# - Intelligent caching strategies
-# - Parallel job execution
-# - Fail-fast for critical checks
-# - Dependency caching with cargo-binstall
-# - Sccache for distributed compilation caching
+# CI workflow featuring:
+# - Rust build caching via Swatinem/rust-cache
+# - Parallel job execution across key platforms
+# - Fail-fast quick checks before the full test matrix
+# - Tool installation via cargo-binstall with fallbacks
+# - Coverage reporting and optional PR comments
 # - Merge queue support
 
-name: CI Enhanced
+name: CI
 
 on:
   pull_request:
@@ -20,10 +20,8 @@ on:
     types: [checks_requested]
   workflow_dispatch:
   schedule:
-    # Weekly security audit
     - cron: '0 0 * * MON'
 
-# Cancel in-progress runs for the same PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -42,9 +40,6 @@ permissions:
   checks: write
 
 jobs:
-  # ============================================================================
-  # Quick Checks - Fail fast on basic issues
-  # ============================================================================
   quick-check:
     name: Quick Checks
     runs-on: ubuntu-latest
@@ -60,7 +55,6 @@ jobs:
           toolchain: 1.90.0
           components: rustfmt, clippy
 
-      # Cache Rust dependencies
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
@@ -79,13 +73,10 @@ jobs:
         env:
           RUSTDOCFLAGS: "-D warnings"
 
-  # ============================================================================
-  # Dependency Audit - Security scanning
-  # ============================================================================
   security:
     name: Security Audit
     runs-on: ubuntu-latest
-    continue-on-error: true  # Don't fail the build on advisories
+    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -95,13 +86,11 @@ jobs:
         with:
           toolchain: 1.90.0
 
-      # Install cargo-binstall for faster tool installation
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@20aa316bab4942180bbbabe93237858e8d77f1ed # v1.15.5
 
       - name: Install and run security audit
         run: |
-          # Install security tools with cargo-binstall (fallback to cargo install if needed)
           cargo binstall --force --no-confirm --locked cargo-audit cargo-deny || {
             cargo install --locked cargo-audit
             cargo install --locked cargo-deny
@@ -114,7 +103,6 @@ jobs:
             fi
           done
 
-          # Run security audit (tools are available in the same shell session)
           cargo audit --json | tee audit.json
           cargo deny check advisories
 
@@ -126,9 +114,6 @@ jobs:
           path: audit.json
           retention-days: 30
 
-  # ============================================================================
-  # Test Matrix - Comprehensive testing across platforms
-  # ============================================================================
   test:
     name: Test ${{ matrix.name }}
     needs: [quick-check]
@@ -136,7 +121,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Primary platforms
           - os: ubuntu-latest
             name: Linux
             target: x86_64-unknown-linux-gnu
@@ -152,7 +136,6 @@ jobs:
             target: x86_64-pc-windows-msvc
             test_args: ""
 
-          # Additional test configurations
           - os: ubuntu-latest
             name: Linux (musl)
             target: x86_64-unknown-linux-musl
@@ -170,7 +153,6 @@ jobs:
           target: ${{ matrix.target }}
           components: clippy, rustfmt
 
-      # Platform-specific caching
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
@@ -179,22 +161,18 @@ jobs:
           key: ${{ matrix.target }}-${{ matrix.name }}
           save-if: ${{ github.ref == 'refs/heads/master' }}
 
-      # Install musl tools if needed
       - name: Install musl tools
         if: contains(matrix.target, 'musl')
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools
 
-      # Build
       - name: Build
         run: cargo build --locked --target ${{ matrix.target }} ${{ matrix.test_args }}
 
-      # Test with single thread (required by project)
       - name: Run tests
         run: cargo test --locked --target ${{ matrix.target }} ${{ matrix.test_args }} -- --test-threads=1
 
-      # Run integration tests
       - name: Integration tests
         run: |
           cargo build --locked --release --target ${{ matrix.target }}
@@ -204,9 +182,6 @@ jobs:
           done
         shell: sh
 
-  # ============================================================================
-  # Coverage Analysis with Tarpaulin
-  # ============================================================================
   coverage:
     name: Code Coverage
     needs: [test]
@@ -226,13 +201,11 @@ jobs:
           cache-on-failure: false
           save-if: false
 
-      # Use cargo-binstall for faster installation
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@20aa316bab4942180bbbabe93237858e8d77f1ed # v1.15.5
 
       - name: Install and run tarpaulin
         run: |
-          # Install tarpaulin with cargo-binstall; force reinstallation to ensure binary exists
           cargo binstall --force --no-confirm --locked cargo-tarpaulin || cargo install --locked cargo-tarpaulin
 
           if ! command -v cargo-tarpaulin >/dev/null 2>&1; then
@@ -240,8 +213,6 @@ jobs:
             cargo install --locked cargo-tarpaulin
           fi
 
-          # Run coverage generation (tarpaulin is available in the same shell session)
-          # Using settings from .tarpaulin.toml
           cargo tarpaulin --timeout 120 --avoid-cfg-tarpaulin
 
       - name: Upload coverage to Codecov
@@ -252,7 +223,6 @@ jobs:
           name: codecov-umbrella
           fail_ci_if_error: false
 
-      # Comment on PR with coverage
       - name: Install coverage parser
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
         run: npm install fast-xml-parser@5.2.5 dedent@1.7.0 --no-save --no-package-lock
@@ -355,9 +325,6 @@ jobs:
               body
             });
 
-  # ============================================================================
-  # Final Status Check
-  # ============================================================================
   ci-success:
     name: CI Success
     if: always()
@@ -374,7 +341,6 @@ jobs:
           fi
           echo "✅ All CI checks passed"
 
-      # Add status check for merge queue
       - name: Set merge queue status
         if: github.event_name == 'merge_group'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

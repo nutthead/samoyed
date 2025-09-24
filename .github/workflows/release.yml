@@ -1,26 +1,20 @@
 # ============================================================================
-# Samoyed Release Pipeline v3.0
+# Release Pipeline
 # ============================================================================
-# Production release workflow triggered by:
-# - Tag pushes (after release PR merge via release-plz)
-# - Manual workflow dispatch for emergency releases
-#
-# Features:
-# - Cross-platform binary compilation with cargo-dist
-# - SLSA Level 3 attestation with sigstore/cosign
-# - Security scanning and SBOM generation
-# - Automated changelog integration
-# - Optimized build caching
+# Automated production releases for Samoyed
+# - Triggered by tags or manual dispatch inputs
+# - Builds cross-platform artifacts with cargo-dist
+# - Generates SBOMs and signs artifacts via Sigstore
+# - Publishes GitHub releases and crates.io packages
+# - Posts release notes with installation guidance
 
 name: Release
 
 on:
-  # Triggered by tag pushes (created by release-plz after PR merge)
   push:
     tags:
       - "v*.*.*"
 
-  # Manual trigger for emergency releases
   workflow_dispatch:
     inputs:
       version:
@@ -33,7 +27,6 @@ on:
         type: boolean
         default: false
 
-# Minimal global permissions - elevated per job as needed
 permissions:
   contents: read
   actions: read
@@ -43,15 +36,11 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
   RUST_BACKTRACE: short
-  # Sigstore/cosign configuration
   COSIGN_EXPERIMENTAL: 1
   FULCIO_URL: https://fulcio.sigstore.dev
   REKOR_URL: https://rekor.sigstore.dev
 
 jobs:
-  # ============================================================================
-  # Extract Version Information
-  # ============================================================================
   prepare-release:
     name: Prepare Release
     runs-on: ubuntu-latest
@@ -67,17 +56,13 @@ jobs:
         id: version
         run: |
           if [[ "${{ github.event_name }}" == "push" ]]; then
-            # Extract version from tag
             VERSION="${GITHUB_REF#refs/tags/v}"
           elif [[ -n "${{ github.event.inputs.version }}" ]]; then
-            # Use manual input
             VERSION="${{ github.event.inputs.version }}"
           else
-            # Extract from Cargo.toml as last resort
             VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
           fi
 
-          # Validate version format
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$'; then
             echo "Invalid version format: $VERSION"
             exit 1
@@ -99,9 +84,6 @@ jobs:
             exit 1
           fi
 
-  # ============================================================================
-  # Security Scanning and SBOM Generation
-  # ============================================================================
   security-scan:
     name: Security Audit & SBOM
     runs-on: ubuntu-latest
@@ -132,7 +114,6 @@ jobs:
 
       - name: Install security tools
         run: |
-          # Only install if not cached
           command -v cargo-audit || cargo install cargo-audit --locked
           command -v cargo-cyclonedx || cargo install cargo-cyclonedx --locked
           command -v cargo-deny || cargo install cargo-deny --locked
@@ -140,7 +121,7 @@ jobs:
       - name: Run security audit
         run: |
           cargo audit --json > audit-report.json
-          cargo deny check --show-stats || true  # Don't fail on advisories
+          cargo deny check --show-stats || true
 
       - name: Generate SBOM
         run: |
@@ -157,9 +138,6 @@ jobs:
             sbom.xml
           retention-days: 90
 
-  # ============================================================================
-  # Cross-Platform Build Matrix
-  # ============================================================================
   build-binaries:
     name: Build ${{ matrix.target }}
     needs: [prepare-release]
@@ -167,7 +145,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux x86_64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             use_cross: false
@@ -176,7 +153,6 @@ jobs:
             target: x86_64-unknown-linux-musl
             use_cross: false
 
-          # Linux ARM64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             use_cross: true
@@ -185,12 +161,10 @@ jobs:
             target: aarch64-unknown-linux-musl
             use_cross: true
 
-          # macOS Apple Silicon
           - os: macos-14
             target: aarch64-apple-darwin
             use_cross: false
 
-          # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             use_cross: false
@@ -199,7 +173,6 @@ jobs:
             target: aarch64-pc-windows-msvc
             use_cross: false
 
-          # Additional architectures
           - os: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
             use_cross: true
@@ -266,7 +239,6 @@ jobs:
           cp "target/${{ matrix.target }}/release/${BINARY_NAME}" "dist/${BINARY_NAME}"
           cp README.md LICENSE dist/
 
-          # Create archive
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             7z a "dist/${ARCHIVE_NAME}.zip" ./dist/*
             echo "archive=${ARCHIVE_NAME}.zip" >> "$GITHUB_OUTPUT"
@@ -275,7 +247,6 @@ jobs:
             echo "archive=${ARCHIVE_NAME}.tar.gz" >> "$GITHUB_OUTPUT"
           fi
 
-          # Generate checksums
           cd dist
           if [[ "${{ matrix.os }}" == "macos-14" ]]; then
             shasum -a 256 "${ARCHIVE_NAME}"* > "${ARCHIVE_NAME}.sha256"
@@ -290,9 +261,6 @@ jobs:
           path: dist/*
           retention-days: 7
 
-  # ============================================================================
-  # SLSA Provenance and Attestation
-  # ============================================================================
   attestation:
     name: Generate Attestations
     needs: [build-binaries]
@@ -350,9 +318,6 @@ jobs:
             artifacts/**/*.crt
           retention-days: 90
 
-  # ============================================================================
-  # Generate Release Notes
-  # ============================================================================
   generate-changelog:
     name: Generate Changelog
     needs: [prepare-release]
@@ -373,10 +338,8 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Generate changelog for this release
           VERSION="${{ needs.prepare-release.outputs.version }}"
 
-          # Find the previous tag
           PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]' | sed -n '2p')
 
           if [[ -n "$PREV_TAG" ]]; then
@@ -387,10 +350,8 @@ jobs:
             CHANGELOG=$(git-cliff --strip all)
           fi
 
-          # Save to file for artifact
           echo "$CHANGELOG" > changelog.md
 
-          # Save to output (escape for GitHub Actions)
           {
             echo 'changelog<<EOF'
             echo "$CHANGELOG"
@@ -404,16 +365,12 @@ jobs:
           path: changelog.md
           retention-days: 7
 
-  # ============================================================================
-  # Publish GitHub Release
-  # ============================================================================
   publish-release:
     name: Publish GitHub Release
     needs: [prepare-release, build-binaries, attestation, security-scan, generate-changelog]
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    # environment: release # Uncomment after creating 'release' environment in GitHub repo settings
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -498,9 +455,6 @@ jobs:
             release-artifacts/security-reports/*
           generate_release_notes: false
 
-  # ============================================================================
-  # Publish to crates.io
-  # ============================================================================
   publish-crate:
     name: Publish to crates.io
     needs: [publish-release]
@@ -508,7 +462,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    # environment: crates-io # Uncomment after creating 'crates-io' environment in GitHub repo settings
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -525,7 +478,6 @@ jobs:
 
       - name: Verify package
         run: |
-          # Full verification before publishing
           cargo package --locked --allow-dirty
           cargo package --locked --list
 
@@ -534,9 +486,6 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-  # ============================================================================
-  # Post-Release Verification
-  # ============================================================================
   verify-release:
     name: Verify Release
     needs: [prepare-release, publish-release]
@@ -549,7 +498,6 @@ jobs:
         run: |
           VERSION="${{ needs.prepare-release.outputs.version }}"
 
-          # Download and verify a sample artifact
           curl -L -o test-artifact.tar.gz \
             "https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
 
@@ -559,7 +507,6 @@ jobs:
           curl -L -o test-artifact.tar.gz.crt \
             "https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-x86_64-unknown-linux-gnu.tar.gz.crt"
 
-          # Verify the signature
           cosign verify-blob \
             --certificate test-artifact.tar.gz.crt \
             --signature test-artifact.tar.gz.sig \
@@ -571,8 +518,6 @@ jobs:
         if: github.event.inputs.skip_publish != 'true'
         run: |
           VERSION="${{ needs.prepare-release.outputs.version }}"
-          # Wait for crates.io to update
           sleep 30
 
-          # Check if the version is available
           curl -s "https://crates.io/api/v1/crates/samoyed/${VERSION}" | jq -r '.version.num'

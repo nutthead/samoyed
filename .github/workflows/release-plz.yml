@@ -1,8 +1,11 @@
 # ============================================================================
-# Release-plz Tag Creation Workflow
+# Release-plz Tag Workflow
 # ============================================================================
-# This workflow runs when release PRs are merged and creates the actual release
-# tags using release-plz, which then triggers the main release workflow.
+# Automated release tagging with release-plz
+# - Detects Cargo.toml version bumps on master
+# - Creates annotated tags to trigger the release pipeline
+# - Uses rust-cache for faster tool setup
+# - Requires write access for tag pushes
 
 name: Release-plz Tag
 
@@ -10,7 +13,6 @@ on:
   push:
     branches: [master]
 
-# Permissions needed to create tags
 permissions:
   contents: write
 
@@ -22,7 +24,6 @@ jobs:
   release-tag:
     name: Create Release Tag
     runs-on: ubuntu-latest
-    # Only run when a release PR is merged (detected by version bump in Cargo.toml)
     if: |
       github.event.pusher.name != 'github-actions[bot]' &&
       !contains(github.event.head_commit.message, '[skip ci]')
@@ -36,9 +37,7 @@ jobs:
       - name: Check for version change
         id: check
         run: |
-          # Check if Cargo.toml was modified in this commit
           if git diff HEAD~1 HEAD --name-only | grep -q "^Cargo.toml$"; then
-            # Extract versions
             PREV_VERSION=$(git show HEAD~1:Cargo.toml | grep '^version' | head -1 | cut -d'"' -f2)
             CURR_VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
 

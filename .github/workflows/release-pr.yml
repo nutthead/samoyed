@@ -1,9 +1,11 @@
 # ============================================================================
-# Release PR Workflow - Creates and manages release pull requests
+# Release PR Workflow
 # ============================================================================
-# This workflow uses release-plz to automatically create release PRs based on
-# conventional commits. The actual release happens in a separate workflow
-# triggered by tag pushes after PR merge.
+# Automated release management with release-plz
+# - Monitors master for versionable changes
+# - Opens or updates release pull requests
+# - Uses rust-cache for faster runs
+# - Respects [skip ci] commit hints
 
 name: Release PR
 
@@ -11,7 +13,6 @@ on:
   push:
     branches: [master]
 
-# Minimal permissions - only what's needed for PR creation
 permissions:
   contents: read
   pull-requests: write
