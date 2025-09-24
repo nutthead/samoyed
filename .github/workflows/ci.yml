@@ -232,8 +232,13 @@ jobs:
 
       - name: Install and run tarpaulin
         run: |
-          # Install tarpaulin with cargo-binstall
-          cargo binstall --no-confirm --locked cargo-tarpaulin
+          # Install tarpaulin with cargo-binstall; force reinstallation to ensure binary exists
+          cargo binstall --force --no-confirm --locked cargo-tarpaulin || cargo install --locked cargo-tarpaulin
+
+          if ! command -v cargo-tarpaulin >/dev/null 2>&1; then
+            echo "cargo-tarpaulin binary missing after installation attempts" >&2
+            cargo install --locked cargo-tarpaulin
+          fi
 
           # Run coverage generation (tarpaulin is available in the same shell session)
           # Using settings from .tarpaulin.toml
