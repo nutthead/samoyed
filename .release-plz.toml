@@ -123,25 +123,3 @@ commit_parsers = [
   { message = "^build", group = "📦 Build System" },
   { message = "^ci", group = "👷 CI/CD" },
 ]
-
-# ============================================================================
-# Version bump rules
-# ============================================================================
-# Based on conventional commits and breaking changes
-[package.version]
-# Don't bump version if only chore commits
-ignore_chore = true
-
-# Version source (Cargo.toml)
-source = "cargo"
-
-# Semantic versioning rules
-[package.semver]
-# Breaking changes trigger major version bump (unless pre-1.0)
-breaking_always_major = false
-
-# Feature commits trigger minor version bump
-features_always_minor = true
-
-# All other commits trigger patch version bump
-patches_always_patch = true
