@@ -16,11 +16,17 @@ exclude = [
   ".gitignore",
   ".samoyed/",
   ".docs/",
-  "src/unit_tests/",
+  ".assets/",
+  ".cargo/",
   ".markdownlint.json",
   ".tarpaulin.toml",
+  ".release-plz.toml",
+  "clippy.toml",
   "CLAUDE.md",
-  "samoyed.toml",
+  "AGENTS.md",
+  "flake.nix",
+  "flake.lock",
+  "tmp/",
 ]
 
 
