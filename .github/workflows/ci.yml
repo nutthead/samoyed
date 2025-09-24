@@ -1,243 +1,360 @@
 # ============================================================================
-# Continuous Integration Workflow
+# CI Pipeline
 # ============================================================================
-# Ensures code quality and correctness across all supported platforms.
-# Runs on every push to master, pull request, and can be manually triggered.
-# Tests matrix covers Linux, macOS, and Windows to catch platform-specific
-# issues before release.
+# CI workflow featuring:
+# - Rust build caching via Swatinem/rust-cache
+# - Parallel job execution across key platforms
+# - Fail-fast quick checks before the full test matrix
+# - Tool installation via cargo-binstall with fallbacks
+# - Coverage reporting and optional PR comments
+# - Merge queue support
 
 name: CI
 
 on:
-  push:
   pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [master]
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * MON'
 
-# Write permissions needed for uploading coverage artifacts, PR write access
-# required for posting coverage comments on pull requests.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_VERSION: "1.90.0"
+  CARGO_TERM_COLOR: always
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+  RUST_BACKTRACE: short
+  RUSTFLAGS: "-D warnings"
+
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
+  actions: read
+  checks: write
 
 jobs:
-  # ============================================================================
-  # Cross-Platform Testing
-  # ============================================================================
-  # Validates formatting, linting, and tests across all target platforms.
-  # fail-fast disabled to see all platform results even if one fails, helping
-  # identify platform-specific issues versus general bugs.
-  test:
-    name: Test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, macos-latest, windows-latest]
-    env:
-      CARGO_TERM_COLOR: always
+  quick-check:
+    name: Quick Checks
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
 
-      # Pinned version ensures consistent behavior across CI and release builds.
-      # Components needed for formatting and linting checks.
-      - name: Install Rust 1.90.0
-        uses: actions-rust-lang/setup-rust-toolchain@v1.15.0
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
         with:
           toolchain: 1.90.0
-          components: clippy, rustfmt
+          components: rustfmt, clippy
 
-      # Manual cache configuration instead of Swatinem/rust-cache for finer
-      # control over cache keys and paths. OS-specific key prevents cache
-      # pollution between platforms.
-      - name: Cache cargo directories
-        uses: actions/cache@v4.2.4
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-1.90.0-${{ hashFiles('**/Cargo.lock') }}
+          cache-on-failure: true
+          prefix-key: "v2-rust"
+          key: quick-check
 
-      # Formatting check enforces consistent code style across contributions.
-      # POSIX shell for maximum portability across all platforms.
       - name: Check formatting
         run: cargo fmt --all -- --check
-        shell: sh
 
-      # Clippy with -D warnings ensures no linting issues slip through.
-      # all-targets includes tests, benches, and examples in analysis.
-      - name: Run clippy
+      - name: Clippy (fail-fast)
         run: cargo clippy --all-targets --all-features -- -D warnings
-        shell: sh
 
-      # Serial test execution required to prevent race conditions in file
-      # operations, particularly for hook installation tests.
-      - name: Run unit tests
-        run: cargo test -- --test-threads=1
-        shell: sh
+      - name: Check documentation
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: "-D warnings"
 
-      # Release build ensures tests run against optimized binary matching
-      # production behavior. Now enabled for all platforms including Windows.
-      - name: Build release binary for integration tests
-        run: cargo build --release
-        shell: sh
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-      # POSIX-compliant shell scripts should work across all platforms with
-      # Git Bash on Windows. set -eu ensures script failures are properly
-      # detected (pipefail is bash-specific, not POSIX).
-      - name: Run integration tests
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
+        with:
+          toolchain: 1.90.0
+
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@20aa316bab4942180bbbabe93237858e8d77f1ed # v1.15.5
+
+      - name: Install and run security audit
         run: |
-          set -eu
-          exit_code=0
-          for script in tests/integration/*.sh; do
-            echo "Running ${script}"
-            if ! sh "$script"; then
-              echo "❌ Test failed: $script"
-              exit_code=1
-            else
-              echo "✅ Test passed: $script"
+          cargo binstall --force --no-confirm --locked cargo-audit cargo-deny || {
+            cargo install --locked cargo-audit
+            cargo install --locked cargo-deny
+          }
+
+          for tool in cargo-audit cargo-deny; do
+            if ! command -v "$tool" >/dev/null 2>&1; then
+              echo "${tool} is missing after installation attempts" >&2
+              cargo install --locked "$tool"
             fi
           done
 
-          # Force cleanup and exit with proper code
-          if [ $exit_code -ne 0 ]; then
-            echo "Some tests failed"
-            exit 1
-          fi
-          echo "All integration tests passed"
-        shell: sh
+          cargo audit --json | tee audit.json
+          cargo deny check advisories
 
-  # ============================================================================
-  # Code Coverage Analysis
-  # ============================================================================
-  # Generates coverage metrics to track test completeness. Runs after tests
-  # to avoid blocking on coverage tool issues. Ubuntu-only as tarpaulin
-  # requires Linux-specific instrumentation.
-  coverage:
-    name: Coverage (tarpaulin)
-    runs-on: ubuntu-24.04
-    needs: test
-    env:
-      CARGO_TERM_COLOR: always
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: security-audit
+          path: audit.json
+          retention-days: 30
+
+  test:
+    name: Test ${{ matrix.name }}
+    needs: [quick-check]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux
+            target: x86_64-unknown-linux-gnu
+            test_args: ""
+
+          - os: macos-14
+            name: macOS (ARM)
+            target: aarch64-apple-darwin
+            test_args: ""
+
+          - os: windows-latest
+            name: Windows
+            target: x86_64-pc-windows-msvc
+            test_args: ""
+
+          - os: ubuntu-latest
+            name: Linux (musl)
+            target: x86_64-unknown-linux-musl
+            test_args: ""
+
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-      - name: Install Rust 1.90.0
-        uses: actions-rust-lang/setup-rust-toolchain@v1.15.0
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
+        with:
+          toolchain: 1.90.0
+          target: ${{ matrix.target }}
+          components: clippy, rustfmt
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
+        with:
+          cache-on-failure: true
+          prefix-key: "v2-rust"
+          key: ${{ matrix.target }}-${{ matrix.name }}
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+
+      - name: Install musl tools
+        if: contains(matrix.target, 'musl')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build
+        run: cargo build --locked --target ${{ matrix.target }} ${{ matrix.test_args }}
+
+      - name: Run tests
+        run: cargo test --locked --target ${{ matrix.target }} ${{ matrix.test_args }} -- --test-threads=1
+
+      - name: Integration tests
+        run: |
+          cargo build --locked --release --target ${{ matrix.target }}
+          for script in tests/integration/*.sh; do
+            echo "Running ${script}"
+            bash "$script"
+          done
+        shell: sh
+
+  coverage:
+    name: Code Coverage
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
         with:
           toolchain: 1.90.0
 
-      # Manual cache configuration instead of Swatinem/rust-cache for finer
-      # control over cache keys and paths. OS-specific key prevents cache
-      # pollution between platforms.
-      - name: Cache cargo directories
-        uses: actions/cache@v4.2.4
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-1.90.0-${{ hashFiles('**/Cargo.lock') }}
+          cache-on-failure: false
+          save-if: false
 
-      # Direct installation instead of caching due to tarpaulin's frequent
-      # updates and platform-specific compilation requirements.
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin --locked
-        shell: sh
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@20aa316bab4942180bbbabe93237858e8d77f1ed # v1.15.5
 
-      # Multiple output formats for different consumers: HTML for human review,
-      # XML for PR comments, JSON for custom processing, LCOV for IDE integration.
-      # Serial test execution maintains consistency with test job.
-      - name: Generate coverage report
-        run: cargo tarpaulin --out Html --out Json --out Xml --out Lcov -- --test-threads=1
-        shell: sh
+      - name: Install and run tarpaulin
+        run: |
+          cargo binstall --force --no-confirm --locked cargo-tarpaulin || cargo install --locked cargo-tarpaulin
 
-      # Artifacts retained for manual inspection and debugging. 7-day retention
-      # balances storage costs with debugging needs.
-      - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4.6.2
+          if ! command -v cargo-tarpaulin >/dev/null 2>&1; then
+            echo "cargo-tarpaulin binary missing after installation attempts" >&2
+            cargo install --locked cargo-tarpaulin
+          fi
+
+          cargo tarpaulin --timeout 120 --avoid-cfg-tarpaulin
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@af09b5e394c93991b95a5e7646aeb90c1917f78f # v5.5.1
         with:
-          name: tarpaulin-report
-          path: target/tarpaulin/
-          retention-days: 7
-          if-no-files-found: error
+          files: target/tarpaulin/cobertura.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
 
-      # xml2js required for parsing Cobertura XML in JavaScript environment.
-      # Node.js available by default on GitHub runners.
-      - name: Install xml2js
-        run: npm install xml2js
-        shell: sh
+      - name: Install coverage parser
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        run: npm install fast-xml-parser@5.2.5 dedent@1.7.0 --no-save --no-package-lock
 
-      # Automated coverage reporting provides immediate feedback on PR impact.
-      # Only runs for PRs to avoid noise on direct pushes.
-      - name: Comment PR with coverage
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs');
-            const { parseString } = require('xml2js');
-            const path = 'target/tarpaulin/cobertura.xml';
-            
-            if (fs.existsSync(path)) {
-              const xmlData = fs.readFileSync(path, 'utf8');
-              
-              return new Promise((resolve, reject) => {
-                parseString(xmlData, (err, result) => {
-                  if (err) {
-                    console.error('Error parsing XML:', err);
-                    resolve();
-                    return;
-                  }
-                  
-                  try {
-                    const coverage = result.coverage.$;
-                    const lineRate = parseFloat(coverage['line-rate']);
-                    const linesCovered = parseInt(coverage['lines-covered']);
-                    const linesValid = parseInt(coverage['lines-valid']);
-                    
-                    const coveragePercent = Math.round(lineRate * 100);
-                    
-                    const comment = dedent(`
-                    ## 📊 Code Coverage Report
+            const { XMLParser } = require('fast-xml-parser');
+            const dedent = require('dedent');
 
-                    **Coverage:** ${coveragePercent}% (${linesCovered}/${linesValid} lines)
+            const parser = new XMLParser({
+              ignoreAttributes: false,
+              attributeNamePrefix: ''
+            });
 
-                    📈 [View detailed coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            const rawXml = fs.readFileSync('target/tarpaulin/cobertura.xml', 'utf8');
+            const parsed = parser.parse(rawXml);
+            const coverage = parsed.coverage;
 
-                    ---
-                    *Generated by [cargo-tarpaulin](https://github.com/xd009642/tarpaulin)*
-                    `);
+            const linesCovered = Number(coverage['lines-covered'] ?? 0);
+            const linesValid = Number(coverage['lines-valid'] ?? 0);
+            const lineRate = Number(coverage['line-rate'] ?? 0);
+            const lineCoveragePercent = (lineRate * 100).toFixed(2);
 
-                    // Dedent preserves readability in source while producing clean output.
-                    // Calculates minimum indentation to strip from all lines.
-                    function dedent(str) {
-                      const lines = str.split('\n');
-                      const nonEmptyLines = lines.filter(line => line.trim() !== '');
-                      if (nonEmptyLines.length === 0) return str;
-                      
-                      const minIndent = Math.min(...nonEmptyLines.map(line => {
-                        const match = line.match(/^(\s*)/);
-                        return match ? match[1].length : 0;
-                      }));
-                      
-                      return lines.map(line => line.slice(minIndent)).join('\n').trim();
-                    }
-                    
-                    github.rest.issues.createComment({
-                      issue_number: context.issue.number,
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      body: comment
-                    }).then(resolve).catch(reject);
-                  } catch (parseError) {
-                    console.error('Error parsing coverage data:', parseError);
-                    resolve();
-                  }
-                });
-              });
-            }
+            const branchesCovered = Number(coverage['branches-covered'] ?? 0);
+            const branchesValid = Number(coverage['branches-valid'] ?? 0);
+            const branchRate = Number(coverage['branch-rate'] ?? 0);
+            const branchCoveragePercent = branchesValid > 0
+              ? `${(branchRate * 100).toFixed(2)}%`
+              : 'N/A';
 
-  
+            const complexity = coverage.complexity ?? 'N/A';
+            const timestampSeconds = Number(coverage.timestamp);
+            const timestamp = Number.isFinite(timestampSeconds)
+              ? new Date(timestampSeconds * 1000).toISOString()
+              : 'N/A';
+
+            const packages = coverage.packages?.package ?? [];
+            const packageList = Array.isArray(packages) ? packages : [packages];
+            const classList = packageList.flatMap(pkg => {
+              const classes = pkg?.classes?.class ?? [];
+              return Array.isArray(classes) ? classes : [classes];
+            }).filter(Boolean);
+
+            const fileSummaries = classList.map(cls => {
+              const filename = cls?.filename;
+              const fileLineRate = Number(cls?.['line-rate'] ?? 0);
+              return filename ? {
+                filename,
+                coverage: Number.isFinite(fileLineRate) ? (fileLineRate * 100).toFixed(1) : 'N/A'
+              } : null;
+            }).filter(Boolean);
+
+            const filesReported = fileSummaries.length;
+            const detailedReport = fileSummaries.length > 0
+              ? fileSummaries
+                  .sort((a, b) => a.filename.localeCompare(b.filename))
+                  .map(({ filename, coverage }) => `${filename}: ${coverage}%`)
+                  .join('\n')
+              : 'No per-file coverage data available.';
+
+            const coverageTable = `| Metric | Covered | Total | Rate |\n` +
+              `|--------|--------:|------:|------:|\n` +
+              `| Lines | ${linesCovered} | ${linesValid} | ${lineCoveragePercent}% |\n` +
+              `| Branches | ${branchesCovered} | ${branchesValid} | ${branchCoveragePercent} |`;
+
+            const metadataTable = `| Additional Metric | Value |\n` +
+              `|-------------------|-------|\n` +
+              `| Complexity | ${complexity} |\n` +
+              `| Files Reported | ${filesReported} |\n` +
+              `| Report Timestamp | ${timestamp} |`;
+
+            const body = dedent`
+              ## 📊 Coverage Report
+
+              ${coverageTable}
+
+              ${metadataTable}
+
+              <details>
+              <summary>View detailed report</summary>
+
+              \`\`\`
+              ${detailedReport}
+              \`\`\`
+
+              </details>
+
+              ---
+              *Generated by cargo-tarpaulin*
+            `;
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+  ci-success:
+    name: CI Success
+    if: always()
+    needs: [quick-check, security, test, coverage]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status
+        run: |
+          if [[ "${{ needs.quick-check.result }}" != "success" ]] ||
+             [[ "${{ needs.test.result }}" != "success" ]] ||
+             [[ "${{ needs.coverage.result }}" != "success" ]]; then
+            echo "❌ CI failed"
+            exit 1
+          fi
+          echo "✅ All CI checks passed"
+
+      - name: Set merge queue status
+        if: github.event_name == 'merge_group'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'CI Status',
+              head_sha: context.sha,
+              status: 'completed',
+              conclusion: 'success',
+              output: {
+                title: 'CI Passed',
+                summary: 'All CI checks completed successfully'
+              }
+            });

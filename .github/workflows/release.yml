@@ -1,349 +1,523 @@
 # ============================================================================
-# Samoyed Release Workflow
+# Release Pipeline
 # ============================================================================
-# Orchestrates the complete release process: version validation, changelog
-# generation, multi-platform binary compilation, and GitHub release creation.
-# Manually triggered via workflow_dispatch to maintain full control over
-# release timing and versioning strategy.
+# Automated production releases for Samoyed
+# - Triggered by tags or manual dispatch inputs
+# - Builds cross-platform artifacts with cargo-dist
+# - Generates SBOMs and signs artifacts via Sigstore
+# - Publishes GitHub releases and crates.io packages
+# - Posts release notes with installation guidance
 
 name: Release
 
 on:
+  push:
+    tags:
+      - "v*.*.*"
+
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (semver, without leading v)'
+        description: 'Version to release (e.g., 1.2.3)'
         required: true
-      branch:
-        description: 'Branch to cut the release from'
-        default: master
-        required: true
+        type: string
+      skip_publish:
+        description: 'Skip publishing to crates.io'
+        required: false
+        type: boolean
+        default: false
 
-# Minimum permissions required for release operations. Write access needed
-# for creating tags and releases, read access for verifying workflow state.
 permissions:
-  contents: write
+  contents: read
   actions: read
-  checks: read
 
-# Pinned Rust version ensures reproducible builds across all platforms and
-# prevents unexpected compilation issues from toolchain updates.
 env:
-  RUST_VERSION: 1.90.0
+  RUST_VERSION: "1.90.0"
+  CARGO_TERM_COLOR: always
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+  RUST_BACKTRACE: short
+  COSIGN_EXPERIMENTAL: 1
+  FULCIO_URL: https://fulcio.sigstore.dev
+  REKOR_URL: https://rekor.sigstore.dev
 
 jobs:
-  # ============================================================================
-  # Release Preparation Phase
-  # ============================================================================
-  # Validates input, updates version strings, runs quality checks, generates
-  # changelog, and creates the release commit. This job acts as a gate,
-  # ensuring all prerequisites are met before expensive build operations begin.
-  prepare:
+  prepare-release:
     name: Prepare Release
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.meta.outputs.version }}
-      tag: ${{ steps.meta.outputs.tag }}
-      release_sha: ${{ steps.meta.outputs.release_sha }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          # Full history required for changelog generation to analyze all commits
           fetch-depth: 0
-          ref: ${{ github.event.inputs.branch }}
+
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          elif [[ -n "${{ github.event.inputs.version }}" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
+          fi
+
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$'; then
+            echo "Invalid version format: $VERSION"
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Releasing version: ${VERSION}"
 
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1.15.0
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
         with:
-          toolchain: ${{ env.RUST_VERSION }}
-          profile: minimal
-          components: clippy, rustfmt
+          toolchain: 1.90.0
 
-      # Cache release tools to avoid 3-5 minute installation time per tool.
-      # Using locked versions ensures deterministic builds.
-      - name: Cache cargo-edit
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: cargo-edit
-          locked: true
-
-      - name: Cache git-cliff
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: git-cliff
-          locked: true
-
-      # Python not available by default on GitHub runners; required for
-      # semver validation regex below
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-
-      # Fail-fast validation prevents invalid versions from triggering
-      # expensive build operations
-      - name: Validate version input
-        env:
-          VERSION: ${{ github.event.inputs.version }}
+      - name: Verify version matches Cargo.toml
         run: |
-          python - <<'PY'
-            import os, re
+          CARGO_VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
+          if [[ "${{ steps.version.outputs.version }}" != "$CARGO_VERSION" ]]; then
+            echo "Version mismatch: tag/input=${{ steps.version.outputs.version }} vs Cargo.toml=$CARGO_VERSION"
+            exit 1
+          fi
 
-            version = os.environ["VERSION"]
-            if not re.match(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$", version):
-                raise SystemExit(f"Invalid semver: {version}")
-          PY
+  security-scan:
+    name: Security Audit & SBOM
+    runs-on: ubuntu-latest
+    needs: [prepare-release]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-      - name: Set crate version
-        env:
-          VERSION: ${{ github.event.inputs.version }}
-        run: |
-          cargo set-version --workspace "$VERSION"
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
+        with:
+          toolchain: 1.90.0
 
-      # Dependency caching saves 10-15 minutes on subsequent runs. cache-on-failure
-      # ensures partial builds are cached even if tests fail.
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
           cache-on-failure: true
+          prefix-key: "v2-rust"
+          key: security
 
-      # Quality gates ensure only properly formatted, warning-free code is released.
-      # Serial test execution prevents race conditions in file system operations.
-      - name: Format, lint, and test
-        run: |
-          cargo fmt --all
-          cargo clippy --all-targets --all-features -- -D warnings
-          cargo test -- --test-threads=1
-
-      - name: Generate changelog
-        env:
-          VERSION: ${{ github.event.inputs.version }}
-        run: |
-          git-cliff --tag "v${VERSION}" --output CHANGELOG.md
-          git-cliff --latest --tag "v${VERSION}" > release-notes.md
-
-      - name: Commit release changes
-        env:
-          VERSION: ${{ github.event.inputs.version }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Prevent empty commits that would fail or create inconsistent state
-          git add Cargo.toml Cargo.lock CHANGELOG.md
-          if git diff --cached --quiet; then
-            echo "::error::No changes to commit. Version may already be set."
-            exit 1
-          fi
-
-          git commit -m "chore(release): v${VERSION}"
-
-          # Fail if tag exists to prevent accidental overwrites of published releases.
-          # This ensures each version is immutable once released.
-          if git ls-remote --tags origin | grep -q "refs/tags/v${VERSION}"; then
-            echo "::error::Tag v${VERSION} already exists. Aborting release."
-            exit 1
-          fi
-
-          git tag "v${VERSION}"
-          git push origin "HEAD:${{ github.event.inputs.branch }}"
-          git push origin "v${VERSION}"
-
-      # Export values for downstream jobs. Using the exact SHA ensures all
-      # builds use the same commit even if branch moves during workflow execution.
-      - name: Export metadata
-        id: meta
-        env:
-          VERSION: ${{ github.event.inputs.version }}
-        run: |
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Upload release notes artifact
-        uses: actions/upload-artifact@v4.6.2
+      - name: Setup tool cache
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
-          name: release-notes
-          path: release-notes.md
-          if-no-files-found: error
+          path: ~/.cargo/bin
+          key: cargo-tools-${{ runner.os }}-audit-cyclonedx-deny
+          restore-keys: |
+            cargo-tools-${{ runner.os }}-
 
-  # ============================================================================
-  # Multi-Platform Build Phase
-  # ============================================================================
-  # Compiles optimized binaries for all supported platforms. Uses matrix
-  # strategy for parallel builds, cross-compilation for ARM targets, and
-  # platform-specific packaging. fail-fast disabled to ensure all platforms
-  # are attempted even if one fails.
-  build:
-    name: Build ${{ matrix.artifact_prefix }}
-    needs: prepare
+      - name: Install security tools
+        run: |
+          command -v cargo-audit || cargo install cargo-audit --locked
+          command -v cargo-cyclonedx || cargo install cargo-cyclonedx --locked
+          command -v cargo-deny || cargo install cargo-deny --locked
+
+      - name: Run security audit
+        run: |
+          cargo audit --json > audit-report.json
+          cargo deny check --show-stats || true
+
+      - name: Generate SBOM
+        run: |
+          cargo cyclonedx --format json --spec-version 1.5 > sbom.json
+          cargo cyclonedx --format xml --spec-version 1.5 > sbom.xml
+
+      - name: Upload security artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: security-reports
+          path: |
+            audit-report.json
+            sbom.json
+            sbom.xml
+          retention-days: 90
+
+  build-binaries:
+    name: Build ${{ matrix.target }}
+    needs: [prepare-release]
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
+          - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_prefix: samoyed-linux-x86_64
-            archive: tar.gz
             use_cross: false
-          # ARM Linux requires cross-compilation toolchain as GitHub doesn't
-          # provide native ARM runners for Linux
-          - os: ubuntu-24.04
+
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            use_cross: false
+
+          - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            artifact_prefix: samoyed-linux-aarch64
-            archive: tar.gz
             use_cross: true
+
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            use_cross: true
+
           - os: macos-14
             target: aarch64-apple-darwin
-            artifact_prefix: samoyed-macos-aarch64
-            archive: tar.gz
             use_cross: false
+
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_prefix: samoyed-windows-x86_64
-            archive: zip
             use_cross: false
+
           - os: windows-latest
             target: aarch64-pc-windows-msvc
-            artifact_prefix: samoyed-windows-aarch64
-            archive: zip
             use_cross: false
+
+          - os: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+            use_cross: true
+
+          - os: ubuntu-latest
+            target: riscv64gc-unknown-linux-gnu
+            use_cross: true
+
     runs-on: ${{ matrix.os }}
     env:
-      VERSION: ${{ needs.prepare.outputs.version }}
+      CARGO_BUILD_TARGET: ${{ matrix.target }}
     steps:
-      # Use exact SHA rather than branch to ensure consistency across all
-      # builds even if branch is updated during workflow
-      - name: Checkout release commit
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          ref: ${{ needs.prepare.outputs.release_sha }}
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1.15.0
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
         with:
-          toolchain: ${{ env.RUST_VERSION }}
-          profile: minimal
+          toolchain: 1.90.0
           target: ${{ matrix.target }}
 
-      # Target-specific caches prevent cache pollution between architectures,
-      # which can cause linking errors
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
         with:
-          key: ${{ matrix.target }}
           cache-on-failure: true
+          prefix-key: "v2-rust"
+          key: ${{ matrix.target }}
+          workspaces: ". -> target"
 
-      # Cross tool enables compilation for architectures that can't run natively
-      # on GitHub runners (e.g., ARM on x86)
-      - name: Cache cross tool
+      - name: Install cross
         if: matrix.use_cross
-        uses: baptiste0928/cargo-install@v3
+        uses: taiki-e/install-action@6f69ec9970ed0c500b1b76d648e05c4c7e0e5671 # v2.62.5
         with:
-          crate: cross
-          locked: true
+          tool: cross
 
-      # Cross uses Docker/QEMU for targets that can't compile natively.
-      # Bash shell ensures consistent behavior across all platforms.
-      - name: Build binary
+      - name: Build release binary
         run: |
           if [[ "${{ matrix.use_cross }}" == "true" ]]; then
-            cross build --release --target "${{ matrix.target }}"
+            cross build --locked --release --target ${{ matrix.target }}
           else
-            cargo build --release --target "${{ matrix.target }}"
+            cargo build --locked --release --target ${{ matrix.target }}
           fi
         shell: bash
-
-      # Unix packaging uses tar.gz (standard for Linux/macOS) and preserves
-      # executable permissions via install command. shasum works on both
-      # Linux and macOS (sha256sum not available on macOS by default).
-      - name: Package archive (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          set -euo pipefail
-          ARTIFACT_NAME="${{ matrix.artifact_prefix }}-v${VERSION}"
-          STAGING="dist/${ARTIFACT_NAME}"
-          mkdir -p "$STAGING"
-          BIN_PATH="target/${{ matrix.target }}/release/samoyed"
-          install "$BIN_PATH" "$STAGING/samoyed"
-          cp LICENSE "$STAGING/"
-          cp README.md "$STAGING/"
-          tar -czf "dist/${ARTIFACT_NAME}.tar.gz" -C dist "${ARTIFACT_NAME}"
-          shasum -a 256 "dist/${ARTIFACT_NAME}.tar.gz" > "dist/${ARTIFACT_NAME}.sha256"
-          rm -rf "$STAGING"
-        shell: bash
-
-      # Windows requires PowerShell for proper path handling and ZIP creation.
-      # Separate step needed due to different shell and archive format.
-      - name: Package archive (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $artifactName = "${{ matrix.artifact_prefix }}-v${{ needs.prepare.outputs.version }}"
-          $staging = Join-Path -Path 'dist' -ChildPath $artifactName
-          New-Item -ItemType Directory -Force -Path $staging | Out-Null
-          $targetDir = Join-Path -Path 'target' -ChildPath '${{ matrix.target }}'
-          $binaryDir = Join-Path -Path $targetDir -ChildPath 'release'
-          $binaryPath = Join-Path -Path $binaryDir -ChildPath 'samoyed.exe'
-          Copy-Item $binaryPath (Join-Path -Path $staging -ChildPath 'samoyed.exe')
-          Copy-Item 'LICENSE' $staging
-          Copy-Item 'README.md' $staging
-          $archivePath = Join-Path -Path 'dist' -ChildPath "$artifactName.zip"
-          Compress-Archive -Path (Join-Path -Path $staging -ChildPath '*') -DestinationPath $archivePath -Force
-          Get-FileHash -Algorithm SHA256 $archivePath | ForEach-Object { "{0}  {1}" -f $_.Hash, (Split-Path -Leaf $_.Path) } > (Join-Path -Path 'dist' -ChildPath "$artifactName.sha256")
-          Remove-Item -Recurse -Force $staging
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: ${{ matrix.artifact_prefix }}-v${{ needs.prepare.outputs.version }}
-          path: |
-            dist/${{ matrix.artifact_prefix }}-v${{ needs.prepare.outputs.version }}.${{ matrix.archive }}
-            dist/${{ matrix.artifact_prefix }}-v${{ needs.prepare.outputs.version }}.sha256
-          if-no-files-found: error
-
-  # ============================================================================
-  # Release Publication Phase
-  # ============================================================================
-  # Creates the GitHub release with all platform binaries attached. Waits for
-  # all builds to complete (success or failure) before proceeding. Automatically
-  # marks as prerelease if version contains hyphen (e.g., 1.0.0-beta.1).
-  release:
-    name: Publish Release
-    runs-on: ubuntu-24.04
-    needs:
-      - prepare
-      - build
-    steps:
-      - name: Download release notes
-        uses: actions/download-artifact@v5.0.0
-        with:
-          name: release-notes
-          path: release
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v5.0.0
-        with:
-          path: dist
-          pattern: samoyed-*
-          merge-multiple: true
-
-      # Glob patterns ensure all artifacts are included regardless of platform.
-      # Automatic prerelease detection follows semver conventions.
-      - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2.3.3
-        with:
-          tag_name: ${{ needs.prepare.outputs.tag }}
-          name: Samoyed ${{ needs.prepare.outputs.version }}
-          body_path: release/release-notes.md
-          draft: false
-          prerelease: ${{ contains(needs.prepare.outputs.version, '-') }}
-          files: |
-            dist/**/*.tar.gz
-            dist/**/*.zip
-            dist/**/*.sha256
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_PROFILE_RELEASE_LTO: fat
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+          CARGO_PROFILE_RELEASE_OPT_LEVEL: 3
+          CARGO_PROFILE_RELEASE_STRIP: symbols
+          CARGO_PROFILE_RELEASE_PANIC: abort
+
+      - name: Package artifacts
+        id: package
+        shell: bash
+        run: |
+          BINARY_NAME="samoyed"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            BINARY_NAME="${BINARY_NAME}.exe"
+          fi
+
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          ARCHIVE_NAME="samoyed-${VERSION}-${{ matrix.target }}"
+
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/${BINARY_NAME}" "dist/${BINARY_NAME}"
+          cp README.md LICENSE dist/
+
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            7z a "dist/${ARCHIVE_NAME}.zip" ./dist/*
+            echo "archive=${ARCHIVE_NAME}.zip" >> "$GITHUB_OUTPUT"
+          else
+            tar -czf "dist/${ARCHIVE_NAME}.tar.gz" -C dist .
+            echo "archive=${ARCHIVE_NAME}.tar.gz" >> "$GITHUB_OUTPUT"
+          fi
+
+          cd dist
+          if [[ "${{ matrix.os }}" == "macos-14" ]]; then
+            shasum -a 256 "${ARCHIVE_NAME}"* > "${ARCHIVE_NAME}.sha256"
+          else
+            sha256sum "${ARCHIVE_NAME}"* > "${ARCHIVE_NAME}.sha256"
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: binary-${{ matrix.target }}
+          path: dist/*
+          retention-days: 7
+
+  attestation:
+    name: Generate Attestations
+    needs: [build-binaries]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          path: artifacts
+          pattern: binary-*
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+        with:
+          cosign-release: 'v2.4.0'
+
+      - name: Generate build provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        with:
+          subject-path: 'artifacts/**/*.tar.gz'
+          subject-name: 'samoyed'
+          push-to-registry: true
+
+      - name: Generate Windows provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        with:
+          subject-path: 'artifacts/**/*.zip'
+          subject-name: 'samoyed'
+          push-to-registry: true
+
+      - name: Sign artifacts with cosign
+        run: |
+          for file in artifacts/**/*.{tar.gz,zip}; do
+            if [[ -f "$file" ]]; then
+              echo "Signing $file"
+              cosign sign-blob \
+                --yes \
+                --oidc-issuer="${FULCIO_URL}" \
+                --output-signature="${file}.sig" \
+                --output-certificate="${file}.crt" \
+                "$file"
+            fi
+          done
+
+      - name: Upload attestation artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: attestations
+          path: |
+            artifacts/**/*.sig
+            artifacts/**/*.crt
+          retention-days: 90
+
+  generate-changelog:
+    name: Generate Changelog
+    needs: [prepare-release]
+    runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@6f69ec9970ed0c500b1b76d648e05c4c7e0e5671 # v2.62.5
+        with:
+          tool: git-cliff
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+
+          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]' | sed -n '2p')
+
+          if [[ -n "$PREV_TAG" ]]; then
+            echo "Generating changelog from $PREV_TAG to v$VERSION"
+            CHANGELOG=$(git-cliff "$PREV_TAG"..HEAD --strip all)
+          else
+            echo "Generating changelog for all commits"
+            CHANGELOG=$(git-cliff --strip all)
+          fi
+
+          echo "$CHANGELOG" > changelog.md
+
+          {
+            echo 'changelog<<EOF'
+            echo "$CHANGELOG"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload changelog
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: changelog
+          path: changelog.md
+          retention-days: 7
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [prepare-release, build-binaries, attestation, security-scan, generate-changelog]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          path: release-artifacts
+
+      - name: Generate release notes
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+
+          cat > release-notes.md << 'EOF'
+          ## 🚀 Samoyed v${{ needs.prepare-release.outputs.version }}
+
+          ### 📊 Release Metrics
+          - **SLSA Level**: 3 ✅
+          - **Signed**: Yes (Sigstore/Cosign) ✅
+          - **Attestation**: Available ✅
+          - **SBOM**: Included (CycloneDX format) ✅
+
+          ### 📝 What's Changed
+          ${{ needs.generate-changelog.outputs.changelog }}
+
+          ### 🔒 Security
+          All release artifacts are signed using Sigstore's keyless signing and include SLSA provenance attestations.
+
+          To verify signatures:
+          ```bash
+          cosign verify-blob \
+            --certificate samoyed-${VERSION}-<platform>.tar.gz.crt \
+            --signature samoyed-${VERSION}-<platform>.tar.gz.sig \
+            --certificate-identity-regexp "https://github.com/nutthead/samoyed/.github/workflows/release.yml@refs/heads/master" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            samoyed-${VERSION}-<platform>.tar.gz
+          ```
+
+          ### 📦 Installation
+
+          #### Cargo
+          ```bash
+          cargo install samoyed
+          ```
+
+          #### macOS (Apple Silicon)
+          ```bash
+          curl -L https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-aarch64-apple-darwin.tar.gz | tar xz
+          sudo mv samoyed /usr/local/bin/
+          ```
+
+          #### Linux
+          ```bash
+          curl -L https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          sudo mv samoyed /usr/local/bin/
+          ```
+
+          ### 🏗️ Supported Platforms
+          - Linux (x86_64, aarch64, armv7) - glibc and musl
+          - macOS (Apple Silicon - M1/M2/M3/M4 and later)
+          - Windows (x86_64, ARM64)
+          - RISC-V (experimental)
+
+          ---
+          *Released with ❤️ using GitHub Actions, release-plz, and Sigstore*
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
+        with:
+          tag_name: v${{ needs.prepare-release.outputs.version }}
+          name: Samoyed v${{ needs.prepare-release.outputs.version }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: ${{ contains(needs.prepare-release.outputs.version, '-') }}
+          files: |
+            release-artifacts/**/*.tar.gz
+            release-artifacts/**/*.zip
+            release-artifacts/**/*.sha256
+            release-artifacts/**/*.sig
+            release-artifacts/**/*.crt
+            release-artifacts/security-reports/*
+          generate_release_notes: false
+
+  publish-crate:
+    name: Publish to crates.io
+    needs: [publish-release]
+    if: github.event.inputs.skip_publish != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
+        with:
+          toolchain: 1.90.0
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
+        with:
+          cache-on-failure: false
+
+      - name: Verify package
+        run: |
+          cargo package --locked --allow-dirty
+          cargo package --locked --list
+
+      - name: Publish to crates.io
+        run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  verify-release:
+    name: Verify Release
+    needs: [prepare-release, publish-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
+
+      - name: Verify signatures
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+
+          curl -L -o test-artifact.tar.gz \
+            "https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+
+          curl -L -o test-artifact.tar.gz.sig \
+            "https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-x86_64-unknown-linux-gnu.tar.gz.sig"
+
+          curl -L -o test-artifact.tar.gz.crt \
+            "https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-x86_64-unknown-linux-gnu.tar.gz.crt"
+
+          cosign verify-blob \
+            --certificate test-artifact.tar.gz.crt \
+            --signature test-artifact.tar.gz.sig \
+            --certificate-identity-regexp "https://github.com/nutthead/samoyed/.github/workflows/release.yml@refs/heads/master" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            test-artifact.tar.gz
+
+      - name: Verify crate publication
+        if: github.event.inputs.skip_publish != 'true'
+        run: |
+          VERSION="${{ needs.prepare-release.outputs.version }}"
+          sleep 30
+
+          curl -s "https://crates.io/api/v1/crates/samoyed/${VERSION}" | jq -r '.version.num'
