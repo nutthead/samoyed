@@ -55,7 +55,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
         with:
           toolchain: 1.90.0
           components: rustfmt, clippy
@@ -91,14 +91,13 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
         with:
           toolchain: 1.90.0
 
       # Install cargo-binstall for faster tool installation
       - name: Install cargo-binstall
-        run: |
-          curl --retry 10 -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+        uses: cargo-bins/cargo-binstall@20aa316bab4942180bbbabe93237858e8d77f1ed # v1.15.5
 
       - name: Install security tools
         run: |
@@ -111,7 +110,7 @@ jobs:
 
       - name: Upload audit results
         if: always()
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: security-audit
           path: audit.json
@@ -155,7 +154,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
         with:
           toolchain: 1.90.0
           target: ${{ matrix.target }}
@@ -207,7 +206,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
         with:
           toolchain: 1.90.0
 
@@ -230,7 +229,7 @@ jobs:
           cargo tarpaulin --timeout 120 --avoid-cfg-tarpaulin
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@af2ee03a4e3e11499d866845a1e6c5a11f85cf4e # v4.5.0
+        uses: codecov/codecov-action@af09b5e394c93991b95a5e7646aeb90c1917f78f # v5.5.1
         with:
           files: target/tarpaulin/cobertura.xml
           flags: unittests
@@ -244,7 +243,7 @@ jobs:
 
       - name: Comment coverage on PR
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs');
@@ -362,7 +361,7 @@ jobs:
       # Add status check for merge queue
       - name: Set merge queue status
         if: github.event_name == 'merge_group'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             await github.rest.checks.create({

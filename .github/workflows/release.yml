@@ -87,7 +87,7 @@ jobs:
           echo "Releasing version: ${VERSION}"
 
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
         with:
           toolchain: 1.90.0
 
@@ -111,7 +111,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
         with:
           toolchain: 1.90.0
 
@@ -123,7 +123,7 @@ jobs:
           key: security
 
       - name: Setup tool cache
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ~/.cargo/bin
           key: cargo-tools-${{ runner.os }}-audit-cyclonedx-deny
@@ -148,7 +148,7 @@ jobs:
           cargo cyclonedx --format xml --spec-version 1.5 > sbom.xml
 
       - name: Upload security artifacts
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: security-reports
           path: |
@@ -216,7 +216,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
         with:
           toolchain: 1.90.0
           target: ${{ matrix.target }}
@@ -231,7 +231,7 @@ jobs:
 
       - name: Install cross
         if: matrix.use_cross
-        uses: taiki-e/install-action@d981a0b18f547466e6b058fafcfc3522c6ee3dee # v2.44.39
+        uses: taiki-e/install-action@6f69ec9970ed0c500b1b76d648e05c4c7e0e5671 # v2.62.5
         with:
           tool: cross
 
@@ -284,7 +284,7 @@ jobs:
           fi
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: binary-${{ matrix.target }}
           path: dist/*
@@ -303,13 +303,13 @@ jobs:
       attestations: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           path: artifacts
           pattern: binary-*
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+        uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
         with:
           cosign-release: 'v2.4.0'
 
@@ -342,7 +342,7 @@ jobs:
           done
 
       - name: Upload attestation artifacts
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: attestations
           path: |
@@ -366,7 +366,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@d981a0b18f547466e6b058fafcfc3522c6ee3dee # v2.44.39
+        uses: taiki-e/install-action@6f69ec9970ed0c500b1b76d648e05c4c7e0e5671 # v2.62.5
         with:
           tool: git-cliff
 
@@ -398,7 +398,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload changelog
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: changelog
           path: changelog.md
@@ -419,7 +419,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Download all artifacts
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           path: release-artifacts
 
@@ -482,7 +482,7 @@ jobs:
           EOF
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
+        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
         with:
           tag_name: v${{ needs.prepare-release.outputs.version }}
           name: Samoyed v${{ needs.prepare-release.outputs.version }}
@@ -514,7 +514,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
         with:
           toolchain: 1.90.0
 
@@ -543,7 +543,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install cosign
-        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+        uses: sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62 # v3.10.0
 
       - name: Verify signatures
         run: |
