@@ -39,7 +39,7 @@ permissions:
   actions: read
 
 env:
-  RUST_VERSION: stable
+  RUST_VERSION: "1.90.0"
   CARGO_TERM_COLOR: always
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
   RUST_BACKTRACE: short
@@ -59,7 +59,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
 
@@ -87,7 +87,9 @@ jobs:
           echo "Releasing version: ${VERSION}"
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
+        with:
+          toolchain: 1.90.0
 
       - name: Verify version matches Cargo.toml
         run: |
@@ -106,20 +108,22 @@ jobs:
     needs: [prepare-release]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
+        with:
+          toolchain: 1.90.0
 
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
         with:
           cache-on-failure: true
           prefix-key: "v2-rust"
           key: security
 
       - name: Setup tool cache
-        uses: actions/cache@v4
+        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
         with:
           path: ~/.cargo/bin
           key: cargo-tools-${{ runner.os }}-audit-cyclonedx-deny
@@ -144,7 +148,7 @@ jobs:
           cargo cyclonedx --format xml --spec-version 1.5 > sbom.xml
 
       - name: Upload security artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: security-reports
           path: |
@@ -209,15 +213,17 @@ jobs:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
+        with:
+          toolchain: 1.90.0
         with:
           targets: ${{ matrix.target }}
 
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
         with:
           cache-on-failure: true
           prefix-key: "v2-rust"
@@ -226,7 +232,7 @@ jobs:
 
       - name: Install cross
         if: matrix.use_cross
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@d981a0b18f547466e6b058fafcfc3522c6ee3dee # v2.44.39
         with:
           tool: cross
 
@@ -272,14 +278,14 @@ jobs:
 
           # Generate checksums
           cd dist
-          if [[ "${{ matrix.os }}" == "macos-"* ]]; then
+          if [[ "${{ matrix.os }}" == "macos-14" ]]; then
             shasum -a 256 "${ARCHIVE_NAME}"* > "${ARCHIVE_NAME}.sha256"
           else
             sha256sum "${ARCHIVE_NAME}"* > "${ARCHIVE_NAME}.sha256"
           fi
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: binary-${{ matrix.target }}
           path: dist/*
@@ -298,25 +304,25 @@ jobs:
       attestations: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           path: artifacts
           pattern: binary-*
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
         with:
           cosign-release: 'v2.4.0'
 
       - name: Generate build provenance
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6ac1a86eb42ae # v1.4.5
         with:
           subject-path: 'artifacts/**/*.tar.gz'
           subject-name: 'samoyed'
           push-to-registry: true
 
       - name: Generate Windows provenance
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@1c608d11d69870c2092266b3f9a6ac1a86eb42ae # v1.4.5
         with:
           subject-path: 'artifacts/**/*.zip'
           subject-name: 'samoyed'
@@ -337,7 +343,7 @@ jobs:
           done
 
       - name: Upload attestation artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: attestations
           path: |
@@ -356,12 +362,12 @@ jobs:
       changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@d981a0b18f547466e6b058fafcfc3522c6ee3dee # v2.44.39
         with:
           tool: git-cliff
 
@@ -393,7 +399,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload changelog
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: changelog
           path: changelog.md
@@ -411,10 +417,10 @@ jobs:
     environment: release
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           path: release-artifacts
 
@@ -442,7 +448,7 @@ jobs:
           cosign verify-blob \
             --certificate samoyed-${VERSION}-<platform>.tar.gz.crt \
             --signature samoyed-${VERSION}-<platform>.tar.gz.sig \
-            --certificate-identity-regexp "https://github.com/nutthead/samoyed" \
+            --certificate-identity-regexp "https://github.com/nutthead/samoyed/.github/workflows/release.yml@refs/heads/master" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             samoyed-${VERSION}-<platform>.tar.gz
           ```
@@ -477,7 +483,7 @@ jobs:
           EOF
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
         with:
           tag_name: v${{ needs.prepare-release.outputs.version }}
           name: Samoyed v${{ needs.prepare-release.outputs.version }}
@@ -506,13 +512,15 @@ jobs:
     environment: crates-io
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
+        with:
+          toolchain: 1.90.0
 
       - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
         with:
           cache-on-failure: false
 
@@ -536,7 +544,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
 
       - name: Verify signatures
         run: |
@@ -556,7 +564,7 @@ jobs:
           cosign verify-blob \
             --certificate test-artifact.tar.gz.crt \
             --signature test-artifact.tar.gz.sig \
-            --certificate-identity-regexp "https://github.com/nutthead/samoyed" \
+            --certificate-identity-regexp "https://github.com/nutthead/samoyed/.github/workflows/release.yml@refs/heads/master" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             test-artifact.tar.gz
 
