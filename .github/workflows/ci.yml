@@ -101,8 +101,18 @@ jobs:
 
       - name: Install and run security audit
         run: |
-          # Install security tools with cargo-binstall
-          cargo binstall --no-confirm --locked cargo-audit cargo-deny || cargo install cargo-audit cargo-deny
+          # Install security tools with cargo-binstall (fallback to cargo install if needed)
+          cargo binstall --force --no-confirm --locked cargo-audit cargo-deny || {
+            cargo install --locked cargo-audit
+            cargo install --locked cargo-deny
+          }
+
+          for tool in cargo-audit cargo-deny; do
+            if ! command -v "$tool" >/dev/null 2>&1; then
+              echo "${tool} is missing after installation attempts" >&2
+              cargo install --locked "$tool"
+            fi
+          done
 
           # Run security audit (tools are available in the same shell session)
           cargo audit --json | tee audit.json
