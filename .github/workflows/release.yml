@@ -125,8 +125,8 @@ jobs:
 
       - name: Generate SBOM
         run: |
-          cargo cyclonedx --format json --spec-version 1.5 > sbom.json
-          cargo cyclonedx --format xml --spec-version 1.5 > sbom.xml
+          cargo cyclonedx --format json --spec-version 1.5 --override-filename sbom
+          cargo cyclonedx --format xml --spec-version 1.5 --override-filename sbom
 
       - name: Upload security artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
