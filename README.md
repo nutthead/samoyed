@@ -27,7 +27,7 @@ Samoyed was built to strip Git hook tooling down to the essentials:
 
 Version 0.2.0 doubles down on clarity: the `samoyed init` command seeds every Git hook, wires them through the shared wrapper, and leaves a template pre-commit script ready for teams to adapt. Environment variables such as `SAMOYED=0` (bypass) and `SAMOYED=2` (debug) give developers predictable escape hatches without extra plugins.
 
-This represents a fundamental architectural simplification from version 0.1.17, which scattered functionality across 23 separate Rust modules totaling nearly 6,000 lines of code. The current single-file implementation achieves the same functionality in just 942 lines—an 84% reduction in code size. By consolidating everything into `src/main.rs`, the codebase becomes dramatically easier to understand, debug, and maintain, while eliminating the cognitive overhead of navigating complex module hierarchies and cross-file dependencies.
+This represents a fundamental architectural simplification from version 0.1.17, which scattered functionality across 23 separate Rust modules totaling nearly 6,000 lines of code. The current single-file implementation achieves the same functionality in just about 1000 lines---an ~80% reduction in code size. By consolidating everything into `src/main.rs`, the codebase becomes dramatically easier to understand, debug, and maintain, while eliminating the cognitive overhead of navigating complex module hierarchies and cross-file dependencies.
 
 ## Install
 
@@ -35,14 +35,12 @@ Samoyed is a Cargo binary. Install straight from source:
 
 ```sh
 # Clone the repository
- git clone https://github.com/nutthead/samoyed.git
- cd samoyed
+git clone https://github.com/nutthead/samoyed.git
+cd samoyed
 
 # Build and place the binary on your PATH
- cargo install --path .
+cargo install --path .
 ```
-
-To publish Samoyed for a project, commit the compiled binary (or vendor the repository) into your tooling workflow, then run `samoyed init` inside each Git repository that should use the hooks.
 
 ## Usage
 
@@ -63,7 +61,7 @@ samoyed init [samoyed-dirname]
 
 ## Configuration
 
-Samoyed looks for an optional user init script at `${XDG_CONFIG_HOME:-$HOME/.config}/samoyed/init.sh`. If present, it is sourced before any hook runs—use it to export shared environment variables or early exits. Because hooks are standard shell scripts, teams can customise individual hooks directly in `.samoyed/<hook>`.
+Samoyed looks for an optional user init script at `${XDG_CONFIG_HOME:-$HOME/.config}/samoyed/init.sh`. If present, it is sourced before any hook runs---use it to export shared environment variables or early exits. Because hooks are standard shell scripts, teams can customise individual hooks directly in `.samoyed/<hook>`.
 
 Common workflows:
 
@@ -91,12 +89,6 @@ cd tests/integration
 ./08_samoyed_0.sh --keep   # Keep the temporary repo after the test exits
 ```
 
-Guidelines for contributors are documented in [AGENTS.md](AGENTS.md). Highlights:
-
-- Keep all production Rust code inside `src/main.rs`.
-- Avoid increasing cognitive complexity past 21 for any function.
-- Do not add new runtime dependencies to `Cargo.toml`.
-
 ## Maintainers
 
 - [Behrang Saeedzadeh](https://github.com/behrangsa)
@@ -111,4 +103,4 @@ Issues and pull requests are welcome. Before submitting a change, please ensure:
 
 ## License
 
-MIT. See [LICENSE](LICENSE) for details.
+[MIT](LICENSE).
