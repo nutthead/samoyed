@@ -20,10 +20,17 @@ use std::process::{Command, ExitCode};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
-/// Embedded assets/samoyed script that serves as the Git hook wrapper
+/// Embedded shell script that serves as the Git hook wrapper.
+///
+/// This script is copied to `.samoyed/_/samoyed` during initialization and sourced
+/// by each hook script. It handles debug mode, bypass mode, user configuration loading,
+/// and executes the corresponding user-defined hook if it exists.
 const SAMOYED_WRAPPER_SCRIPT: &[u8] = include_bytes!("../assets/samoyed");
 
-/// List of Git hook names that Samoyed manages
+/// List of standard Git hook names that Samoyed manages.
+///
+/// These are the client-side hooks that Git supports. During initialization,
+/// Samoyed creates a wrapper script for each of these hooks in the `_` directory.
 const GIT_HOOKS: &[&str] = &[
     "applypatch-msg",
     "commit-msg",
@@ -41,10 +48,16 @@ const GIT_HOOKS: &[&str] = &[
     "prepare-commit-msg",
 ];
 
-/// Default directory name for Samoyed hooks if not specified
+/// Default directory name for Samoyed hooks if not specified by the user.
+///
+/// This directory will be created in the repository root and will contain
+/// both the wrapper scripts (in `_/` subdirectory) and user-defined hooks.
 const DEFAULT_SAMOYED_DIR: &str = ".samoyed";
 
-/// Samoyed - A modern, minimal, safe, ultra-fast, cross-platform Git hooks manager
+/// Command-line interface for Samoyed.
+///
+/// Samoyed is a modern, minimal, safe, ultra-fast, cross-platform Git hooks manager
+/// that simplifies client-side Git hook management with a single-binary tool.
 #[derive(Parser)]
 #[command(name = "samoyed")]
 #[command(author, version, about, long_about = None)]
@@ -53,7 +66,10 @@ struct Cli {
     command: Option<Commands>,
 }
 
-/// Available commands for Samoyed
+/// Available subcommands for the Samoyed CLI.
+///
+/// Currently supports initialization of Git hooks in a repository.
+/// Future versions may include additional commands for hook management.
 #[derive(Subcommand)]
 enum Commands {
     /// Initialize Samoyed in the current git repository
@@ -237,6 +253,26 @@ fn validate_samoyed_dir(
     Ok(resolved)
 }
 
+/// Canonicalize a path, allowing for non-existent components.
+///
+/// This function resolves a path to its absolute form, handling cases where
+/// some components of the path don't exist yet. It walks up the path hierarchy
+/// until it finds an existing ancestor, canonicalizes that, then appends the
+/// remaining non-existent components.
+///
+/// # Arguments
+///
+/// * `path` - The path to canonicalize
+///
+/// # Returns
+///
+/// Returns the canonicalized absolute path, or an IO error if the path cannot be resolved
+///
+/// # Example
+///
+/// If `/home/user` exists but `/home/user/new_dir` doesn't, calling this with
+/// `/home/user/new_dir/file.txt` will return `/home/user/new_dir/file.txt` as
+/// an absolute path based on the canonical form of `/home/user`.
 fn canonicalize_allowing_nonexistent(path: &Path) -> std::io::Result<PathBuf> {
     if path.exists() {
         return path.canonicalize();

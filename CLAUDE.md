@@ -10,7 +10,7 @@ Samoyed is a single-binary, minimal, cross-platform Git hooks manager written in
 
 ### Core Implementation
 
-- **Single-file architecture**: All Rust code resides in `src/main.rs` (currently ~900 lines) following the principle of minimalism and avoiding feature creep
+- **Single-file architecture**: All Rust code resides in `src/main.rs` (currently ~1200 lines) following the principle of minimalism and avoiding feature creep
 - **Embedded wrapper script**: The shell script at `assets/samoyed` is embedded into the binary using `include_bytes!` macro
 - **Hook wrapper pattern**: Each Git hook in `.samoyed/_/` is generated as an executable stub that points contributors to the user-editable scripts in `.samoyed/`; the embedded wrapper script at `.samoyed/_/samoyed` is copied alongside for hooks (like the sample pre-commit) that source it.
 
@@ -136,15 +136,27 @@ Due to conditional compilation, Clippy may produce different warnings on differe
 
 ```text
 .
-├── src/
-│   └── main.rs                     # Complete implementation (init, hook management)
+├── .assets/                        # README.md assets (images, etc.)
+├── .docs/                          # Documents and prompts for AI agents
 ├── assets/
 │   └── samoyed                     # POSIX shell wrapper script (embedded in binary)
-├── .docs/
-│   └── 01-vision-version-2.0.0.md  # Detailed specification
+├── src/
+│   └── main.rs                     # Complete implementation (init, hook management)
+├── tests/
+│   └── integration/                # Shell-based integration tests
+│       ├── functions.sh            # Shared test functions
+│       ├── 01_default.sh           # Default initialization test
+│       ├── 02_custom_dir.sh        # Custom directory test
+│       └── [other test files]      # Various edge case tests
+├── .markdownlint.json              # Markdown linting configuration
+├── .release-plz.toml               # Release automation config
+├── .tarpaulin.toml                 # Coverage config (HTML, XML, JSON, LCOV)
+├── AGENTS.md                       # AI agent configuration
 ├── Cargo.toml                      # Optimized release profile (fat LTO, stripped)
 ├── clippy.toml                     # Cognitive complexity: 21
-└── .tarpaulin.toml                 # Coverage config (HTML, XML, JSON, LCOV)
+├── CLAUDE.md                       # This file - Claude Code guidance
+├── flake.nix                       # Nix development environment
+└── README.md                       # Project documentation
 ```
 
 ## Implementation Status
@@ -171,8 +183,10 @@ Currently implemented:
 
 - `main()` - CLI entry point using clap
 - `init_samoyed()` - Core initialization logic
+- `check_bypass_mode()` - Check if SAMOYED=0 bypass mode is enabled
 - `get_git_root()` - Find repository root
-- `validate_samoyed_path()` - Ensure path is within repository
+- `validate_samoyed_dir()` - Ensure samoyed directory is within repository
+- `canonicalize_allowing_nonexistent()` - Cross-platform path canonicalization
 - `create_directory_structure()` - Set up hook directories
 - `copy_wrapper_script()` - Install wrapper script
 - `create_hook_scripts()` - Generate hook stub scripts
