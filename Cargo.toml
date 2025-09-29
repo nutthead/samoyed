@@ -40,7 +40,7 @@ clap = { version = "4.5.48", features = ["derive"] }
 
 
 [dev-dependencies]
-tempfile = "3.15"
+tempfile = "3.23"
 
 
 [profile.release]
