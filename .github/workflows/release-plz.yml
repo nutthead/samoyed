@@ -62,7 +62,7 @@ jobs:
 
       - name: Setup Rust cache
         if: steps.check.outputs.should_release == 'true'
-        uses: Swatinem/rust-cache@bc2d2e71bd35c5549942babaa51a89c586b981d1 # v2.8.1
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
         with:
           cache-on-failure: true
           prefix-key: "v2-rust"
@@ -70,7 +70,7 @@ jobs:
 
       - name: Run release-plz release
         if: steps.check.outputs.should_release == 'true'
-        uses: MarcoIeni/release-plz-action@0b91bca0dbf6ef32045a12a5082a8829043e331d # v0.5.117
+        uses: MarcoIeni/release-plz-action@acb9246af4d59a270d1d4058a8b9af8c3f3a2559 # v0.5.117
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
