@@ -54,6 +54,107 @@ const GIT_HOOKS: &[&str] = &[
 /// both the wrapper scripts (in `_/` subdirectory) and user-defined hooks.
 const DEFAULT_SAMOYED_DIR: &str = ".samoyed";
 
+/// Directory name for wrapper scripts within the Samoyed directory.
+const WRAPPER_DIR_NAME: &str = "_";
+
+/// Filename for the embedded wrapper script within the wrapper directory.
+const WRAPPER_SCRIPT_NAME: &str = "samoyed";
+
+/// Filename for the sample pre-commit hook.
+const SAMPLE_HOOK_NAME: &str = "pre-commit";
+
+/// Filename for the .gitignore file in the wrapper directory.
+const GITIGNORE_NAME: &str = ".gitignore";
+
+/// Message displayed when SAMOYED=0 environment variable bypasses initialization.
+const MSG_BYPASS_INIT: &str = "Bypassing samoyed init due to SAMOYED=0";
+
+/// Error message when git command execution fails.
+const ERR_FAILED_EXECUTE_GIT: &str = "Error: Failed to execute git command";
+
+/// Error message when current directory is not a git repository.
+const ERR_NOT_GIT_REPO: &str = "Error: Not a git repository";
+
+/// Error message when git root directory cannot be determined.
+const ERR_FAILED_GET_GIT_ROOT: &str = "Error: Failed to get git root directory";
+
+/// Error message when git configuration update fails.
+const ERR_FAILED_SET_GIT_CONFIG: &str = "Error: Failed to set git config";
+
+/// Error message when setting core.hooksPath configuration fails.
+const ERR_FAILED_SET_HOOKS_PATH: &str = "Error: Failed to set core.hooksPath";
+
+/// Error message when hooks path is outside the git repository.
+const ERR_HOOKS_PATH_NOT_IN_REPO: &str = "Error: Hooks path is not within git repository";
+
+/// Error message when hooks directory path is invalid.
+const ERR_INVALID_HOOKS_PATH: &str = "Error: Invalid path for hooks directory";
+
+/// Error message when path canonicalization fails.
+const ERR_UNABLE_RESOLVE_PATH: &str = "Error: Unable to resolve path";
+
+/// Error message when parent path resolution fails.
+const ERR_UNABLE_RESOLVE_PARENT: &str = "Error: Unable to resolve parent path";
+
+/// Error prefix when current directory determination fails.
+const ERR_FAILED_CURRENT_DIR: &str = "Error: Failed to determine current directory";
+
+/// Error prefix when git root resolution fails.
+const ERR_FAILED_RESOLVE_GIT_ROOT: &str = "Error: Failed to resolve git root";
+
+/// Error prefix when samoyed directory resolution fails.
+const ERR_FAILED_RESOLVE_SAMOYED_DIR: &str = "Error: Failed to resolve samoyed directory";
+
+/// Error prefix when path is outside the git repository bounds.
+const ERR_OUTSIDE_GIT_REPO: &str = "Error: Path is outside the git repository";
+
+/// Error prefix when samoyed directory creation fails.
+const ERR_FAILED_CREATE_SAMOYED_DIR: &str = "Error: Failed to create samoyed directory";
+
+/// Error prefix when wrapper directory creation fails.
+const ERR_FAILED_CREATE_WRAPPER_DIR: &str = "Error: Failed to create _ directory";
+
+/// Error prefix when wrapper script write fails.
+const ERR_FAILED_WRITE_WRAPPER: &str = "Error: Failed to write wrapper script";
+
+/// Error prefix when file metadata retrieval fails.
+#[cfg(unix)]
+const ERR_FAILED_GET_METADATA: &str = "Error: Failed to get file metadata";
+
+/// Error prefix when file permission setting fails.
+#[cfg(unix)]
+const ERR_FAILED_SET_PERMISSIONS: &str = "Error: Failed to set file permissions";
+
+/// Error prefix when hook script write fails.
+const ERR_FAILED_WRITE_HOOK: &str = "Error: Failed to write hook";
+
+/// Error prefix when sample pre-commit hook write fails.
+const ERR_FAILED_WRITE_SAMPLE: &str = "Error: Failed to write sample pre-commit hook";
+
+/// Error prefix when git root canonicalization fails.
+const ERR_FAILED_CANONICALIZE_GIT_ROOT: &str = "Error: Failed to canonicalize git root";
+
+/// Error prefix when samoyed directory canonicalization fails.
+const ERR_FAILED_CANONICALIZE_SAMOYED: &str = "Error: Failed to canonicalize samoyed directory";
+
+/// Error prefix when .gitignore file write fails.
+const ERR_FAILED_WRITE_GITIGNORE: &str = "Error: Failed to write .gitignore";
+
+/// Shell script template for Git hooks that sources the Samoyed wrapper.
+const HOOK_SCRIPT_TEMPLATE: &str = r#"#!/usr/bin/env sh
+. "$(dirname "$0")/samoyed"
+"#;
+
+/// Sample pre-commit hook template with placeholder comments for user customization.
+const SAMPLE_PRE_COMMIT_CONTENT: &str = r#"#!/usr/bin/env sh
+# Add your pre-commit checks here. For example:
+# echo "Running Samoyed sample pre-commit"
+# exit 0
+"#;
+
+/// Gitignore pattern that excludes all files in the wrapper directory.
+const GITIGNORE_CONTENT: &str = "*\n";
+
 /// Command-line interface for Samoyed.
 ///
 /// Samoyed is a modern, minimal, safe, ultra-fast, cross-platform Git hooks manager
@@ -123,14 +224,14 @@ fn main() -> ExitCode {
 fn init_samoyed(dirname: &str) -> Result<(), String> {
     // Check for bypass mode
     if check_bypass_mode() {
-        println!("Bypassing samoyed init due to SAMOYED=0");
+        println!("{}", MSG_BYPASS_INIT);
         return Ok(());
     }
 
     // Check if we're in a git repository
     let git_root = get_git_root()?;
-    let current_dir = env::current_dir()
-        .map_err(|e| format!("Error: Failed to determine current directory: {}", e))?;
+    let current_dir =
+        env::current_dir().map_err(|e| format!("{}: {}", ERR_FAILED_CURRENT_DIR, e))?;
 
     // Validate and resolve the samoyed directory path
     let samoyed_dir = validate_samoyed_dir(&git_root, &current_dir, dirname)?;
@@ -177,24 +278,24 @@ fn get_git_root() -> Result<PathBuf, String> {
     let output = Command::new("git")
         .args(["rev-parse", "--is-inside-work-tree"])
         .output()
-        .map_err(|_| "Error: Failed to execute git command".to_string())?;
+        .map_err(|_| ERR_FAILED_EXECUTE_GIT.to_string())?;
 
     if !output.status.success() {
-        return Err("Error: Not a git repository".to_string());
+        return Err(ERR_NOT_GIT_REPO.to_string());
     }
 
     let inside = String::from_utf8_lossy(&output.stdout).trim().to_string();
     if inside != "true" {
-        return Err("Error: Not a git repository".to_string());
+        return Err(ERR_NOT_GIT_REPO.to_string());
     }
 
     let output = Command::new("git")
         .args(["rev-parse", "--show-toplevel"])
         .output()
-        .map_err(|_| "Error: Failed to get git root directory".to_string())?;
+        .map_err(|_| ERR_FAILED_GET_GIT_ROOT.to_string())?;
 
     if !output.status.success() {
-        return Err("Error: Failed to get git root directory".to_string());
+        return Err(ERR_FAILED_GET_GIT_ROOT.to_string());
     }
 
     let git_root = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -218,7 +319,7 @@ fn validate_samoyed_dir(
 ) -> Result<PathBuf, String> {
     let git_root_canonical = git_root
         .canonicalize()
-        .map_err(|e| format!("Error: Failed to resolve git root: {}", e))?;
+        .map_err(|e| format!("{}: {}", ERR_FAILED_RESOLVE_GIT_ROOT, e))?;
 
     let provided_path = Path::new(dirname);
 
@@ -235,16 +336,13 @@ fn validate_samoyed_dir(
         }
     };
 
-    let resolved = canonicalize_allowing_nonexistent(&candidate).map_err(|e| {
-        format!(
-            "Error: Failed to resolve samoyed directory '{}': {}",
-            dirname, e
-        )
-    })?;
+    let resolved = canonicalize_allowing_nonexistent(&candidate)
+        .map_err(|e| format!("{} '{}': {}", ERR_FAILED_RESOLVE_SAMOYED_DIR, dirname, e))?;
 
     if !resolved.starts_with(&git_root_canonical) {
         return Err(format!(
-            "Error: {} is outside the {} git repository",
+            "{} (path: {}, git root: {})",
+            ERR_OUTSIDE_GIT_REPO,
             resolved.display(),
             git_root_canonical.display()
         ));
@@ -296,7 +394,7 @@ fn canonicalize_allowing_nonexistent(path: &Path) -> std::io::Result<PathBuf> {
                 // We've reached a root that doesn't exist; this means the entire path is invalid
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
-                    "Unable to resolve path",
+                    ERR_UNABLE_RESOLVE_PATH,
                 ));
             }
         }
@@ -306,7 +404,7 @@ fn canonicalize_allowing_nonexistent(path: &Path) -> std::io::Result<PathBuf> {
             None => {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
-                    "Unable to resolve parent path",
+                    ERR_UNABLE_RESOLVE_PARENT,
                 ));
             }
         }
@@ -327,12 +425,12 @@ fn canonicalize_allowing_nonexistent(path: &Path) -> std::io::Result<PathBuf> {
 fn create_directory_structure(samoyed_dir: &Path) -> Result<(), String> {
     // Create main samoyed directory
     fs::create_dir_all(samoyed_dir)
-        .map_err(|e| format!("Error: Failed to create samoyed directory: {}", e))?;
+        .map_err(|e| format!("{}: {}", ERR_FAILED_CREATE_SAMOYED_DIR, e))?;
 
     // Create _ subdirectory
-    let underscore_dir = samoyed_dir.join("_");
+    let underscore_dir = samoyed_dir.join(WRAPPER_DIR_NAME);
     fs::create_dir_all(&underscore_dir)
-        .map_err(|e| format!("Error: Failed to create _ directory: {}", e))?;
+        .map_err(|e| format!("{}: {}", ERR_FAILED_CREATE_WRAPPER_DIR, e))?;
 
     Ok(())
 }
@@ -351,11 +449,11 @@ fn create_directory_structure(samoyed_dir: &Path) -> Result<(), String> {
 ///
 /// Returns Ok(()) on success, or an error message on failure
 fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
-    let wrapper_path = samoyed_dir.join("_").join("samoyed");
+    let wrapper_path = samoyed_dir.join(WRAPPER_DIR_NAME).join(WRAPPER_SCRIPT_NAME);
 
     // Write the embedded script
     fs::write(&wrapper_path, SAMOYED_WRAPPER_SCRIPT)
-        .map_err(|e| format!("Error: Failed to write wrapper script: {}", e))?;
+        .map_err(|e| format!("{}: {}", ERR_FAILED_WRITE_WRAPPER, e))?;
 
     // Set permissions based on platform:
     // - Unix: 644 (rw-r--r--) because the wrapper is sourced, not executed
@@ -363,11 +461,11 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
     #[cfg(unix)]
     {
         let metadata = fs::metadata(&wrapper_path)
-            .map_err(|e| format!("Error: Failed to get file metadata: {}", e))?;
+            .map_err(|e| format!("{}: {}", ERR_FAILED_GET_METADATA, e))?;
         let mut permissions = metadata.permissions();
         permissions.set_mode(0o644);
         fs::set_permissions(&wrapper_path, permissions)
-            .map_err(|e| format!("Error: Failed to set file permissions: {}", e))?;
+            .map_err(|e| format!("{}: {}", ERR_FAILED_SET_PERMISSIONS, e))?;
     }
 
     // On Windows, file permissions work differently than Unix
@@ -393,29 +491,24 @@ fn copy_wrapper_script(samoyed_dir: &Path) -> Result<(), String> {
 ///
 /// Returns Ok(()) on success, or an error message on failure
 fn create_hook_scripts(samoyed_dir: &Path) -> Result<(), String> {
-    let underscore_dir = samoyed_dir.join("_");
+    let underscore_dir = samoyed_dir.join(WRAPPER_DIR_NAME);
 
     for hook_name in GIT_HOOKS {
         let hook_path = underscore_dir.join(hook_name);
 
-        // Create hook script content that sources the shared wrapper.
-        let content = r#"#!/usr/bin/env sh
-. "$(dirname "$0")/samoyed"
-"#;
-
         // Write the hook script
-        fs::write(&hook_path, content)
-            .map_err(|e| format!("Error: Failed to write {} hook: {}", hook_name, e))?;
+        fs::write(&hook_path, HOOK_SCRIPT_TEMPLATE)
+            .map_err(|e| format!("{} '{}': {}", ERR_FAILED_WRITE_HOOK, hook_name, e))?;
 
         // Set permissions to 755 (rwxr-xr-x)
         #[cfg(unix)]
         {
             let metadata = fs::metadata(&hook_path)
-                .map_err(|e| format!("Error: Failed to get file metadata: {}", e))?;
+                .map_err(|e| format!("{}: {}", ERR_FAILED_GET_METADATA, e))?;
             let mut permissions = metadata.permissions();
             permissions.set_mode(0o755);
             fs::set_permissions(&hook_path, permissions)
-                .map_err(|e| format!("Error: Failed to set file permissions: {}", e))?;
+                .map_err(|e| format!("{}: {}", ERR_FAILED_SET_PERMISSIONS, e))?;
         }
     }
 
@@ -435,27 +528,21 @@ fn create_hook_scripts(samoyed_dir: &Path) -> Result<(), String> {
 ///
 /// Returns Ok(()) on success, or an error message on failure
 fn create_sample_pre_commit(samoyed_dir: &Path) -> Result<(), String> {
-    let pre_commit_path = samoyed_dir.join("pre-commit");
-
-    let content = r#"#!/usr/bin/env sh
-# Add your pre-commit checks here. For example:
-# echo "Running Samoyed sample pre-commit"
-# exit 0
-"#;
+    let pre_commit_path = samoyed_dir.join(SAMPLE_HOOK_NAME);
 
     // Write the sample pre-commit hook
-    fs::write(&pre_commit_path, content)
-        .map_err(|e| format!("Error: Failed to write sample pre-commit hook: {}", e))?;
+    fs::write(&pre_commit_path, SAMPLE_PRE_COMMIT_CONTENT)
+        .map_err(|e| format!("{}: {}", ERR_FAILED_WRITE_SAMPLE, e))?;
 
     // Set permissions to 644 (rw-r--r--)
     #[cfg(unix)]
     {
         let metadata = fs::metadata(&pre_commit_path)
-            .map_err(|e| format!("Error: Failed to get file metadata: {}", e))?;
+            .map_err(|e| format!("{}: {}", ERR_FAILED_GET_METADATA, e))?;
         let mut permissions = metadata.permissions();
         permissions.set_mode(0o644);
         fs::set_permissions(&pre_commit_path, permissions)
-            .map_err(|e| format!("Error: Failed to set file permissions: {}", e))?;
+            .map_err(|e| format!("{}: {}", ERR_FAILED_SET_PERMISSIONS, e))?;
     }
 
     Ok(())
@@ -481,30 +568,30 @@ fn set_git_hooks_path(samoyed_dir: &Path) -> Result<(), String> {
     // Canonicalize both paths to ensure consistent path representation
     let git_root_canonical = git_root
         .canonicalize()
-        .map_err(|e| format!("Error: Failed to canonicalize git root: {}", e))?;
+        .map_err(|e| format!("{}: {}", ERR_FAILED_CANONICALIZE_GIT_ROOT, e))?;
 
     let samoyed_dir_canonical = canonicalize_allowing_nonexistent(samoyed_dir)
-        .map_err(|e| format!("Error: Failed to canonicalize samoyed directory: {}", e))?;
+        .map_err(|e| format!("{}: {}", ERR_FAILED_CANONICALIZE_SAMOYED, e))?;
 
     // Calculate relative path from git root to hooks directory
-    let hooks_path = samoyed_dir_canonical.join("_");
+    let hooks_path = samoyed_dir_canonical.join(WRAPPER_DIR_NAME);
     let relative_hooks_path = hooks_path
         .strip_prefix(&git_root_canonical)
-        .map_err(|_| "Error: Hooks path is not within git repository".to_string())?;
+        .map_err(|_| ERR_HOOKS_PATH_NOT_IN_REPO.to_string())?;
 
     // Convert to string with Unix-style separators for Git config
     let hooks_path_str = relative_hooks_path
         .to_str()
-        .ok_or_else(|| "Error: Invalid path for hooks directory".to_string())?
+        .ok_or_else(|| ERR_INVALID_HOOKS_PATH.to_string())?
         .replace('\\', "/");
 
     let status = Command::new("git")
         .args(["config", "core.hooksPath", &hooks_path_str])
         .status()
-        .map_err(|_| "Error: Failed to set git config".to_string())?;
+        .map_err(|_| ERR_FAILED_SET_GIT_CONFIG.to_string())?;
 
     if !status.success() {
-        return Err("Error: Failed to set core.hooksPath".to_string());
+        return Err(ERR_FAILED_SET_HOOKS_PATH.to_string());
     }
 
     Ok(())
@@ -523,13 +610,12 @@ fn set_git_hooks_path(samoyed_dir: &Path) -> Result<(), String> {
 ///
 /// Returns Ok(()) on success, or an error message on failure
 fn create_gitignore(samoyed_dir: &Path) -> Result<(), String> {
-    let gitignore_path = samoyed_dir.join("_").join(".gitignore");
+    let gitignore_path = samoyed_dir.join(WRAPPER_DIR_NAME).join(GITIGNORE_NAME);
 
     // Only create if it doesn't exist
     if !gitignore_path.exists() {
-        let content = "*\n";
-        fs::write(&gitignore_path, content)
-            .map_err(|e| format!("Error: Failed to write .gitignore: {}", e))?;
+        fs::write(&gitignore_path, GITIGNORE_CONTENT)
+            .map_err(|e| format!("{}: {}", ERR_FAILED_WRITE_GITIGNORE, e))?;
     }
 
     Ok(())
@@ -673,7 +759,12 @@ mod tests {
 
             // Check content
             let content = fs::read_to_string(&hook_path).unwrap();
-            assert!(content.contains(". \"$(dirname \"$0\")/samoyed\""));
+            assert_eq!(
+                content,
+                r#"#!/usr/bin/env sh
+. "$(dirname "$0")/samoyed"
+"#
+            );
 
             // Check permissions on Unix
             #[cfg(unix)]
@@ -705,8 +796,14 @@ mod tests {
 
         // Check content
         let content = fs::read_to_string(&pre_commit_path).unwrap();
-        assert!(content.contains("#!/usr/bin/env sh"));
-        assert!(content.contains("Add your pre-commit checks"));
+        assert_eq!(
+            content,
+            r#"#!/usr/bin/env sh
+# Add your pre-commit checks here. For example:
+# echo "Running Samoyed sample pre-commit"
+# exit 0
+"#
+        );
 
         // Check permissions on Unix
         #[cfg(unix)]

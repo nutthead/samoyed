@@ -2,7 +2,12 @@
 
 ## Overview
 
-This repository uses a modern, security-focused CI/CD pipeline designed for Rust projects with comprehensive cross-platform support and automated release management.
+This repository uses a modern, security-focused CI/CD pipeline designed for Rust projects with comprehensive cross-platform support and fully automated release management.
+
+**Pipeline Components:**
+- **1 CI Workflow**: Comprehensive testing, security scanning, and installer validation
+- **3 Release Workflows**: Automated PR creation → Tagging → Building & Publishing
+- **Full Automation**: From commit to published release with zero manual intervention
 
 ## Workflows
 
@@ -17,13 +22,40 @@ This repository uses a modern, security-focused CI/CD pipeline designed for Rust
 - Manual dispatch
 - Weekly security audits (Monday 00:00 UTC)
 
-**Features**:
-- **Quick Checks**: Fast-fail on formatting and linting issues
-- **Security Scanning**: Automated vulnerability detection with cargo-audit and cargo-deny
-- **Cross-Platform Testing**: Linux (glibc/musl), macOS (Intel/ARM), Windows
-- **Code Coverage**: Automated coverage reports with Codecov integration
-- **Standard Caching**: Cargo registry and target caching
-- **Merge Queue Support**: Automated status checks for GitHub merge queues
+**Jobs**:
+
+1. **Quick Checks** (`quick-check`)
+   - Fast-fail on formatting and linting issues
+   - Runs clippy with strict warnings
+   - Validates documentation builds
+
+2. **Security Audit** (`security`)
+   - Automated vulnerability detection with cargo-audit and cargo-deny
+   - Uploads audit results as artifacts
+   - Continues on error to not block PRs
+
+3. **Installer Script Tests** (`installer-test`) 🆕
+   - Validates `install.sh` and `uninstall.sh` with shellcheck
+   - Tests platform detection on Ubuntu, Fedora (containers), and macOS (native)
+   - Verifies installation and uninstallation workflows
+   - Tests across multiple Linux distributions using Docker
+
+4. **Cross-Platform Tests** (`test`)
+   - Linux: x86_64 (glibc and musl)
+   - macOS: ARM64 (Apple Silicon)
+   - Windows: x86_64 (MSVC)
+   - Runs unit tests with `--test-threads=1`
+   - Executes integration tests in `tests/integration/`
+
+5. **Code Coverage** (`coverage`)
+   - Generates coverage reports with cargo-tarpaulin
+   - Uploads to Codecov
+   - Posts detailed coverage summary on PRs (non-fork only)
+
+6. **CI Success** (`ci-success`)
+   - Aggregates all job results
+   - Required status check for merge queues
+   - Fails if any required job fails
 
 **Key Optimizations**:
 - Concurrent job execution with dependency management
@@ -32,12 +64,52 @@ This repository uses a modern, security-focused CI/CD pipeline designed for Rust
 - Single-threaded test execution (project requirement)
 - Standardized Rust 1.90.0 toolchain
 
-### 2. Release Pipeline (`release.yml`)
+### 2. Release PR (`release-pr.yml`)
 
-**Purpose**: Fully automated release pipeline with SLSA Level 3 attestation.
+**Purpose**: Automated release pull request creation using release-plz.
 
 **Triggers**:
-- Push to master (automated release PR creation)
+- Push to master branch (after conventional commits are merged)
+
+**Features**:
+- **Automatic Version Bumping**: Analyzes commit messages (conventional commits) to determine version changes
+- **Changelog Generation**: Creates comprehensive changelogs from commit history
+- **Dependency Updates**: Reviews and suggests dependency updates
+- **Release PR**: Opens or updates a pull request with all release changes
+
+**Workflow**:
+1. Monitors commits to master for changes requiring a release
+2. Analyzes conventional commit messages (feat:, fix:, etc.)
+3. Determines appropriate version bump (major, minor, patch)
+4. Updates `Cargo.toml` with new version
+5. Generates changelog entries
+6. Opens/updates a release PR for maintainer review
+
+### 3. Release Tag (`release-plz.yml`)
+
+**Purpose**: Automated git tag creation when release PRs are merged.
+
+**Triggers**:
+- Push to master branch (specifically when release PR is merged)
+
+**Features**:
+- **Version Change Detection**: Monitors `Cargo.toml` for version changes
+- **Automatic Tagging**: Creates annotated git tags (e.g., `v0.2.1`)
+- **Selective Execution**: Only runs when version actually changes
+- **Bot Prevention**: Skips when commits are from github-actions[bot]
+
+**Workflow**:
+1. Detects when `Cargo.toml` is modified on master
+2. Compares previous version with current version
+3. If version changed, creates annotated tag `v{version}`
+4. Tag push triggers the Release Pipeline workflow
+
+### 4. Release Pipeline (`release.yml`)
+
+**Purpose**: Build, sign, and publish releases with SLSA Level 3 attestation.
+
+**Triggers**:
+- Push of version tags (e.g., `v*.*.*`)
 - Manual workflow dispatch with optional version override
 
 **Features**:
@@ -67,7 +139,6 @@ Platforms:
 - armv7-unknown-linux-gnueabihf (ARM v7)
 - riscv64gc-unknown-linux-gnu (RISC-V 64-bit)
 ```
-
 
 ## Security Features
 
@@ -108,17 +179,66 @@ These can be used with vulnerability scanners to check for known vulnerabilities
 
 ## Release Process
 
-### Automated Release Flow
+### Automated Release Flow (Three-Workflow Pipeline)
 
-1. **Development**: Developers merge PRs to master using conventional commits
-2. **Release PR**: release-plz automatically creates a PR with:
-   - Version bumps based on commit types
-   - Generated changelog using git-cliff
-   - Updated dependencies
-3. **Review**: Maintainers review and merge the release PR
-4. **Build & Sign**: GitHub Actions builds all platform binaries and signs them
-5. **Attestation**: SLSA provenance is generated and attached
-6. **Publish**: Artifacts are published to GitHub Releases and crates.io
+The release process is fully automated through three coordinated workflows:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. RELEASE PR (release-pr.yml)                                  │
+│    ↓ Trigger: Push to master with conventional commits          │
+│    ↓ Action: Creates/updates release PR                         │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+                    Maintainer reviews & merges PR
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 2. RELEASE TAG (release-plz.yml)                                │
+│    ↓ Trigger: Version change in Cargo.toml on master            │
+│    ↓ Action: Creates git tag (v0.2.1)                           │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 3. RELEASE PIPELINE (release.yml)                               │
+│    ↓ Trigger: Version tag pushed                                │
+│    ↓ Action: Build, sign, publish to GitHub + crates.io         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Step-by-Step Process:**
+
+1. **Development** (`main` branch)
+   - Developers merge PRs using conventional commits (`feat:`, `fix:`, etc.)
+   - Each commit automatically triggers CI validation
+
+2. **Release PR Creation** (`release-pr.yml`)
+   - release-plz analyzes commits since last release
+   - Determines version bump (major/minor/patch) from commit types
+   - Generates changelog from conventional commits
+   - Opens/updates PR with version bump and changelog
+
+3. **Maintainer Review**
+   - Review generated changelog and version bump
+   - Approve and merge the release PR
+
+4. **Automatic Tagging** (`release-plz.yml`)
+   - Detects `Cargo.toml` version change on master
+   - Creates annotated git tag (e.g., `v0.2.1`)
+   - Tag push triggers the release pipeline
+
+5. **Build & Publish** (`release.yml`)
+   - Builds binaries for all platforms
+   - Generates SBOM and security attestations
+   - Signs artifacts with Sigstore/cosign
+   - Creates GitHub Release with assets
+   - Publishes to crates.io
+
+**Key Benefits:**
+- ✅ **Zero Manual Work**: From commit to release fully automated
+- ✅ **Conventional Commits**: Version determined automatically from commit messages
+- ✅ **Safety**: Maintainer approval required before release
+- ✅ **Transparency**: Full changelog generated from git history
+- ✅ **Security**: All artifacts signed and attested
 
 ### Manual Release
 
@@ -199,13 +319,15 @@ strip = true      # Remove debug symbols (size)
 
 ### Build Status
 
-Monitor workflow runs at: https://github.com/nutthead/samoyed/actions
+Monitor workflow runs at: <https://github.com/nutthead/samoyed/actions>
 
 ### Performance Metrics
 
 Each PR includes:
-- Code coverage reports
-- Security audit results
+- Code coverage reports with detailed per-file breakdown
+- Security audit results (cargo-audit, cargo-deny)
+- Installer script validation results
+- Cross-platform test results (Linux, macOS, Windows)
 
 ### Release Metrics
 
@@ -235,6 +357,12 @@ Each release includes:
    - Review cargo-audit and cargo-deny output
    - Update dependencies or add exceptions as needed
 
+5. **Installer script failures**:
+   - Check shellcheck warnings and errors
+   - Verify platform detection logic for new distributions
+   - Test container-based tests locally with Docker/Podman
+   - Ensure scripts are executable (`chmod +x`)
+
 ### Debug Mode
 
 Enable debug logging:
@@ -245,13 +373,56 @@ env:
   ACTIONS_STEP_DEBUG: true
 ```
 
+### Testing Installer Scripts Locally
+
+Test the installer scripts before committing:
+
+```bash
+# Validate with shellcheck
+shellcheck install.sh uninstall.sh
+
+# Test on Ubuntu using Docker
+docker run --rm -v "$PWD:/workspace" ubuntu:24.04 bash -c \
+  "apt-get update -qq && apt-get install -y curl && cd /workspace && bash install.sh"
+
+# Test on Fedora using Docker
+docker run --rm -v "$PWD:/workspace" fedora:42 bash -c \
+  "dnf install -y curl tar && cd /workspace && bash install.sh"
+
+# Test uninstall
+bash uninstall.sh
+```
+
 ## Best Practices
 
 1. **Conventional Commits**: Use standard prefixes (feat, fix, docs, etc.)
+   - `feat:` - New features (bumps minor version)
+   - `fix:` - Bug fixes (bumps patch version)
+   - `feat!:` or `BREAKING CHANGE:` - Breaking changes (bumps major version)
+   - `docs:`, `chore:`, `test:`, etc. - No version bump
+
 2. **Security First**: All releases are signed and attested
+   - SLSA Level 3 compliance
+   - Sigstore/cosign for keyless signing
+   - SBOM generation for dependency tracking
+
 3. **Cross-Platform**: Test on all supported platforms before release
+   - CI validates on Linux, macOS, and Windows
+   - Installer scripts tested on Ubuntu, Fedora, and macOS
+
 4. **Incremental Updates**: Let release-plz manage version bumps
+   - Never manually edit version in Cargo.toml
+   - Trust the automated version calculation
+   - Review the generated release PR carefully
+
 5. **Dependency Updates**: Review and test automated dependency PRs
+   - Check for breaking changes in dependencies
+   - Verify all tests pass with updated dependencies
+
+6. **Installer Maintenance**: Keep installation scripts up-to-date
+   - Test `install.sh` on new Linux distributions
+   - Validate `uninstall.sh` cleans up completely
+   - Update shellcheck suppressions sparingly
 
 ## Future Improvements
 
