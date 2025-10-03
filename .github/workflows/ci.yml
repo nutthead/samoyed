@@ -165,8 +165,17 @@ jobs:
           echo "=== Testing install.sh functions ==="
           echo ""
 
-          # Extract and test platform detection
-          source <(sed -n '/^detect_platform()/,/^}/p' install.sh)
+          # Extract dependencies and platform detection function
+          {
+            sed -n '/^readonly RED=/,/^readonly NC=/p' install.sh
+            sed -n '/^info()/,/^}/p' install.sh
+            sed -n '/^warn()/,/^}/p' install.sh
+            sed -n '/^error()/,/^}/p' install.sh
+            sed -n '/^die()/,/^}/p' install.sh
+            sed -n '/^detect_platform()/,/^}/p' install.sh
+          } > /tmp/install_functions.sh
+
+          source /tmp/install_functions.sh
 
           echo "Test 1: Platform detection"
           PLATFORM=$(detect_platform 2>&1)

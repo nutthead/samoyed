@@ -118,9 +118,11 @@ const ERR_FAILED_CREATE_WRAPPER_DIR: &str = "Error: Failed to create _ directory
 const ERR_FAILED_WRITE_WRAPPER: &str = "Error: Failed to write wrapper script";
 
 /// Error prefix when file metadata retrieval fails.
+#[cfg(unix)]
 const ERR_FAILED_GET_METADATA: &str = "Error: Failed to get file metadata";
 
 /// Error prefix when file permission setting fails.
+#[cfg(unix)]
 const ERR_FAILED_SET_PERMISSIONS: &str = "Error: Failed to set file permissions";
 
 /// Error prefix when hook script write fails.
