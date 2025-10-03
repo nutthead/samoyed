@@ -14,7 +14,7 @@ on:
     branches: [master]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 env:
