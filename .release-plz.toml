@@ -23,25 +23,24 @@ changelog_update = true
 
 # PR body template
 pr_body = """
-## 🚀 Release PR for v{{ releases[0].next_version }}
+## 🚀 Release PR{% if releases | length == 1 %} for v{{ releases[0].next_version }}{% endif %}
 
 This PR was automatically created by [release-plz](https://github.com/MarcoIeni/release-plz) and contains:
 
 ### 📦 Version Updates
-- **{{ releases[0].package }}**: `{{ releases[0].previous_version }}` → `{{ releases[0].next_version }}`
-
-### 📝 Changelog
-{% if releases[0].changelog | default(value="") | trim | length > 0 %}
-{{ releases[0].changelog }}
-{% else %}
-No changelog entries for this release.
+{% for r in releases -%}
+- **{{ r.package }}**: `{{ r.previous_version }}` → `{{ r.next_version }}`
+{% endfor %}
+{% for r in releases -%}
+{% if r.changelog | default(value="") | trim | length > 0 %}
+### 📝 Changelog for {{ r.package }}
+{{ r.changelog }}
 {% endif %}
-
-{% if releases[0].breaking_changes | default(value="") | trim | length > 0 %}
-### ⚠️ Breaking Changes
-{{ releases[0].breaking_changes }}
+{%- if r.breaking_changes | default(value="") | trim | length > 0 %}
+### ⚠️ Breaking Changes in {{ r.package }}
+{{ r.breaking_changes }}
 {% endif %}
-
+{%- endfor %}
 ### ✅ Checklist
 - [ ] Version bump looks correct
 - [ ] Changelog entries are accurate
@@ -50,7 +49,9 @@ No changelog entries for this release.
 
 ### 🔄 Merge Instructions
 When you merge this PR, the following will happen automatically:
-1. A new git tag `v{{ releases[0].next_version }}` will be created
+{% for r in releases -%}
+1. A new git tag `v{{ r.next_version }}` will be created for {{ r.package }}
+{% endfor -%}
 2. GitHub release will be published with binaries
 3. The crate will be published to crates.io
 4. Attestations and signatures will be generated
