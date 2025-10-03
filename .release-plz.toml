@@ -23,16 +23,24 @@ changelog_update = true
 
 # PR body template
 pr_body = """
-## 🚀 Release PR for v{{version}}
+## 🚀 Release PR{% if releases | length == 1 %} for v{{ releases[0].next_version }}{% endif %}
 
 This PR was automatically created by [release-plz](https://github.com/MarcoIeni/release-plz) and contains:
 
 ### 📦 Version Updates
-- **samoyed**: `{{prev_version}}` → `{{version}}`
-
-### 📝 Changelog
-{{changelog}}
-
+{% for r in releases -%}
+- **{{ r.package }}**: `{{ r.previous_version }}` → `{{ r.next_version }}`
+{% endfor %}
+{% for r in releases -%}
+{% if r.changelog | default(value="") | trim | length > 0 %}
+### 📝 Changelog for {{ r.package }}
+{{ r.changelog }}
+{% endif %}
+{%- if r.breaking_changes | default(value="") | trim | length > 0 %}
+### ⚠️ Breaking Changes in {{ r.package }}
+{{ r.breaking_changes }}
+{% endif %}
+{%- endfor %}
 ### ✅ Checklist
 - [ ] Version bump looks correct
 - [ ] Changelog entries are accurate
@@ -41,7 +49,10 @@ This PR was automatically created by [release-plz](https://github.com/MarcoIeni/
 
 ### 🔄 Merge Instructions
 When you merge this PR, the following will happen automatically:
-1. A new git tag `v{{version}}` will be created
+1. New git tags will be created:
+{% for r in releases -%}
+   - `v{{ r.next_version }}` for {{ r.package }}
+{% endfor -%}
 2. GitHub release will be published with binaries
 3. The crate will be published to crates.io
 4. Attestations and signatures will be generated
