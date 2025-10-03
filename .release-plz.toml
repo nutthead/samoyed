@@ -31,17 +31,15 @@ This PR was automatically created by [release-plz](https://github.com/MarcoIeni/
 - **{{ releases[0].package }}**: `{{ releases[0].previous_version }}` → `{{ releases[0].next_version }}`
 
 ### 📝 Changelog
-{% if releases[0].changelog is defined and releases[0].changelog | length > 0 %}
+{% if releases[0].changelog | default(value="") | trim | length > 0 %}
 {{ releases[0].changelog }}
 {% else %}
 No changelog entries for this release.
 {% endif %}
 
-{% if releases[0].breaking_changes is defined and releases[0].breaking_changes | length > 0 %}
+{% if releases[0].breaking_changes | default(value="") | trim | length > 0 %}
 ### ⚠️ Breaking Changes
-```text
 {{ releases[0].breaking_changes }}
-```
 {% endif %}
 
 ### ✅ Checklist
