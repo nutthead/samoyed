@@ -1,6 +1,8 @@
 # Samoyed
 
-> A single-binary, minimal, ultra-fast Git hooks manager for every platform.
+[![Crates.io Version](https://img.shields.io/crates/v/samoyed)](https://crates.io/crates/samoyed)
+
+> A single-binary, minimalist, ultra-fast Git hooks manager for every platform.
 
 Samoyed keeps Git hook management small, transparent, and safe. It ships as one Rust binary plus a POSIX wrapper script, so developers can install it quickly, version it with their repositories, and stay in control of what runs on commit.
 
@@ -9,10 +11,10 @@ Samoyed keeps Git hook management small, transparent, and safe. It ships as one 
 ## Why Samoyed?
 
 - **Single binary** — Zero runtime dependencies. One Rust executable embeds everything.
-- **Transparent** — All code in one file (`src/main.rs`, ~1000 lines). No hidden complexity.
+- **Transparent** — All code in one file (`src/main.rs`). No hidden complexity.
 - **Cross-platform** — Works on Linux, macOS, and Windows (WSL). POSIX wrapper ensures consistency.
 - **Developer-friendly** — `SAMOYED=0` to bypass, `SAMOYED=2` to debug. Simple escape hatches when you need them.
-- **80% smaller** — 0.2.x radically simplifies the code from 6000+ lines across 23 modules to ~1000 lines in one file.
+- **80% smaller** — 0.2.x radically simplifies the code from 6000+ lines across 23 modules to ~1000 lines of code in one file.
 
 ## Quick Start
 
@@ -236,7 +238,7 @@ Samoyed was built to strip Git hook tooling down to the essentials:
 
 In 0.2.x, Samoyed doubles down on clarity: the `samoyed init` command seeds every Git hook, wires them through the shared wrapper, and leaves a template pre-commit script ready for teams to adapt. Environment variables such as `SAMOYED=0` (bypass) and `SAMOYED=2` (debug) give developers predictable escape hatches without extra plugins.
 
-This represents a fundamental architectural simplification from version 0.1.17, which scattered functionality across 23 separate Rust modules totaling nearly 6,000 lines of code. The current single-file implementation achieves the same functionality<sup>*</sup> in just about 1000 lines---an ~80% reduction in code size. By consolidating everything into `src/main.rs`, the codebase becomes dramatically easier to understand, debug, and maintain, while eliminating the cognitive overhead of navigating complex module hierarchies and cross-file dependencies.
+This represents a fundamental architectural simplification from version 0.1.17, which scattered functionality across 23 separate Rust modules totaling nearly 6,000 lines of code. The current single-file implementation achieves the same functionality<sup>*</sup> in just about 1000 lines of code---an ~80% reduction in code size. By consolidating everything into `src/main.rs`, the codebase becomes dramatically easier to understand, debug, and maintain, while eliminating the cognitive overhead of navigating complex module hierarchies and cross-file dependencies.
 
 <sup>*</sup>Support for `samoyed.toml` is removed in version 0.2.0. However I will re-introduce a well-thought-out option for configuring hooks _"declaratively"_ in a future release.
 
@@ -263,7 +265,7 @@ cd tests/integration
 
 ## Maintainers
 
-- [Behrang Saeedzadeh](https://github.com/behrangsa)
+- [Behrang Saeedzadeh](https://www.behrang.org)
 
 ## Contributing
 
@@ -275,4 +277,4 @@ Issues and pull requests are welcome. Before submitting a change, please ensure:
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE)
