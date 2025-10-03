@@ -23,15 +23,26 @@ changelog_update = true
 
 # PR body template
 pr_body = """
-## 🚀 Release PR for v{{version}}
+## 🚀 Release PR for v{{ releases[0].next_version }}
 
 This PR was automatically created by [release-plz](https://github.com/MarcoIeni/release-plz) and contains:
 
 ### 📦 Version Updates
-- **samoyed**: `{{prev_version}}` → `{{version}}`
+- **{{ releases[0].package }}**: `{{ releases[0].previous_version }}` → `{{ releases[0].next_version }}`
 
 ### 📝 Changelog
-{{changelog}}
+{% if releases[0].changelog %}
+{{ releases[0].changelog }}
+{% else %}
+No changelog entries for this release.
+{% endif %}
+
+{% if releases[0].breaking_changes %}
+### ⚠️ Breaking Changes
+```text
+{{ releases[0].breaking_changes }}
+```
+{% endif %}
 
 ### ✅ Checklist
 - [ ] Version bump looks correct
@@ -41,7 +52,7 @@ This PR was automatically created by [release-plz](https://github.com/MarcoIeni/
 
 ### 🔄 Merge Instructions
 When you merge this PR, the following will happen automatically:
-1. A new git tag `v{{version}}` will be created
+1. A new git tag `v{{ releases[0].next_version }}` will be created
 2. GitHub release will be published with binaries
 3. The crate will be published to crates.io
 4. Attestations and signatures will be generated
