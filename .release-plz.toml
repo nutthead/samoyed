@@ -131,4 +131,5 @@ commit_parsers = [
   { message = "^revert", group = "⏪ Reverts" },
   { message = "^build", group = "📦 Build System" },
   { message = "^ci", group = "👷 CI/CD" },
+  { message = ".*", group = "🧹 Miscellaneous" },
 ]
