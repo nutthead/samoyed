@@ -66,47 +66,91 @@ const SAMPLE_HOOK_NAME: &str = "pre-commit";
 /// Filename for the .gitignore file in the wrapper directory.
 const GITIGNORE_NAME: &str = ".gitignore";
 
-// User-facing messages
+/// Message displayed when SAMOYED=0 environment variable bypasses initialization.
 const MSG_BYPASS_INIT: &str = "Bypassing samoyed init due to SAMOYED=0";
 
-// Error messages (simple messages without format placeholders)
+/// Error message when git command execution fails.
 const ERR_FAILED_EXECUTE_GIT: &str = "Error: Failed to execute git command";
-const ERR_NOT_GIT_REPO: &str = "Error: Not a git repository";
-const ERR_FAILED_GET_GIT_ROOT: &str = "Error: Failed to get git root directory";
-const ERR_FAILED_SET_GIT_CONFIG: &str = "Error: Failed to set git config";
-const ERR_FAILED_SET_HOOKS_PATH: &str = "Error: Failed to set core.hooksPath";
-const ERR_HOOKS_PATH_NOT_IN_REPO: &str = "Error: Hooks path is not within git repository";
-const ERR_INVALID_HOOKS_PATH: &str = "Error: Invalid path for hooks directory";
-const ERR_UNABLE_RESOLVE_PATH: &str = "Unable to resolve path";
-const ERR_UNABLE_RESOLVE_PARENT: &str = "Unable to resolve parent path";
 
-// Error message prefixes (for use with format!)
+/// Error message when current directory is not a git repository.
+const ERR_NOT_GIT_REPO: &str = "Error: Not a git repository";
+
+/// Error message when git root directory cannot be determined.
+const ERR_FAILED_GET_GIT_ROOT: &str = "Error: Failed to get git root directory";
+
+/// Error message when git configuration update fails.
+const ERR_FAILED_SET_GIT_CONFIG: &str = "Error: Failed to set git config";
+
+/// Error message when setting core.hooksPath configuration fails.
+const ERR_FAILED_SET_HOOKS_PATH: &str = "Error: Failed to set core.hooksPath";
+
+/// Error message when hooks path is outside the git repository.
+const ERR_HOOKS_PATH_NOT_IN_REPO: &str = "Error: Hooks path is not within git repository";
+
+/// Error message when hooks directory path is invalid.
+const ERR_INVALID_HOOKS_PATH: &str = "Error: Invalid path for hooks directory";
+
+/// Error message when path canonicalization fails.
+const ERR_UNABLE_RESOLVE_PATH: &str = "Error: Unable to resolve path";
+
+/// Error message when parent path resolution fails.
+const ERR_UNABLE_RESOLVE_PARENT: &str = "Error: Unable to resolve parent path";
+
+/// Error prefix when current directory determination fails.
 const ERR_FAILED_CURRENT_DIR: &str = "Error: Failed to determine current directory";
+
+/// Error prefix when git root resolution fails.
 const ERR_FAILED_RESOLVE_GIT_ROOT: &str = "Error: Failed to resolve git root";
+
+/// Error prefix when samoyed directory resolution fails.
 const ERR_FAILED_RESOLVE_SAMOYED_DIR: &str = "Error: Failed to resolve samoyed directory";
+
+/// Error prefix when path is outside the git repository bounds.
 const ERR_OUTSIDE_GIT_REPO: &str = "Error: Path is outside the git repository";
+
+/// Error prefix when samoyed directory creation fails.
 const ERR_FAILED_CREATE_SAMOYED_DIR: &str = "Error: Failed to create samoyed directory";
+
+/// Error prefix when wrapper directory creation fails.
 const ERR_FAILED_CREATE_WRAPPER_DIR: &str = "Error: Failed to create _ directory";
+
+/// Error prefix when wrapper script write fails.
 const ERR_FAILED_WRITE_WRAPPER: &str = "Error: Failed to write wrapper script";
+
+/// Error prefix when file metadata retrieval fails.
 const ERR_FAILED_GET_METADATA: &str = "Error: Failed to get file metadata";
+
+/// Error prefix when file permission setting fails.
 const ERR_FAILED_SET_PERMISSIONS: &str = "Error: Failed to set file permissions";
+
+/// Error prefix when hook script write fails.
 const ERR_FAILED_WRITE_HOOK: &str = "Error: Failed to write hook";
+
+/// Error prefix when sample pre-commit hook write fails.
 const ERR_FAILED_WRITE_SAMPLE: &str = "Error: Failed to write sample pre-commit hook";
+
+/// Error prefix when git root canonicalization fails.
 const ERR_FAILED_CANONICALIZE_GIT_ROOT: &str = "Error: Failed to canonicalize git root";
+
+/// Error prefix when samoyed directory canonicalization fails.
 const ERR_FAILED_CANONICALIZE_SAMOYED: &str = "Error: Failed to canonicalize samoyed directory";
+
+/// Error prefix when .gitignore file write fails.
 const ERR_FAILED_WRITE_GITIGNORE: &str = "Error: Failed to write .gitignore";
 
-// File content templates
+/// Shell script template for Git hooks that sources the Samoyed wrapper.
 const HOOK_SCRIPT_TEMPLATE: &str = r#"#!/usr/bin/env sh
 . "$(dirname "$0")/samoyed"
 "#;
 
+/// Sample pre-commit hook template with placeholder comments for user customization.
 const SAMPLE_PRE_COMMIT_CONTENT: &str = r#"#!/usr/bin/env sh
 # Add your pre-commit checks here. For example:
 # echo "Running Samoyed sample pre-commit"
 # exit 0
 "#;
 
+/// Gitignore pattern that excludes all files in the wrapper directory.
 const GITIGNORE_CONTENT: &str = "*\n";
 
 /// Command-line interface for Samoyed.
