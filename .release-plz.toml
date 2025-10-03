@@ -49,8 +49,9 @@ This PR was automatically created by [release-plz](https://github.com/MarcoIeni/
 
 ### 🔄 Merge Instructions
 When you merge this PR, the following will happen automatically:
+1. New git tags will be created:
 {% for r in releases -%}
-1. A new git tag `v{{ r.next_version }}` will be created for {{ r.package }}
+   - `v{{ r.next_version }}` for {{ r.package }}
 {% endfor -%}
 2. GitHub release will be published with binaries
 3. The crate will be published to crates.io
