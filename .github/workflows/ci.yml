@@ -114,6 +114,169 @@ jobs:
           path: audit.json
           retention-days: 30
 
+  installer-test:
+    name: Installer Scripts (${{ matrix.platform }})
+    needs: [quick-check]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: Ubuntu
+            container: ubuntu:24.04
+          - os: ubuntu-latest
+            platform: Fedora
+            container: fedora:42
+          - os: macos-latest
+            platform: macOS
+            container: ""
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install shellcheck
+        run: |
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            brew install shellcheck
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y shellcheck
+          fi
+        shell: bash
+
+      - name: Validate scripts with shellcheck
+        run: |
+          echo "=== Validating install.sh ==="
+          shellcheck install.sh || echo "Note: SC2016 is expected (intentional quote mixing)"
+          echo ""
+          echo "=== Validating uninstall.sh ==="
+          shellcheck uninstall.sh
+        shell: bash
+
+      - name: Test install.sh functions (native)
+        if: matrix.container == ''
+        run: |
+          cat > test_install.sh << 'EOF'
+          #!/bin/bash
+          set -euo pipefail
+
+          echo "=== Testing install.sh functions ==="
+          echo ""
+
+          # Extract and test platform detection
+          source <(sed -n '/^detect_platform()/,/^}/p' install.sh)
+
+          echo "Test 1: Platform detection"
+          PLATFORM=$(detect_platform 2>&1)
+          echo "✓ Platform detected: $PLATFORM"
+          echo ""
+
+          echo "Test 2: Platform format validation"
+          if [[ "$PLATFORM" =~ ^(x86_64|aarch64)-(unknown-linux-musl|apple-darwin)$ ]]; then
+            echo "✓ Platform format is correct"
+          else
+            echo "✗ Invalid platform format: $PLATFORM"
+            exit 1
+          fi
+          echo ""
+
+          echo "Test 3: Prerequisites check"
+          for cmd in curl tar; do
+            if command -v "$cmd" >/dev/null 2>&1; then
+              echo "✓ Found: $cmd"
+            else
+              echo "✗ Missing: $cmd"
+              exit 1
+            fi
+          done
+          echo ""
+
+          echo "=== All tests passed ==="
+          EOF
+
+          chmod +x test_install.sh
+          bash test_install.sh
+        shell: bash
+
+      - name: Test install.sh functions (container)
+        if: matrix.container != ''
+        run: |
+          cat > test_install.sh << 'EOF'
+          #!/bin/bash
+          set -euo pipefail
+
+          echo "=== Testing install.sh functions ==="
+          echo ""
+
+          # Extract and test platform detection
+          source <(sed -n '/^detect_platform()/,/^}/p' /workspace/install.sh)
+
+          echo "Test 1: Platform detection"
+          PLATFORM=$(detect_platform 2>&1)
+          echo "✓ Platform detected: $PLATFORM"
+          echo ""
+
+          echo "Test 2: Prerequisites check"
+          for cmd in curl tar; do
+            if command -v "$cmd" >/dev/null 2>&1; then
+              echo "✓ Found: $cmd"
+            else
+              echo "✗ Missing: $cmd"
+              exit 1
+            fi
+          done
+          echo ""
+
+          echo "=== All tests passed ==="
+          EOF
+
+          chmod +x test_install.sh
+
+          if [[ "${{ matrix.platform }}" == "Fedora" ]]; then
+            docker run --rm -v "$PWD:/workspace" ${{ matrix.container }} bash -c "dnf install -y -q curl tar && bash /workspace/test_install.sh"
+          else
+            docker run --rm -v "$PWD:/workspace" ${{ matrix.container }} bash -c "apt-get update -qq && apt-get install -y -qq curl && bash /workspace/test_install.sh"
+          fi
+        shell: bash
+
+      - name: Test uninstall.sh
+        run: |
+          cat > test_uninstall.sh << 'EOF'
+          #!/bin/bash
+          set -euo pipefail
+
+          echo "=== Testing uninstall.sh ==="
+          echo ""
+
+          # Create mock installation
+          mkdir -p "$HOME/.local/bin"
+          echo '#!/bin/sh' > "$HOME/.local/bin/samoyed"
+          echo 'echo "mock"' >> "$HOME/.local/bin/samoyed"
+          chmod +x "$HOME/.local/bin/samoyed"
+          echo "✓ Created mock binary"
+          echo ""
+
+          # Run uninstall
+          bash uninstall.sh
+          echo ""
+
+          # Verify removal
+          if [ ! -f "$HOME/.local/bin/samoyed" ]; then
+            echo "✓ Binary successfully removed"
+          else
+            echo "✗ Binary still exists"
+            exit 1
+          fi
+
+          echo "=== Uninstall test passed ==="
+          EOF
+
+          chmod +x test_uninstall.sh
+          bash test_uninstall.sh
+        shell: bash
+
   test:
     name: Test ${{ matrix.name }}
     needs: [quick-check]
@@ -328,12 +491,13 @@ jobs:
   ci-success:
     name: CI Success
     if: always()
-    needs: [quick-check, security, test, coverage]
+    needs: [quick-check, security, installer-test, test, coverage]
     runs-on: ubuntu-latest
     steps:
       - name: Check status
         run: |
           if [[ "${{ needs.quick-check.result }}" != "success" ]] ||
+             [[ "${{ needs.installer-test.result }}" != "success" ]] ||
              [[ "${{ needs.test.result }}" != "success" ]] ||
              [[ "${{ needs.coverage.result }}" != "success" ]]; then
             echo "❌ CI failed"

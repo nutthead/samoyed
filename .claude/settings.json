@@ -38,6 +38,7 @@
       "Bash(xargs:*)",
       "mcp__grep__searchGitHub",
       "mcp__ide__getDiagnostics",      
+      "Read(./.docs/02-bash-curl-install.md)",
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:docs.github.com)",
       "WebFetch(domain:github.com)",
