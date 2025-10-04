@@ -114,22 +114,40 @@ commit_preprocessors = [
   { pattern = '\\s*\\(#[0-9]+\\)$', replace = "" },
 ]
 commit_parsers = [
+  # Skip rule: ONLY commits with $no-changelog tag are excluded from changelog
+  { body = ".*\\$no-changelog", skip = true },
+
+  # Primary: Tag-based grouping (footer $tag determines changelog category)
+  { body = ".*\\$feat", group = "⭐ Features" },
+  { body = ".*\\$fix", group = "🐛 Bug Fixes" },
+  { body = ".*\\$docs", group = "📚 Documentation" },
+  { body = ".*\\$perf", group = "⚡ Performance" },
+  { body = ".*\\$refactor", group = "🔨 Refactor" },
+  { body = ".*\\$style", group = "🎨 Styling" },
+  { body = ".*\\$test", group = "🧪 Testing" },
+  { body = ".*\\$build", group = "📦 Build System" },
+  { body = ".*\\$ci", group = "👷 CI/CD" },
+  { body = ".*\\$revert", group = "⏪ Reverts" },
+  { body = ".*\\$chore", group = "🧹 Miscellaneous" },
+  { body = ".*\\$misc", group = "🧹 Miscellaneous" },
+
+  # Special cases
+  { body = ".*security", group = "🔐 Security" },
+
+  # Fallback: Message-based grouping (for commits without tags)
   { message = "^feat", group = "⭐ Features" },
   { message = "^fix", group = "🐛 Bug Fixes" },
+  { message = "^docs", group = "📚 Documentation" },
   { message = "^doc", group = "📚 Documentation" },
   { message = "^perf", group = "⚡ Performance" },
   { message = "^refactor", group = "🔨 Refactor" },
   { message = "^style", group = "🎨 Styling" },
   { message = "^test", group = "🧪 Testing" },
-  { message = "^chore\\(release\\):", skip = true },
-  { message = "^chore\\(deps\\)", skip = true },
-  { message = "^chore\\(deps-dev\\)", skip = true },
-  { message = "^chore\\(pr\\)", skip = true },
-  { message = "^chore\\(pull\\)", skip = true },
   { message = "^chore", group = "🧹 Miscellaneous" },
-  { body = ".*security", group = "🔐 Security" },
   { message = "^revert", group = "⏪ Reverts" },
   { message = "^build", group = "📦 Build System" },
   { message = "^ci", group = "👷 CI/CD" },
+
+  # Catch-all
   { message = ".*", group = "🧹 Miscellaneous" },
 ]
