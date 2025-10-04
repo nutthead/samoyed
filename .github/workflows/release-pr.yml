@@ -12,6 +12,16 @@ name: Release PR
 on:
   push:
     branches: [master]
+    paths:
+      - 'src/**'
+      - 'assets/**'
+      - 'tests/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/release-pr.yml'
+      - 'clippy.toml'
+      - 'install.sh'
+      - 'uninstall.sh'
 
 permissions:
   contents: write
@@ -29,13 +39,31 @@ jobs:
     # Skip if commit message contains [skip ci] to prevent unnecessary runs
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     steps:
+      - name: Validate NH_RELEASE_PLZ_TOKEN exists
+        run: |
+          if [ -z "${{ secrets.NH_RELEASE_PLZ_TOKEN }}" ]; then
+            echo "❌ Error: NH_RELEASE_PLZ_TOKEN secret is not configured"
+            echo ""
+            echo "Release PRs created with GITHUB_TOKEN cannot trigger CI workflows,"
+            echo "which causes them to be blocked waiting for 'CI Success' that never runs."
+            echo ""
+            echo "To fix this:"
+            echo "1. Create a fine-grained PAT at: https://github.com/settings/personal-access-tokens/new"
+            echo "2. Grant it these permissions for this repository:"
+            echo "   - Contents: Read and write"
+            echo "   - Pull requests: Read and write"
+            echo "   - Workflows: Read and write"
+            echo "3. Add it as a repository secret named NH_RELEASE_PLZ_TOKEN at:"
+            echo "   https://github.com/nutthead/samoyed/settings/secrets/actions"
+            exit 1
+          fi
+          echo "✅ NH_RELEASE_PLZ_TOKEN is configured"
+
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-          # Use PAT if available to trigger CI workflows on release PRs
-          # Otherwise fall back to GITHUB_TOKEN (CI won't run but PR will be created)
-          token: ${{ secrets.NH_RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.NH_RELEASE_PLZ_TOKEN }}
 
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
@@ -54,8 +82,7 @@ jobs:
       - name: Run release-plz
         uses: MarcoIeni/release-plz-action@acb9246af4d59a270d1d4058a8b9af8c3f3a2559 # v0.5.117
         env:
-          # Use PAT if available to trigger CI workflows on release PRs
-          GITHUB_TOKEN: ${{ secrets.NH_RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.NH_RELEASE_PLZ_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         with:
           command: release-pr
