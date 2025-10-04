@@ -278,7 +278,7 @@ fn get_git_root() -> Result<PathBuf, String> {
     let output = Command::new("git")
         .args(["rev-parse", "--is-inside-work-tree"])
         .output()
-        .map_err(|_| ERR_FAILED_EXECUTE_GIT.to_string())?;
+        .map_err(|e| format!("{}: {}", ERR_FAILED_EXECUTE_GIT, e))?;
 
     if !output.status.success() {
         return Err(ERR_NOT_GIT_REPO.to_string());
@@ -292,13 +292,16 @@ fn get_git_root() -> Result<PathBuf, String> {
     let output = Command::new("git")
         .args(["rev-parse", "--show-toplevel"])
         .output()
-        .map_err(|_| ERR_FAILED_GET_GIT_ROOT.to_string())?;
+        .map_err(|e| format!("{}: {}", ERR_FAILED_GET_GIT_ROOT, e))?;
 
     if !output.status.success() {
         return Err(ERR_FAILED_GET_GIT_ROOT.to_string());
     }
 
-    let git_root = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let git_root = String::from_utf8(output.stdout)
+        .map_err(|e| format!("Error: Git root path contains invalid UTF-8: {}", e))?
+        .trim()
+        .to_string();
     Ok(PathBuf::from(git_root))
 }
 
@@ -588,7 +591,7 @@ fn set_git_hooks_path(samoyed_dir: &Path) -> Result<(), String> {
     let status = Command::new("git")
         .args(["config", "core.hooksPath", &hooks_path_str])
         .status()
-        .map_err(|_| ERR_FAILED_SET_GIT_CONFIG.to_string())?;
+        .map_err(|e| format!("{}: {}", ERR_FAILED_SET_GIT_CONFIG, e))?;
 
     if !status.success() {
         return Err(ERR_FAILED_SET_HOOKS_PATH.to_string());
