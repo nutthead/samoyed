@@ -33,7 +33,7 @@ Use a Personal Access Token (PAT) instead of `GITHUB_TOKEN` for the release-pr w
 1. Go to: https://github.com/nutthead/samoyed/settings/secrets/actions
 2. Click "New repository secret"
 3. Configure the secret:
-   - **Name**: `RELEASE_PLZ_TOKEN`
+   - **Name**: `NH_RELEASE_PLZ_TOKEN`
    - **Value**: Paste the PAT you copied
 4. Click "Add secret"
 
@@ -42,7 +42,7 @@ Use a Personal Access Token (PAT) instead of `GITHUB_TOKEN` for the release-pr w
 The workflow at `.github/workflows/release-pr.yml` is already configured to use this token:
 
 ```yaml
-token: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
+token: ${{ secrets.NH_RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
 ```
 
 Once the secret is added:
@@ -59,7 +59,7 @@ To test, merge any commit to master that changes version in `Cargo.toml`. The re
 
 ## Fallback Behavior
 
-If `RELEASE_PLZ_TOKEN` is not configured:
+If `NH_RELEASE_PLZ_TOKEN` is not configured:
 - Workflow falls back to `GITHUB_TOKEN`
 - Release PR will be created successfully
 - **But CI won't run automatically** (must be triggered manually)
