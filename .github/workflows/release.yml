@@ -421,10 +421,11 @@ jobs:
 
           To verify signatures:
           ```bash
+          WORKFLOW_ID="https://github.com/nutthead/samoyed/.github/workflows/release.yml@refs/heads/master"
           cosign verify-blob \
             --certificate samoyed-${VERSION}-<platform>.tar.gz.crt \
             --signature samoyed-${VERSION}-<platform>.tar.gz.sig \
-            --certificate-identity-regexp "https://github.com/nutthead/samoyed/.github/workflows/release.yml@refs/heads/master" \
+            --certificate-identity-regexp "$WORKFLOW_ID" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             samoyed-${VERSION}-<platform>.tar.gz
           ```
@@ -438,13 +439,17 @@ jobs:
 
           #### macOS (Apple Silicon)
           ```bash
-          curl -L https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-aarch64-apple-darwin.tar.gz | tar xz
+          PLATFORM="aarch64-apple-darwin"
+          DOWNLOAD_URL="https://github.com/nutthead/samoyed/releases/download/v${VERSION}"
+          curl -L "${DOWNLOAD_URL}/samoyed-${VERSION}-${PLATFORM}.tar.gz" | tar xz
           sudo mv samoyed /usr/local/bin/
           ```
 
           #### Linux
           ```bash
-          curl -L https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          PLATFORM="x86_64-unknown-linux-gnu"
+          DOWNLOAD_URL="https://github.com/nutthead/samoyed/releases/download/v${VERSION}"
+          curl -L "${DOWNLOAD_URL}/samoyed-${VERSION}-${PLATFORM}.tar.gz" | tar xz
           sudo mv samoyed /usr/local/bin/
           ```
 
@@ -519,20 +524,18 @@ jobs:
       - name: Verify signatures
         run: |
           VERSION="${{ needs.prepare-release.outputs.version }}"
+          BASE_URL="https://github.com/nutthead/samoyed/releases/download/v${VERSION}"
+          ARTIFACT="samoyed-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
 
-          curl -L -o test-artifact.tar.gz \
-            "https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -L -o test-artifact.tar.gz "${BASE_URL}/${ARTIFACT}"
+          curl -L -o test-artifact.tar.gz.sig "${BASE_URL}/${ARTIFACT}.sig"
+          curl -L -o test-artifact.tar.gz.crt "${BASE_URL}/${ARTIFACT}.crt"
 
-          curl -L -o test-artifact.tar.gz.sig \
-            "https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-x86_64-unknown-linux-gnu.tar.gz.sig"
-
-          curl -L -o test-artifact.tar.gz.crt \
-            "https://github.com/nutthead/samoyed/releases/download/v${VERSION}/samoyed-${VERSION}-x86_64-unknown-linux-gnu.tar.gz.crt"
-
+          WORKFLOW_ID="https://github.com/nutthead/samoyed/.github/workflows/release.yml@refs/heads/master"
           cosign verify-blob \
             --certificate test-artifact.tar.gz.crt \
             --signature test-artifact.tar.gz.sig \
-            --certificate-identity-regexp "https://github.com/nutthead/samoyed/.github/workflows/release.yml@refs/heads/master" \
+            --certificate-identity-regexp "$WORKFLOW_ID" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             test-artifact.tar.gz
 
