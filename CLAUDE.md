@@ -234,3 +234,8 @@ Commits follow Conventional Commits format:
 - Add `!` for breaking changes (e.g., `feat!:`)
 - Use concise, imperative descriptions
 - Group related changes, avoid catch-all commits
+
+## Hard rules
+
+**Rule 1:** Whenever a function is modified, ensure its rustdoc comments are updated to reflect the changes, including parameters, return values, and behavior.
+**Rule 2:** Whenever a new function is added, it must include rustdoc comments explaining its purpose and usage, including parameters and return values.
