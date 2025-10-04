@@ -184,7 +184,7 @@ enum Commands {
 /// Main entry point for Samoyed
 ///
 /// Parses command-line arguments and dispatches to appropriate handlers.
-/// If no command is provided, displays help message.
+/// Returns success exit code if no command is provided.
 fn main() -> ExitCode {
     match Cli::parse().command {
         Some(Commands::Init { dirname }) => {
@@ -305,16 +305,21 @@ fn get_git_root() -> Result<PathBuf, String> {
     Ok(PathBuf::from(git_root))
 }
 
-/// Validate that the samoyed directory is inside the git repository
+/// Validate and resolve the samoyed directory path
+///
+/// This function resolves the provided directory name to an absolute path and validates
+/// that it is within the git repository. Handles absolute paths, relative paths with
+/// parent directory references (..), and simple directory names.
 ///
 /// # Arguments
 ///
 /// * `git_root` - The root directory of the git repository
+/// * `current_dir` - The current working directory
 /// * `dirname` - The proposed directory name for Samoyed
 ///
 /// # Returns
 ///
-/// Returns the absolute path to the samoyed directory, or an error if invalid
+/// Returns the absolute path to the samoyed directory, or an error if invalid or outside git repo
 fn validate_samoyed_dir(
     git_root: &Path,
     current_dir: &Path,
@@ -521,7 +526,9 @@ fn create_hook_scripts(samoyed_dir: &Path) -> Result<(), String> {
 /// Create a sample pre-commit hook in the samoyed directory
 ///
 /// This creates a simple pre-commit hook template that users can extend.
-/// The file is created with 644 permissions.
+/// The file is created with platform-appropriate permissions:
+/// - Unix: 644 permissions (rw-r--r--)
+/// - Windows: Default filesystem permissions
 ///
 /// # Arguments
 ///
