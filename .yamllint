@@ -1,0 +1,19 @@
+---
+# yamllint configuration for Samoyed project
+# Allows longer lines for GitHub Actions workflows
+
+extends: default
+
+rules:
+  line-length:
+    max: 120
+    level: error
+
+  document-start:
+    present: false
+
+  truthy:
+    allowed-values: ['true', 'false', 'on']
+
+  comments:
+    min-spaces-from-content: 1

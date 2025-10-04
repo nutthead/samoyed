@@ -12,6 +12,16 @@ name: Release-plz Tag
 on:
   push:
     branches: [master]
+    paths:
+      - 'src/**'
+      - 'assets/**'
+      - 'tests/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/release-plz.yml'
+      - 'clippy.toml'
+      - 'install.sh'
+      - 'uninstall.sh'
 
 permissions:
   contents: write

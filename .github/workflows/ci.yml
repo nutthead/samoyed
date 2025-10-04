@@ -14,8 +14,28 @@ name: CI
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - 'src/**'
+      - 'assets/**'
+      - 'tests/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/**'
+      - 'clippy.toml'
+      - 'install.sh'
+      - 'uninstall.sh'
   push:
     branches: [master]
+    paths:
+      - 'src/**'
+      - 'assets/**'
+      - 'tests/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/**'
+      - 'clippy.toml'
+      - 'install.sh'
+      - 'uninstall.sh'
   merge_group:
     types: [checks_requested]
   workflow_dispatch:
@@ -251,11 +271,14 @@ jobs:
 
           chmod +x test_install.sh
 
+          CONTAINER="${{ matrix.container }}"
           if [[ "${{ matrix.platform }}" == "Fedora" ]]; then
-            docker run --rm -v "$PWD:/workspace" ${{ matrix.container }} bash -c "dnf install -y -q curl tar && bash /workspace/test_install.sh"
+            CMD="dnf install -y -q curl tar && bash /workspace/test_install.sh"
           else
-            docker run --rm -v "$PWD:/workspace" ${{ matrix.container }} bash -c "apt-get update -qq && apt-get install -y -qq curl && bash /workspace/test_install.sh"
+            CMD="apt-get update -qq && apt-get install -y -qq curl && bash /workspace/test_install.sh"
           fi
+
+          docker run --rm -v "$PWD:/workspace" "$CONTAINER" bash -c "$CMD"
         shell: bash
 
       - name: Test uninstall.sh
@@ -294,10 +317,10 @@ jobs:
           bash test_uninstall.sh
         shell: bash
 
-  # Cross-platform test matrix covering all major target platforms
-  # Runs unit tests and integration tests for each platform
-  test:
-    name: Test ${{ matrix.name }}
+  # Unit tests run in parallel with integration tests for faster CI
+  # Uses cargo test with debug builds
+  unit-tests:
+    name: Unit Tests ${{ matrix.name }}
     needs: [quick-check]
     strategy:
       fail-fast: false
@@ -340,7 +363,7 @@ jobs:
         with:
           cache-on-failure: true
           prefix-key: "v2-rust"
-          key: ${{ matrix.target }}-${{ matrix.name }}
+          key: ${{ matrix.target }}-${{ matrix.name }}-unit
           save-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Install musl tools
@@ -349,15 +372,64 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y musl-tools
 
-      - name: Build
-        run: cargo build --locked --target ${{ matrix.target }} ${{ matrix.test_args }}
-
-      - name: Run tests
+      - name: Run unit tests
         run: cargo test --locked --target ${{ matrix.target }} ${{ matrix.test_args }} -- --test-threads=1
 
-      - name: Integration tests
+  # Integration tests run in parallel with unit tests for faster CI
+  # Uses release builds and executes shell-based integration test suite
+  integration-tests:
+    name: Integration Tests ${{ matrix.name }}
+    needs: [quick-check]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux
+            target: x86_64-unknown-linux-gnu
+
+          - os: macos-14
+            name: macOS (ARM)
+            target: aarch64-apple-darwin
+
+          - os: windows-latest
+            name: Windows
+            target: x86_64-pc-windows-msvc
+
+          - os: ubuntu-latest
+            name: Linux (musl)
+            target: x86_64-unknown-linux-musl
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
+        with:
+          toolchain: 1.90.0
+          target: ${{ matrix.target }}
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+        with:
+          cache-on-failure: true
+          prefix-key: "v2-rust"
+          key: ${{ matrix.target }}-${{ matrix.name }}-integration
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+
+      - name: Install musl tools
+        if: contains(matrix.target, 'musl')
         run: |
-          cargo build --locked --release --target ${{ matrix.target }}
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build release binary
+        run: cargo build --locked --release --target ${{ matrix.target }}
+
+      - name: Run integration tests
+        run: |
           for script in tests/integration/*.sh; do
             echo "Running ${script}"
             bash "$script"
@@ -366,9 +438,10 @@ jobs:
 
   # Generates code coverage report using tarpaulin
   # Uploads to Codecov and posts PR comment with coverage summary
+  # Depends on unit-tests since coverage measures Rust code only
   coverage:
     name: Code Coverage
-    needs: [test]
+    needs: [unit-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -513,7 +586,7 @@ jobs:
   ci-success:
     name: CI Success
     if: always()
-    needs: [quick-check, security, installer-test, test, coverage]
+    needs: [quick-check, security, installer-test, unit-tests, integration-tests, coverage]
     runs-on: ubuntu-latest
     steps:
       - name: Check status
@@ -521,7 +594,8 @@ jobs:
           # Check all job results
           if [[ "${{ needs.quick-check.result }}" != "success" ]] ||
              [[ "${{ needs.installer-test.result }}" != "success" ]] ||
-             [[ "${{ needs.test.result }}" != "success" ]] ||
+             [[ "${{ needs.unit-tests.result }}" != "success" ]] ||
+             [[ "${{ needs.integration-tests.result }}" != "success" ]] ||
              [[ "${{ needs.coverage.result }}" != "success" ]]; then
             echo "❌ CI failed"
             exit 1
