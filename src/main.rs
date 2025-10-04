@@ -184,7 +184,7 @@ enum Commands {
 /// Main entry point for Samoyed
 ///
 /// Parses command-line arguments and dispatches to appropriate handlers.
-/// Returns success exit code if no command is provided.
+/// If no command is provided, displays the help message and returns a success exit code.
 fn main() -> ExitCode {
     match Cli::parse().command {
         Some(Commands::Init { dirname }) => {
