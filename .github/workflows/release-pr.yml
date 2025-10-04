@@ -26,6 +26,7 @@ jobs:
   create-release-pr:
     name: Create Release PR
     runs-on: ubuntu-latest
+    # Skip if commit message contains [skip ci] to prevent unnecessary runs
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     steps:
       - name: Checkout repository
@@ -48,6 +49,8 @@ jobs:
           prefix-key: "v2-rust"
           key: release-plz
 
+      # Analyzes commits since last release and creates/updates version bump PR
+      # Uses conventional commits to determine version bump (major/minor/patch)
       - name: Run release-plz
         uses: MarcoIeni/release-plz-action@acb9246af4d59a270d1d4058a8b9af8c3f3a2559 # v0.5.117
         env:

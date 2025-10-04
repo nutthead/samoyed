@@ -8,6 +8,7 @@
 # - Tool installation via cargo-binstall with fallbacks
 # - Coverage reporting and optional PR comments
 # - Merge queue support
+# - Automatic CI skip for release-plz version bump PRs
 
 name: CI
 
@@ -22,16 +23,19 @@ on:
   schedule:
     - cron: '0 0 * * MON'
 
+# Cancel in-progress runs for the same PR/branch to save CI resources
+# Each PR gets its own concurrency group; pushes to branches share a group
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# Environment variables shared across all jobs
 env:
-  RUST_VERSION: "1.90.0"
-  CARGO_TERM_COLOR: always
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-  RUST_BACKTRACE: short
-  RUSTFLAGS: "-D warnings"
+  RUST_VERSION: "1.90.0"  # Pinned Rust version for consistency
+  CARGO_TERM_COLOR: always  # Enable colored output in CI logs
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse  # Use sparse registry protocol
+  RUST_BACKTRACE: short  # Provide backtraces without excessive noise
+  RUSTFLAGS: "-D warnings"  # Treat warnings as errors
 
 permissions:
   contents: read
@@ -40,8 +44,40 @@ permissions:
   checks: write
 
 jobs:
+  # Detects version bump PRs created by release-plz to skip expensive CI checks
+  # Release PRs are auto-generated and only modify version files, so they don't
+  # need full test matrix, coverage, or installer validation
+  detect-release-pr:
+    name: Detect Release PR
+    runs-on: ubuntu-latest
+    outputs:
+      is_release_pr: ${{ steps.check.outputs.is_release_pr }}
+    steps:
+      - name: Check if this is a release PR
+        id: check
+        run: |
+          # Check if this is a release PR by examining the head ref
+          # Release-plz uses branch names like "release-plz-*"
+          HEAD_REF="${{ github.head_ref }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+
+          if [[ "$HEAD_REF" =~ ^release-plz- ]] || \
+             [[ "$HEAD_REF" =~ ^release/ ]] || \
+             [[ "$PR_TITLE" =~ ^chore.*release ]] || \
+             [[ "$PR_TITLE" =~ ^chore\(release\) ]]; then
+            echo "is_release_pr=true" >> "$GITHUB_OUTPUT"
+            echo "✅ Detected release PR - CI will be skipped"
+          else
+            echo "is_release_pr=false" >> "$GITHUB_OUTPUT"
+            echo "📋 Regular PR - running full CI"
+          fi
+
+  # Fast-fail checks run before the expensive test matrix
+  # Skipped for release PRs to allow auto-merge without CI overhead
   quick-check:
     name: Quick Checks
+    needs: [detect-release-pr]
+    if: needs.detect-release-pr.outputs.is_release_pr != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -73,10 +109,14 @@ jobs:
         env:
           RUSTDOCFLAGS: "-D warnings"
 
+  # Security audit runs in parallel with quick-check
+  # Continues on error since advisory warnings shouldn't block PRs
   security:
     name: Security Audit
+    needs: [detect-release-pr]
+    if: needs.detect-release-pr.outputs.is_release_pr != 'true'
     runs-on: ubuntu-latest
-    continue-on-error: true
+    continue-on-error: true  # Advisory warnings are informational only
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -114,9 +154,12 @@ jobs:
           path: audit.json
           retention-days: 30
 
+  # Validates install.sh and uninstall.sh scripts across different platforms
+  # Tests both native and container-based installations
   installer-test:
     name: Installer Scripts (${{ matrix.platform }})
-    needs: [quick-check]
+    needs: [detect-release-pr, quick-check]
+    if: needs.detect-release-pr.outputs.is_release_pr != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -286,9 +329,12 @@ jobs:
           bash test_uninstall.sh
         shell: bash
 
+  # Cross-platform test matrix covering all major target platforms
+  # Runs unit tests and integration tests for each platform
   test:
     name: Test ${{ matrix.name }}
-    needs: [quick-check]
+    needs: [detect-release-pr, quick-check]
+    if: needs.detect-release-pr.outputs.is_release_pr != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -354,9 +400,12 @@ jobs:
           done
         shell: sh
 
+  # Generates code coverage report using tarpaulin
+  # Uploads to Codecov and posts PR comment with coverage summary
   coverage:
     name: Code Coverage
-    needs: [test]
+    needs: [detect-release-pr, test]
+    if: needs.detect-release-pr.outputs.is_release_pr != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -497,14 +546,32 @@ jobs:
               body
             });
 
+  # Final status check required by branch protection
+  # CRITICAL: This job auto-passes for release PRs to allow auto-merge
+  # For regular PRs, it validates that all CI jobs succeeded
   ci-success:
     name: CI Success
-    if: always()
-    needs: [quick-check, security, installer-test, test, coverage]
+    if: always()  # Must run even if other jobs are skipped
+    needs:
+      - detect-release-pr
+      - quick-check
+      - security
+      - installer-test
+      - test
+      - coverage
     runs-on: ubuntu-latest
     steps:
       - name: Check status
         run: |
+          # For release PRs, always succeed to satisfy branch protection
+          # without running expensive CI (version bumps don't need full tests)
+          IS_RELEASE="${{ needs.detect-release-pr.outputs.is_release_pr }}"
+          if [[ "$IS_RELEASE" == "true" ]]; then
+            echo "✅ Release PR - CI checks skipped, auto-passing"
+            exit 0
+          fi
+
+          # For regular PRs, check all job results
           if [[ "${{ needs.quick-check.result }}" != "success" ]] ||
              [[ "${{ needs.installer-test.result }}" != "success" ]] ||
              [[ "${{ needs.test.result }}" != "success" ]] ||

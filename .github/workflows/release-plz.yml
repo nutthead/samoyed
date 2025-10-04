@@ -24,6 +24,7 @@ jobs:
   release-tag:
     name: Create Release Tag
     runs-on: ubuntu-latest
+    # Prevent infinite loops from github-actions bot or [skip ci]
     if: |
       github.event.pusher.name != 'github-actions[bot]' &&
       !contains(github.event.head_commit.message, '[skip ci]')
@@ -34,6 +35,8 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Detect version bumps in Cargo.toml to trigger release tagging
+      # Compares previous and current version strings
       - name: Check for version change
         id: check
         run: |
@@ -54,6 +57,7 @@ jobs:
             echo "should_release=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Install Rust toolchain required by release-plz for Cargo operations
       - name: Install Rust toolchain
         if: steps.check.outputs.should_release == 'true'
         uses: actions-rust-lang/setup-rust-toolchain@02be93da58aa71fb456aa9c43b301149248829d8 # v1.15.1
@@ -68,6 +72,7 @@ jobs:
           prefix-key: "v2-rust"
           key: release-plz
 
+      # Creates Git tag and triggers the release workflow
       - name: Run release-plz release
         if: steps.check.outputs.should_release == 'true'
         uses: MarcoIeni/release-plz-action@acb9246af4d59a270d1d4058a8b9af8c3f3a2559 # v0.5.117

@@ -31,16 +31,20 @@ permissions:
   contents: read
   actions: read
 
+# Environment variables for release builds and Sigstore signing
 env:
   RUST_VERSION: "1.90.0"
   CARGO_TERM_COLOR: always
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
   RUST_BACKTRACE: short
-  COSIGN_EXPERIMENTAL: 1
-  FULCIO_URL: https://fulcio.sigstore.dev
-  REKOR_URL: https://rekor.sigstore.dev
+  # Sigstore configuration for keyless artifact signing
+  COSIGN_EXPERIMENTAL: 1  # Enable experimental keyless signing
+  FULCIO_URL: https://fulcio.sigstore.dev  # Certificate authority
+  REKOR_URL: https://rekor.sigstore.dev  # Transparency log
 
 jobs:
+  # Extracts and validates version from tag or manual input
+  # All other jobs depend on this for version consistency
   prepare-release:
     name: Prepare Release
     runs-on: ubuntu-latest
@@ -84,6 +88,8 @@ jobs:
             exit 1
           fi
 
+  # Runs security audit and generates Software Bill of Materials (SBOM)
+  # SBOM provides transparency about dependencies in the release
   security-scan:
     name: Security Audit & SBOM
     runs-on: ubuntu-latest
@@ -138,11 +144,13 @@ jobs:
             sbom.xml
           retention-days: 90
 
+  # Builds optimized release binaries for all supported platforms
+  # Uses cross-compilation for ARM and RISC-V targets
   build-binaries:
     name: Build ${{ matrix.target }}
     needs: [prepare-release]
     strategy:
-      fail-fast: false
+      fail-fast: false  # Continue building other targets if one fails
       matrix:
         include:
           - os: ubuntu-latest
@@ -269,14 +277,16 @@ jobs:
           path: dist/*
           retention-days: 7
 
+  # Generates SLSA Build Level 3 provenance and signs artifacts
+  # Provides cryptographic proof of build integrity using Sigstore
   attestation:
     name: Generate Attestations
     needs: [build-binaries]
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
-      attestations: write
+      id-token: write  # Required for Sigstore keyless signing
+      attestations: write  # Required for GitHub attestations
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
@@ -373,12 +383,14 @@ jobs:
           path: changelog.md
           retention-days: 7
 
+  # Creates GitHub release with binaries, signatures, and SBOM
+  # Waits for all artifacts to be ready before publishing
   publish-release:
     name: Publish GitHub Release
     needs: [prepare-release, build-binaries, attestation, security-scan, generate-changelog]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write  # Required to create releases
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -463,6 +475,8 @@ jobs:
             release-artifacts/security-reports/*
           generate_release_notes: false
 
+  # Publishes the crate to crates.io after GitHub release succeeds
+  # Can be skipped via workflow_dispatch input for testing
   publish-crate:
     name: Publish to crates.io
     needs: [publish-release]
