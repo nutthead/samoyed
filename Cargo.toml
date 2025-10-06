@@ -1,6 +1,6 @@
 [package]
 name = "samoyed"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["Behrang Saeedzadeh <hello@behrang.org>"]
 edition = "2024"
 rust-version = "1.90.0"
