@@ -80,7 +80,7 @@ jobs:
       # Analyzes commits since last release and creates/updates version bump PR
       # Uses conventional commits to determine version bump (major/minor/patch)
       - name: Run release-plz
-        uses: MarcoIeni/release-plz-action@acb9246af4d59a270d1d4058a8b9af8c3f3a2559 # v0.5.117
+        uses: MarcoIeni/release-plz-action@d529f731ae3e89610ada96eda34e5c6ba3b12214 # v0.5.118
         env:
           GITHUB_TOKEN: ${{ secrets.NH_RELEASE_PLZ_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
